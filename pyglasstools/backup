@@ -1,0 +1,23 @@
+"""
+def getDensityAF(trajpos,snapshots,kpeak,k_sample,n_particles,boxsize,mode="fft",filename="fsk.txt"):
+    theta = np.linspace(0,2*np.pi-1e-3,k_sample)
+    wavek = np.zeros((k_sample,3),dtype=np.float32)
+    for i in range(k_sample): 
+        wavek[i,0] = kpeak*np.cos(theta[i])
+        wavek[i,1] = kpeak*np.sin(theta[i])
+        wavek[i,2] = 0
+    
+    #print("Computing Particle Positions corrected by Periodic Boundary Conditions")
+    #trajpos =  correctPositions(trajpos,n_particles,snapshots,boxsize)
+    AC = getGlobalCorrelFunc(trajpos,snapshots,n_particles,wavek,k_sample,localdensity,mode)
+    
+    print("Writing Output to {}".format(filename))
+    with open("{}".format(filename),"w") as file:
+        file.write("rho(k,t)*rho(-k,t) with k = {} \n".format(kpeak))
+        file.write("Frame Val \n")
+        for i in range(snapshots):
+            file.write("{} {} \n".format(i, np.abs(AC[i])))
+            file.flush()
+            os.fsync(file.fileno())
+    return AC
+"""

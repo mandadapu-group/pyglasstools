@@ -17,4 +17,3 @@ To install:
 $ cd /path/to/pyglasstools/
 $ python -m pip install .
 ```
-- 

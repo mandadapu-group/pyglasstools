@@ -9,7 +9,7 @@ Supported calculations include the following:
 - Autocorrelation functions such as the intermediate scattering function and stress autocorrelation functions.
 - (Coming Soon) Normal mode analysis & local elasticity constant calculations.
 
-More documentation will come soon!
+More documentation on how to use the module will come soon!
 
 To install:
 

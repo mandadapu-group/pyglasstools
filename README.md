@@ -2,7 +2,7 @@
 
 PyGlassTools is a Python module that compiles a couple of calculations that I routinely do when analyzing atomistic trajectories, particularly supercooled liquids and glasses.
 
-FLexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids.
+Flexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids.
 
 Supported calculations include the following:
 - Local Irving-Kirkwood stress calculations given an arbitrary pair potential.

@@ -2,18 +2,4 @@
 
 PyGlassTools is a Python module that compiles a couple of calculations that I routinely do when analyzing atomistic trajectories, particularly supercooled liquids and glasses.
 
-FLexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids.
-
-Supported calculations include the following:
-- Local Irving-Kirkwood stress calculations given an arbitrary pair potential.
-- Autocorrelation functions such as the intermediate scattering function and stress autocorrelation functions.
-- (Coming Soon) Normal mode analysis & local elasticity constant calculations.
-
-More documentation on how to use the module will come soon!
-
-To install:
-
-```console
-$ cd /path/to/pyglasstools/
-$ python -m pip install .
-```
+This is a (highly) experimental version for development purposes. Do not git pull/clone unless you are confident with what you're doing! Current development in place is to construct a C++ backend that is also highly efficient

@@ -9,6 +9,9 @@
 *.hpp
 *.hh
 
+# Any compiled C++ code (for now)
+*.o
+
 # Setuptools distribution folder.
 /dist/
 

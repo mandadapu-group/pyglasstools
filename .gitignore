@@ -1,6 +1,14 @@
 # Compiled python modules.
 *.pyc
 
+# Any C++ source files (for now)
+*.cc
+*.h
+*.cpp
+*.c
+*.hpp
+*.hh
+
 # Setuptools distribution folder.
 /dist/
 

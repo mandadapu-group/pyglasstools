@@ -5,6 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_MODULE_PATH})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(SetupPybind11.cmake)
+include(CompilerFlagsSetup.cmake)
 
 
 # plugins must be built as shared libraries

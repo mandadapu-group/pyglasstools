@@ -1,3 +1,5 @@
-#maintainer: Muhammad R. Hasyim
-from .ComputeFields import *
-from .CorrelationAnalysis import *
+""" PyGlassTools python API
+"""
+from pyglasstools import _pyglasstools;
+from pyglasstools import utils;
+

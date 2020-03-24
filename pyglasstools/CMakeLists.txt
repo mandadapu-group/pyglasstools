@@ -21,7 +21,7 @@ install(TARGETS _${COMPONENT_NAME}
 MACRO(copy_file file)
     add_custom_command (
         OUTPUT ${file}
-        POST_BUILD
+        PRE_BUILD
         COMMAND    ${CMAKE_COMMAND}
         ARGS       -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}
         COMMENT    "Copy pyglasstools/${COMPONENT_NAME}/${file}"
@@ -30,6 +30,7 @@ ENDMACRO(copy_file)
 
 set(files   __init__.py
             utils.py
+            potential.py
     )
 
 install(FILES ${files}

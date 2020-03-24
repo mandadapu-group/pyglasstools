@@ -1,6 +1,6 @@
 #include "SimBox.h"
-#include "AllPluginPairPotentials.h"
-#include "PairPotential.h"
+//#include "ListofPairPotentials.h"
+//#include "PairPotential.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 //! Create the python module
@@ -11,5 +11,5 @@
 PYBIND11_MODULE(_pyglasstools, m)
     {
     export_SimBox(m);
-    export_PotentialPair<PotentialPairLJPlugin>(m, "PotentialPairLJPlugin");
+    //export_PotentialPair<PotentialPairLJPlugin>(m, "PotentialPairLJPlugin");
     }

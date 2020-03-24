@@ -6,6 +6,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(SetupPybind11.cmake)
 
+
 # plugins must be built as shared libraries
 if (ENABLE_STATIC)
     message(SEND_ERROR "Plugins cannot be built against a statically compiled hoomd")

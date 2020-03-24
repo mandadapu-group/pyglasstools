@@ -3,7 +3,13 @@ set(COMPONENT_NAME pyglasstools)
 set(_${COMPONENT_NAME}_sources
     module-pyglasstools.cpp
     )
-                
+
+#Find EIGEN
+find_package( PkgConfig )
+pkg_check_modules( EIGEN3 REQUIRED eigen3 )
+include_directories( ${EIGEN3_INCLUDE_DIRS})
+message( ${EIGEN3_INCLUDE_DIRS} )
+               
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 
 # install the library
@@ -24,7 +30,7 @@ MACRO(copy_file file)
 ENDMACRO(copy_file)
 
 set(files   __init__.py
-            simbox.py
+            utils.py
     )
 
 install(FILES ${files}

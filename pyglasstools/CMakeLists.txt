@@ -8,7 +8,6 @@ set(_${COMPONENT_NAME}_sources
 find_package( PkgConfig )
 pkg_check_modules( EIGEN3 REQUIRED eigen3 )
 include_directories( ${EIGEN3_INCLUDE_DIRS})
-message( ${EIGEN3_INCLUDE_DIRS} )
                
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 

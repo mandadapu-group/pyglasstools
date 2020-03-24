@@ -10,7 +10,7 @@ include(CompilerFlagsSetup.cmake)
 
 # plugins must be built as shared libraries
 if (ENABLE_STATIC)
-    message(SEND_ERROR "Plugins cannot be built against a statically compiled hoomd")
+    message(SEND_ERROR "Needs to be built as shared library!")
 endif (ENABLE_STATIC)
 
 set(BUILD_SHARED_LIBS on)
@@ -20,7 +20,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 set(PYTHON_MODULE_BASE_DIR ${CMAKE_INSTALL_PREFIX})
-message(STATUS "Install plugin to: " ${PYTHON_MODULE_BASE_DIR})
+message(STATUS "Install module to: " ${PYTHON_MODULE_BASE_DIR})
 
 # add subdirectories
 add_subdirectory(${PROJECT_NAME})

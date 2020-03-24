@@ -2,15 +2,18 @@
 *.pyc
 
 # Any C++ source files (for now)
-*.cc
-*.h
-*.cpp
-*.c
-*.hpp
-*.hh
+#*.cc
+#*.h
+#*.cpp
+#*.c
+#*.hpp
+#*.hh
 
 # Any compiled C++ code (for now)
 *.o
+
+#Any swap file I generated when using VIM
+*.swp
 
 # Setuptools distribution folder.
 /dist/
@@ -21,6 +24,8 @@ __pycache__/
 #ignore the folder called build anywhere, but not files called build
 build/
 build/*
+test-py/
+test-py/*
 
 # Python egg metadata, regenerated from source files by setuptools.
 /*.egg

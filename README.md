@@ -7,3 +7,5 @@ This is a (highly) experimental version for development purposes. **Do not git p
 Update (03/23/2020): Implemented simulation box class
 
 Update (03/24/2020): Implemented pair potential and coarse graining function classes
+
+Update (03/25/2020): Implemented system data class

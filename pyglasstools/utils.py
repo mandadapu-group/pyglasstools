@@ -50,3 +50,41 @@ class simbox(object):
 
     def __str__(self):
         return 'Simulation Box: Lx=' + str(self.Lx) + ' Ly=' + str(self.Ly) + ' Lz=' + str(self.Lz) + ' ndim=' + str(self.ndim);
+
+class data(object):
+    R""" Object to store particle data
+
+    """
+    def __init__(self, diameter, mass, position, velocity, mode=None):
+
+        self.diameter = diameter
+        self.mass = mass
+        self.position = position
+        self.velocity = velocity
+        
+        # create the c++ mirror class
+        self.particledata = _pyglasstools.SystemData(self.diameter,self.mass,self.position,self.velocity);
+
+    def set_diameters(self,diameter):
+        self.particledata.setDiameter(diameter.astype('float64'))
+    
+    def get_diameters(self):
+        return self.particledata.getDiameter()
+    
+    def set_mass(self,mass):
+        self.particledata.setMass(mass.astype('float64'))
+    
+    def get_mass(self):
+        return self.particledata.getMass()
+    
+    def set_position(self,position):
+        self.particledata.setAtomPosition(position.astype('float64'))
+    
+    def get_position(self):
+        return self.particledata.getAtomPosition()
+    
+    def set_velocity(self,velocity):
+        self.particledata.setAtomVelocity(velocity.astype('float64'))
+    
+    def get_velocity(self):
+        return self.particledata.getAtomVelocity()

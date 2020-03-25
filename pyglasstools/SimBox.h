@@ -11,15 +11,7 @@ using namespace Eigen;
 class PYBIND11_EXPORT SimBox
 {
     public:
-        //A dummy constructor, just to have something setup when virtually no argument is given
-        SimBox()
-        {
-            m_dim = 3; //default constructor will always give 3
-            m_L = Vector3d::Zero(1.0);    //.fill(0);
-            setL();
-            m_periodic = Vector3i::Constant(1);//fill(1);
-        };
-
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //! Constructs a box from -Len/2 to Len/2
         /*! \param Len Length of one side of the box
             \post Box ranges from \c -Len/2 to \c +Len/2 in all 3 dimensions
@@ -48,7 +40,6 @@ class PYBIND11_EXPORT SimBox
         };
         
         ~SimBox(){};
-
 
         //! Set the periodic flags
         /*! \param periodic Flags to set
@@ -153,6 +144,8 @@ class PYBIND11_EXPORT SimBox
         }
 
     private:
+        Matrix<double, Dynamic, 3, ColMajor> m_gridposition;
+          
         Vector3d m_L;       //!< L precomputed (used to avoid subtractions in boundary conditions)
         Vector3d m_Lmin;       //!< L precomputed (used to avoid subtractions in boundary conditions)
         Vector3d m_Lmax;       //!< minimum value of L, per coordinate precomputed

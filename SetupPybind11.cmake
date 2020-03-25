@@ -5,7 +5,6 @@ set(PYBIND11_PYTHON_VERSION 3)
 
 # trick pybind11 tools to allow us to manage C++ flags
 # cmake ignores this in 2.8, but when pybind11 sees this
-set(CMAKE_CXX_STANDARD 11)
 
 #pybind11 has a cmake file to configure compatible c++ flags
 include(pybind11Tools)

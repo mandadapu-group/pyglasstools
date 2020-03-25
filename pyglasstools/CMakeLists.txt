@@ -8,13 +8,17 @@ set(_${COMPONENT_NAME}_sources
 find_package( PkgConfig )
 pkg_check_modules( EIGEN3 REQUIRED eigen3 )
 include_directories( ${EIGEN3_INCLUDE_DIRS})
-               
+
+#Find GSL
+find_package(GSL REQUIRED)   
+
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 
 # install the library
 install(TARGETS _${COMPONENT_NAME} 
         LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
         )
+target_link_libraries(_${COMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
     ################ Python only modules
 # copy python modules to the build directory to make it a working python package
@@ -31,6 +35,7 @@ ENDMACRO(copy_file)
 set(files   __init__.py
             utils.py
             potential.py
+            cgfunc.py
     )
 
 install(FILES ${files}

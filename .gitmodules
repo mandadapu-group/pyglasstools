@@ -1,0 +1,6 @@
+[submodule "pyglasstools/extern/Aboria"]
+	path = pyglasstools/extern/Aboria
+	url = https://github.com/aboria/Aboria.git
+[submodule "pyglasstools/extern/pybind11"]
+	path = pyglasstools/extern/pybind11
+	url = https://github.com/pybind/pybind11

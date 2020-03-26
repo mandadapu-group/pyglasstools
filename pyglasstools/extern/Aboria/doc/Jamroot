@@ -1,0 +1,51 @@
+import quickbook ;
+import boostbook ;
+import doxygen ;
+import modules ;
+
+doxygen autodoc
+  :
+    ../src/Aboria.h
+    ../src/Particles.h
+    ../src/Variable.h
+    ../src/DataVector.h
+    ../src/CellListOrdered.h
+    ../src/Functions.h
+    ../src/Log.h
+    ../src/Symbolic.h
+    ../src/Traits.h
+    ../src/Get.h
+    ../src/Assemble.h
+    ../src/Operators.h
+    ../src/Vector.h
+  :
+    <doxygen:param>QUIET=YES
+    <doxygen:param>WARNINGS=YES
+    <doxygen:param>WARN_IF_DOC_ERROR=YES
+    <doxygen:param>EXTRACT_ALL=NO
+    <doxygen:param>EXTRACT_PRIVATE=NO
+    <doxygen:param>HIDE_UNDOC_MEMBERS=YES
+    <doxygen:param>HIDE_UNDOC_CLASSES=YES
+    <doxygen:param>SORT_MEMBER_DOCS=NO
+    <doxygen:param>MACRO_EXPANSION=YES
+    <doxygen:param>TAB_SIZE=4
+    <doxygen:param>EXAMPLE_PATH=../
+    <doxygen:param>PREDEFINED="BOOST_COMPUTE_DOXYGEN_INVOKED HAVE_EIGEN HAVE_THRUST HAVE_VTK" 
+
+  ;
+
+xml aboria : aboria.qbk : ;
+
+boostbook standalone
+    :
+      aboria
+    :
+      <dependency>autodoc
+      <xsl:param>boost.image.src=images/aboria2.jpg
+      <xsl:param>boost.image.alt="\"Aboria\""
+      <xsl:param>boost.image.w=200
+      <xsl:param>boost.image.h=62
+      <xsl:param>boost.mathjax=1
+      <xsl:param>chunk.section.depth=1
+      <xsl:param>nav.layout=none
+    ;

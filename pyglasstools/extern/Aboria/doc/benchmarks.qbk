@@ -1,0 +1,34 @@
+
+[section Benchmarks]
+
+
+[import ../tests/speed_test.h]
+
+[section Vector Addition]
+
+[vector_addition]
+
+[endsect]
+
+[section DAXPY]
+
+[daxpy_run]
+
+[endsect]
+
+[section Dense non-linear operator]
+
+[multiquadric]
+
+[endsect]
+
+[section Neighbour search non-linear operator]
+
+[linear_spring]
+
+[endsect]
+
+
+[endsect]
+
+

@@ -1,6 +1,5 @@
 #include "SimBox.h"
-//#include "ParticleSystem.h"
-#include "SystemData.h"
+#include "ParticleSystem.h"
 #include "PairPotential.h"
 #include "Quadrature.h"
 #include "CoarseGrainFunction.h"
@@ -9,6 +8,7 @@
 
 //Typedefs several pair potentials here
 typedef PairPotential<LennardJones> PairPotentialLJ;
+typedef ParticleSystem<PairPotentialLJ> LennardJonesSystem;
 typedef PairPotential<ForceShiftedLennardJones> PairPotentialForceShiftedLJ;
 
 //Typedefs several coarsegrain functions  here
@@ -22,10 +22,11 @@ typedef CoarseGrainFunction<Octic> OcticFunc;
 PYBIND11_MODULE(_pyglasstools, m)
 {
     export_SimBox(m);
-    export_SystemData(m);
     //export_ParticleSystem(m);
     
     export_PairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
+    export_ParticleSystem<LennardJonesSystem, PairPotentialLJ>(m, "LennardJonesSystem");
+    
     export_PairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
     
     export_CoarseGrainFunction<OcticFunc>(m, "OcticFunc");

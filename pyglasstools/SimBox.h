@@ -80,6 +80,7 @@ class PYBIND11_EXPORT SimBox
         {
             return m_L;
         }
+
         Vector3d getLmax() const
         {
             return m_Lmax;
@@ -102,55 +103,6 @@ class PYBIND11_EXPORT SimBox
         int getDim() const
         {
             return m_dim;
-        }
-
-        //! Apply periodic boundary conditions to a vector
-        Vector3d applyPBC(const Vector3d v)
-        {
-            Vector3d w = v;
-            //A bunch of if else statements here
-            //z-direction
-            if (m_periodic[2])
-                w[2] -=  round(w[2] /m_L[2]) * m_L[2];
-            //y-direction
-            if (m_periodic[1])
-                w[1] -=  round(w[1] /m_L[1]) * m_L[1];
-            //x-direction
-            if (m_periodic[0])
-                w[0] -=  round(w[0] /m_L[0]) * m_L[0];
-            /*
-            if (m_periodic[2])
-            {
-                if (w[2] >= m_Lmax[2])
-                    w[2] -= m_L[2];
-                else if (w[2] < m_Lmin[2])
-                    w[2] += m_L[2];
-            }
-            //y-direction
-            if (m_periodic[1])
-            {
-                if (w[1] >= m_Lmax[1])
-                    w[1] -= m_L[1];
-                else if (w[1] < m_Lmin[1])
-                    w[1] += m_L[1];
-            }
-            //x-direction
-            if (m_periodic[0])
-            {
-                if (w[0] >= m_Lmax[0])
-                {
-                    w[0] -= m_L[0];
-                    //py::print(w[0]);
-                }
-                else if (w[0] < m_Lmin[0])
-                {
-                    w[0] += m_L[0];
-                    //py::print(w[0]);
-                }
-            }
-            */
-            //py::print(w[0],w[1],w[2]);
-            return w;
         }
 
         //! Get the volume of the box
@@ -186,7 +138,6 @@ void export_SimBox(py::module& m)
     .def("setPeriodic", &SimBox::setPeriodic)
     .def("getL", &SimBox::getL)
     .def("setL", &SimBox::setL)
-    .def("applyPBC", &SimBox::applyPBC)//minImage_overload)
     .def("getDim", &SimBox::getDim)
     .def("setDim", &SimBox::setDim)
     .def("getVolume", &SimBox::getVolume)

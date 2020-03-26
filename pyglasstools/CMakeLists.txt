@@ -1,7 +1,6 @@
 set(COMPONENT_NAME pyglasstools)
 
 set(_${COMPONENT_NAME}_sources
-    ./extern/aabbcc/src/AABB.cc
     module-pyglasstools.cpp
     )
 

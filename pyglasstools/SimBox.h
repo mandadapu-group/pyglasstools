@@ -2,46 +2,58 @@
 #ifndef __SIMBOX_H__
 #define __SIMBOX_H__
 
-#include <Eigen/Dense>
 #include <cmath>
+#include "MathSTLVectors.h"
+
 #include "extern/pybind11/include/pybind11/pybind11.h"
-#include "extern/pybind11/include/pybind11/eigen.h"
+#include "extern/pybind11/include/pybind11/stl.h"
 namespace py = pybind11;
-using namespace Eigen;
 
 class PYBIND11_EXPORT SimBox
 {
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        //! Constructs a box from -Len/2 to Len/2
-        /*! \param Len Length of one side of the box
-            \post Box ranges from \c -Len/2 to \c +Len/2 in all 3 dimensions
+        //! Constructs a box from -m_boxsize/2 to m_boxsize/2
+        /*! \param m_boxsize m_boxsizegth of one side of the box
+            \post Box ranges from \c -m_boxsize/2 to \c +m_boxsize/2 in all 3 dimensions
             \post periodic = (1,1,1)
         */
-        SimBox(double Len, int dim)
+        SimBox(const double& boxsize, const std::vector<double>& origin, const int& _dim)
         {
-            m_dim = dim;
-            m_L = Vector3d::Constant(Len);    //.fill(0);
-            setL();
-            m_periodic = Vector3i::Constant(1);//fill(1);
-            if (dim < 3)
+            dim = _dim;
+            m_origin = origin;
+            m_boxsize.resize(3);
+            std::fill(m_boxsize.begin(),m_boxsize.end(),boxsize);    //.fill(0);
+            setBounds();
+            m_periodic.resize(3);
+            std::fill(m_periodic.begin(),m_periodic.end(),(int)1);    //.fill(0);
+            if (dim == 2)
+            {
+                m_boxsize[2] = 1.0;
                 m_periodic[2] = 0;
+                m_origin[2] = 0.0; //assert the zero in third axis of origin
+            }
         };
 
-        //! Constructs a box from -Len_x/2 to Len_x/2 for each dimension
-        /*! \param Len_x Length of the x dimension of the box
-            \param Len_y Length of the x dimension of the box
-            \param Len_z Length of the x dimension of the box
+        //! Constructs a box from -m_boxsize_x/2 to m_boxsize_x/2 for each dimension
+        /*! \param m_boxsize_x m_boxsizegth of the x dimension of the box
+            \param m_boxsize_y m_boxsizegth of the x dimension of the box
+            \param m_boxsize_z m_boxsizegth of the x dimension of the box
             \post periodic = (1,1,1)
         */
-        SimBox(double Len_x, double Len_y, double Len_z, int dim)
+        SimBox(const std::vector<double>& boxsize, const std::vector<double>& origin, const int& _dim)
         {
-            m_dim = dim;
-            m_L << Len_x, Len_y, Len_z;
-            setL();
-            m_periodic = Vector3i::Constant(1);//fill(1);
-            if (dim < 3)
+            dim = _dim;
+            m_origin = origin;
+            m_boxsize = boxsize;//.fill(boxsize);    //.fill(0);
+            setBounds();
+            m_periodic.resize(3);
+            std::fill(m_periodic.begin(),m_periodic.end(),(int)1);    //.fill(0);
+            if (dim == 2)
+            {
+                m_boxsize[2] = 1.0;
                 m_periodic[2] = 0;
+                m_origin[2] = 0.0; //assert the zero in third axis of origin
+            }
         };
         
         ~SimBox(){};
@@ -51,7 +63,7 @@ class PYBIND11_EXPORT SimBox
             \post Period flags are set to \a periodic
             \note It is invalid to set 1 for a periodic dimension where lo != -hi. This error is not checked for.
         */
-        void setPeriodic(const Vector3i& periodic)
+        void setPeriodic(const std::vector<int>& periodic)
         {
             m_periodic = periodic;
         };
@@ -59,72 +71,86 @@ class PYBIND11_EXPORT SimBox
         //! Get the periodic flags
         /*! \return Periodic flags
         */
-        Vector3i getPeriodic() const
+        const std::vector<int> getPeriodicVec()
         {
             return m_periodic;
+        };
+        bool getPeriodic(unsigned int i)
+        {
+            return (bool)m_periodic[i];
         };
 
 
         //! Update the box length
         /*! \param L new box length in each direction
         */
-        void setL()
+        void setBounds()
         {
-            m_Lmax = m_L/2.0;//Scalar(2.0);
-            m_Lmin = -m_Lmax;
+            m_upperbound = 0.5*m_boxsize-m_origin;
+            m_lowerbound = (-1.0)*m_upperbound-2.0*m_origin;
         }
         //! Get the length of the box in each direction
         /*! \returns The length of the box in each direction (hi - lo)
         */
-        Vector3d getL() const
+        std::vector<double> getBoxSizeVec() const
         {
-            return m_L;
+            return m_boxsize;
         }
 
-        Vector3d getLmax() const
+        std::vector<double> getUpperBoundVec() const
         {
-            return m_Lmax;
+            return m_upperbound;
         }
-        Vector3d getLmin() const
+        double getUpperBound(unsigned int i) const
         {
-            return m_Lmin;
+            return m_upperbound[i];
+        }
+        
+        std::vector<double> getLowerBoundVec() const
+        {
+            return m_lowerbound;
+        }
+        double getLowerBound(unsigned int i) const
+        {
+            return m_lowerbound[i];
         }
         
         //! Update the box length
         /*! \param L new box length in each direction
         */
-        void setDim(const int &dim)
+        void setDim(const int& _dim)
         {
-            m_dim = dim;
+            dim = _dim;
         }
         //! Get the length of the box in each direction
         /*! \returns The length of the box in each direction (hi - lo)
         */
-        int getDim() const
+        const int getDim()
         {
-            return m_dim;
+            return dim;
         }
 
         //! Get the volume of the box
         /*! \returns the volume
          *  \param twod If 1, return the area instead of the volume
          */
-        double getVolume()
+        const double getVolume()
         {
-            if (m_dim == 2)
-                return m_L[0]*m_L[1];
+            if (dim == 2)
+                return m_boxsize[0]*m_boxsize[1];
             else
-                return m_L[0]*m_L[1]*m_L[2];
+                return m_boxsize[0]*m_boxsize[1]*m_boxsize[2];
         }
 
     private:
-        Matrix<double, Dynamic, 3, ColMajor> m_gridposition;
           
-        Vector3d m_L;       //!< L precomputed (used to avoid subtractions in boundary conditions)
-        Vector3d m_Lmin;       //!< L precomputed (used to avoid subtractions in boundary conditions)
-        Vector3d m_Lmax;       //!< minimum value of L, per coordinate precomputed
-        Vector3i m_periodic; //!< 0/1 in each direction to tell if the box is periodic in that direction
-        int m_dim;
+        int dim;
+        std::vector<double> m_origin;
+        std::vector<double> m_boxsize;       //!< L precomputed (used to avoid subtractions in boundary conditions)
+        std::vector<double> m_lowerbound;       //!< L precomputed (used to avoid subtractions in boundary conditions)
+        std::vector<double> m_upperbound;       //!< minimum value of L, per coordinate precomputed
+        std::vector<int> m_periodic; //!< 0/1 in each direction to tell if the box is periodic in that direction
+        //Matrix<double, Dynamic, 3, ColMajor> m_gridposition;
 };
 
 // I might need to do something special since I'm using Eigen types
@@ -132,12 +158,13 @@ class PYBIND11_EXPORT SimBox
 void export_SimBox(py::module& m)
 {
     py::class_<SimBox, std::shared_ptr<SimBox> >(m,"SimBox")
-    .def(py::init<double, int>())
-    .def(py::init<double, double, double, int>())
+    .def(py::init<double, std::vector<double>, int>())
+    .def(py::init<std::vector<double>, std::vector<double>, int>())
     .def("getPeriodic", &SimBox::getPeriodic)
     .def("setPeriodic", &SimBox::setPeriodic)
-    .def("getL", &SimBox::getL)
-    .def("setL", &SimBox::setL)
+    .def("getBoxSizeVec", &SimBox::getBoxSizeVec)
+    .def("getUpperBoundVec", &SimBox::getUpperBoundVec)
+    .def("getLowerBoundVec", &SimBox::getLowerBoundVec)
     .def("getDim", &SimBox::getDim)
     .def("setDim", &SimBox::setDim)
     .def("getVolume", &SimBox::getVolume)

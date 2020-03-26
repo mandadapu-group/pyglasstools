@@ -6,22 +6,18 @@ class simbox(object):
     R""" Define box ndim.
 
     """
-    def __init__(self, Lx=1.0, Ly=1.0, Lz=1.0, ndim=3, L=None, volume=None):
-        if L is not None:
-            Lx = L;
-            Ly = L;
-            Lz = L;
-
+    def __init__(   self, Lx=1.0, Ly=1.0, Lz=1.0,
+                    origin=np.zeros(3).astype('float64'), 
+                    ndim=3, L=None, volume=None):
+        #check dimensions first
         if ndim == 2:
             Lz = 1.0;
-
-        self.Lx = Lx;
-        self.Ly = Ly;
-        self.Lz = Lz;
-        self.ndim = ndim;
-        self.SimBox = _pyglasstools.SimBox(self.Lx, self.Ly, self.Lz, self.ndim);
-        if volume is not None:
-            self.set_volume(volume);
+        #Initialize the box
+        if L is not None:
+            self.SimBox = _pyglasstools.SimBox(L,origin,ndim);
+        else:
+            boxsize = np.array([Lx,Ly,Lz])#.astype('float64')
+            self.SimBox = _pyglasstools.SimBox(boxsize,origin,ndim);
 
     ## \internal
     # \brief Get a C++ boxdim
@@ -29,29 +25,27 @@ class simbox(object):
         return self.SimBox
 
     def get_volume(self):
-        R""" Get the box volume.
-
-        Returns:
-            The box volume (area in 2D).
-        """
         return self.SimBox.getVolume();
     
     def get_dim(self):
-        R""" Get the box volume.
-
-        Returns:
-            The box volume (area in 2D).
-        """
         return self.SimBox.getDim();
+    
+    def get_boxsizevec(self):
+        return self.SimBox.getBoxSizeVec();
+    
+    def get_upperboundvec(self):
+        return self.SimBox.getUpperBoundVec();
+    
+    def get_lowerboundvec(self):
+        return self.SimBox.getLowerBoundVec();
 
-    def __str__(self):
-        return 'Simulation Box: Lx=' + str(self.Lx) + ' Ly=' + str(self.Ly) + ' Lz=' + str(self.Lz) + ' ndim=' + str(self.ndim);
 
 class data(object):
     R""" Object to store particle data
 
     """
-    def __init__(self, diameter, mass, position, velocity, simbox, pairpotential,mode=None):
+    def __init__(   self, diameter, mass, position, velocity, 
+                    simbox, pairpotential):
 
         self.diameter = diameter
         self.mass = mass
@@ -59,19 +53,17 @@ class data(object):
         self.velocity = velocity
         
         # create the c++ mirror class
-        if (pairpotential.get_potentialname() == "lennard-jones"): 
-            self.particledata = _pyglasstools.LennardJonesSystem(   len(diameter),
-                                                                    self.diameter,
-                                                                    self.mass,
-                                                                    self.position,
-                                                                    self.velocity, 
-                                                                    simbox._getSimBox(), 
-                                                                    pairpotential._getPairPotential()
-                                                                    );
-        else:
-            raise NameError("The specified potential is not part of the potential list")
+        self.particledata = _pyglasstools.ParticleSystem(   len(diameter),
+                                                            self.diameter,
+                                                            self.mass,
+                                                            self.position,
+                                                            self.velocity, 
+                                                            simbox._getSimBox(), 
+                                                            pairpotential._getPairPotential()
+                                                            );
     def _getSystemData(self):
         return self.particledata
+    
     def set_diameters(self,diameter):
         self.particledata.setDiameter(diameter.astype('float64'))
     

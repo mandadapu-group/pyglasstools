@@ -24,7 +24,10 @@ class lj(object):
             raise NameError('Please select a Lennard-Jones potential available modes: truncated and force-shifted are available')
         else:
             raise NameError('Lennard jones potential mode not recognized. Only: truncated and force-shifted are available')
-
+    def _getPairPotential(self):
+        return self.pairpotential
+    def get_potentialname(seld):
+        return "lennard-jones"
     def set_diameters(self,diameter_i, diameter_j):
         self.pairpotential.setDiameters(diameter_i,diameter_j)
     

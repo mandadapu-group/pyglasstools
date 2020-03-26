@@ -1,6 +1,7 @@
 #implements the Simulation Box Class we've defined on the C++ side
 from pyglasstools import _pyglasstools
 import pyglasstools
+import numpy as np
 
 class simbox(object):
     R""" Define box ndim.
@@ -55,7 +56,7 @@ class data(object):
     R""" Object to store particle data
 
     """
-    def __init__(self, diameter, mass, position, velocity, mode=None):
+    def __init__(self, diameter, mass, position, velocity, simbox, mode=None):
 
         self.diameter = diameter
         self.mass = mass
@@ -63,8 +64,9 @@ class data(object):
         self.velocity = velocity
         
         # create the c++ mirror class
-        self.particledata = _pyglasstools.SystemData(self.diameter,self.mass,self.position,self.velocity);
-
+        self.particledata = _pyglasstools.SystemData(len(diameter),self.diameter,self.mass,self.position,self.velocity, simbox._getSimBox());
+    def _getSystemData(self):
+        return self.particledata
     def set_diameters(self,diameter):
         self.particledata.setDiameter(diameter.astype('float64'))
     
@@ -88,3 +90,20 @@ class data(object):
     
     def get_velocity(self):
         return self.particledata.getAtomVelocity()
+    
+    def get_neighbors(self, point, radius):
+        return self.particledata.getNeighbors(point,radius)
+
+class system(object):
+    R""" Object to store system data, including particle and simulation box data
+
+    """
+    def __init__(self, simbox, sysdata):
+
+        # create the c++ mirror class
+        self.particlesystem = _pyglasstools.ParticleSystem(simbox._getSimBox(),sysdata._getSystemData());
+
+    def get_neighborsid(self,position,radius):
+        if (len(position) < 3):
+            position = np.append(position,0)
+        return self.particlesystem.getNeighborsID(position.astype('float64'),radius)

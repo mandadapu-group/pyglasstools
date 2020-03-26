@@ -1,15 +1,15 @@
 #ifndef __SYSTEM_DATA_H__
 #define __SYSTEM_DATA_H__
 
-//#include "extern/aabbcc/src/AABB.h"
-#include <Eigen/Dense>
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include "extern/pybind11/include/pybind11/stl.h"
+#include "PairPotential.h"
+#include "SimBox.h"
 #include <Aboria.h>
 namespace py = pybind11;
 using namespace Aboria;
 
-template<class PairPotentialModel>
+//template<class PairPotential>
 class PYBIND11_EXPORT ParticleSystem
 {
     public:
@@ -19,9 +19,11 @@ class PYBIND11_EXPORT ParticleSystem
         typedef typename Particles< std::tuple<velocity, diameter, mass> >::position position;        
         
         ParticleSystem( unsigned int numparticles, std::vector<double> atomdiameter, 
-                    std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
-                    std::vector< std::vector<double> > atomvelocity, std::shared_ptr< SimBox > simbox, std::shared_ptr< PairPotentialModel > potential)
-        :   m_numparticles(numparticles), m_particles(numparticles), m_atomposition(atomposition), m_atomvelocity(atomvelocity), m_simbox(simbox), m_potential(potential) 
+                        std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
+                        std::vector< std::vector<double> > atomvelocity, std::shared_ptr< SimBox > simbox, 
+                        std::shared_ptr< PairPotential > potential)
+                        :   m_numparticles(numparticles), m_particles(numparticles), m_atomposition(atomposition), 
+                            m_atomvelocity(atomvelocity), m_simbox(simbox), m_potential(potential) 
         {
             get<diameter>(m_particles) = atomdiameter;
             get<mass>(m_particles) = atommass;
@@ -30,9 +32,9 @@ class PYBIND11_EXPORT ParticleSystem
                 get<position>(m_particles[i]) = vdouble3(atomposition[i][0],atomposition[i][1],atomposition[i][2]);
                 get<velocity>(m_particles[i]) = vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
             }
-            vdouble3 boxmax = vdouble3(m_simbox->getLmax()[0],m_simbox->getLmax()[1],m_simbox->getLmax()[2]);
-            vdouble3 boxmin = vdouble3(m_simbox->getLmin()[0],m_simbox->getLmin()[1],m_simbox->getLmin()[2]);
-            vbool3 periodic = vbool3(m_simbox->getPeriodic()[0],m_simbox->getPeriodic()[1],m_simbox->getPeriodic()[2]);
+            vdouble3 boxmax = vdouble3(m_simbox->getUpperBound(0),m_simbox->getUpperBound(1),m_simbox->getUpperBound(2));
+            vdouble3 boxmin = vdouble3(m_simbox->getLowerBound(0),m_simbox->getLowerBound(1),m_simbox->getLowerBound(2));
+            vbool3 periodic = vbool3(m_simbox->getPeriodic(0),m_simbox->getPeriodic(1),m_simbox->getPeriodic(2));
             m_particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
         ~ParticleSystem(){};
@@ -123,15 +125,15 @@ class PYBIND11_EXPORT ParticleSystem
         std::vector< std::vector<double> > m_atomvelocity;        
         //The Simulation Box
         std::shared_ptr< SimBox> m_simbox; 
-        std::shared_ptr< PairPotentialModel > m_potential; 
+        std::shared_ptr< PairPotential > m_potential; 
 };
 
 //an export function here
-template < class T , class PairPotentialModel> void export_ParticleSystem(py::module& m, const std::string& name)
+template < class T > void export_ParticleSystem(py::module& m, const std::string& name)
 {
     py::class_<T, std::shared_ptr<T> >(m,name.c_str())
     .def(py::init<  unsigned int, std::vector<double>, std::vector<double>, 
-                    std::vector< std::vector<double> >, std::vector< std::vector<double> >, std::shared_ptr< SimBox >, std::shared_ptr< PairPotentialModel > >())
+                    std::vector< std::vector<double> >, std::vector< std::vector<double> >, std::shared_ptr< SimBox >, std::shared_ptr< PairPotential > >())
     .def("getMass", &T::getMass)
     .def("setMass", &T::setMass)
     .def("getDiameter", &T::getDiameter)

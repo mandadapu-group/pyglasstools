@@ -7,9 +7,9 @@
 #include "extern/pybind11/include/pybind11/pybind11.h"
 
 //Typedefs several pair potentials here
-typedef PairPotential<LennardJones> PairPotentialLJ;
-typedef ParticleSystem<PairPotentialLJ> LennardJonesSystem;
-typedef PairPotential<ForceShiftedLennardJones> PairPotentialForceShiftedLJ;
+typedef ShortRangePairPotential<LennardJones> PairPotentialLJ;
+//typedef ParticleSystem<PairPotentialLJ> LennardJonesSystem;
+typedef ShortRangePairPotential<ForceShiftedLennardJones> PairPotentialForceShiftedLJ;
 
 //Typedefs several coarsegrain functions  here
 typedef CoarseGrainFunction<Octic> OcticFunc;
@@ -22,12 +22,12 @@ typedef CoarseGrainFunction<Octic> OcticFunc;
 PYBIND11_MODULE(_pyglasstools, m)
 {
     export_SimBox(m);
-    //export_ParticleSystem(m);
+    export_PairPotential(m);
+    export_ParticleSystem<ParticleSystem>(m, "ParticleSystem");
     
-    export_PairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
-    export_ParticleSystem<LennardJonesSystem, PairPotentialLJ>(m, "LennardJonesSystem");
+    export_ShortRangePairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
+    export_ShortRangePairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
     
-    export_PairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
     
     export_CoarseGrainFunction<OcticFunc>(m, "OcticFunc");
 }

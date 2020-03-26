@@ -14,6 +14,7 @@ template<class Distribution>
 class PYBIND11_EXPORT CoarseGrainFunction
 {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //Zero initialize 
         CoarseGrainFunction()  
             : m_rcut(0), m_x(Vector3d::Zero()), m_ri(Vector3d::Zero()), m_dr(Vector3d::Zero())

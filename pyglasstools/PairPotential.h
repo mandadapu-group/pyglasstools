@@ -13,6 +13,7 @@ template<class Model>
 class PYBIND11_EXPORT PairPotential
 {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //Zero initialize everything
         PairPotential(VectorXd _params)
             : m_di(0), m_dj(0), m_rij(Vector3d::Zero()), m_rcut(0), m_params(_params)

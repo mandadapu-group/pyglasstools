@@ -3,6 +3,7 @@
 #define __SIMBOX_H__
 
 #include <Eigen/Dense>
+#include <cmath>
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include "extern/pybind11/include/pybind11/eigen.h"
 namespace py = pybind11;
@@ -23,6 +24,8 @@ class PYBIND11_EXPORT SimBox
             m_L = Vector3d::Constant(Len);    //.fill(0);
             setL();
             m_periodic = Vector3i::Constant(1);//fill(1);
+            if (dim < 3)
+                m_periodic[2] = 0;
         };
 
         //! Constructs a box from -Len_x/2 to Len_x/2 for each dimension
@@ -37,6 +40,8 @@ class PYBIND11_EXPORT SimBox
             m_L << Len_x, Len_y, Len_z;
             setL();
             m_periodic = Vector3i::Constant(1);//fill(1);
+            if (dim < 3)
+                m_periodic[2] = 0;
         };
         
         ~SimBox(){};
@@ -75,6 +80,14 @@ class PYBIND11_EXPORT SimBox
         {
             return m_L;
         }
+        Vector3d getLmax() const
+        {
+            return m_Lmax;
+        }
+        Vector3d getLmin() const
+        {
+            return m_Lmin;
+        }
         
         //! Update the box length
         /*! \param L new box length in each direction
@@ -91,13 +104,21 @@ class PYBIND11_EXPORT SimBox
             return m_dim;
         }
 
-
         //! Apply periodic boundary conditions to a vector
         Vector3d applyPBC(const Vector3d v)
         {
             Vector3d w = v;
             //A bunch of if else statements here
             //z-direction
+            if (m_periodic[2])
+                w[2] -=  round(w[2] /m_L[2]) * m_L[2];
+            //y-direction
+            if (m_periodic[1])
+                w[1] -=  round(w[1] /m_L[1]) * m_L[1];
+            //x-direction
+            if (m_periodic[0])
+                w[0] -=  round(w[0] /m_L[0]) * m_L[0];
+            /*
             if (m_periodic[2])
             {
                 if (w[2] >= m_Lmax[2])
@@ -119,15 +140,16 @@ class PYBIND11_EXPORT SimBox
                 if (w[0] >= m_Lmax[0])
                 {
                     w[0] -= m_L[0];
-                    py::print(w[0]);
+                    //py::print(w[0]);
                 }
                 else if (w[0] < m_Lmin[0])
                 {
                     w[0] += m_L[0];
-                    py::print(w[0]);
+                    //py::print(w[0]);
                 }
             }
-            py::print(w[0],w[1],w[2]);
+            */
+            //py::print(w[0],w[1],w[2]);
             return w;
         }
 
@@ -157,7 +179,7 @@ class PYBIND11_EXPORT SimBox
 //an export function here
 void export_SimBox(py::module& m)
 {
-    py::class_<SimBox>(m,"SimBox")
+    py::class_<SimBox, std::shared_ptr<SimBox> >(m,"SimBox")
     .def(py::init<double, int>())
     .def(py::init<double, double, double, int>())
     .def("getPeriodic", &SimBox::getPeriodic)

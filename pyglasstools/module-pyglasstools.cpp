@@ -1,4 +1,5 @@
 #include "SimBox.h"
+//#include "ParticleSystem.h"
 #include "SystemData.h"
 #include "PairPotential.h"
 #include "Quadrature.h"
@@ -22,6 +23,8 @@ PYBIND11_MODULE(_pyglasstools, m)
 {
     export_SimBox(m);
     export_SystemData(m);
+    //export_ParticleSystem(m);
+    
     export_PairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
     export_PairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
     

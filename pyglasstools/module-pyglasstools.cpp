@@ -12,7 +12,7 @@ typedef ShortRangePairPotential<LennardJones> PairPotentialLJ;
 typedef ShortRangePairPotential<ForceShiftedLennardJones> PairPotentialForceShiftedLJ;
 
 //Typedefs several coarsegrain functions  here
-typedef CoarseGrainFunction<Octic> OcticFunc;
+typedef ShortRangeCGFunc<Octic> OcticFunc;
 
 //! Create the python module
 /*! each class setup their own python exports in a function export_ClassName
@@ -23,11 +23,12 @@ PYBIND11_MODULE(_pyglasstools, m)
 {
     export_SimBox(m);
     export_PairPotential(m);
-    export_ParticleSystem<ParticleSystem>(m, "ParticleSystem");
+    export_CoarseGrainFunction(m);
+    export_ParticleSystem(m);
     
     export_ShortRangePairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
     export_ShortRangePairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
     
     
-    export_CoarseGrainFunction<OcticFunc>(m, "OcticFunc");
+    export_ShortRangeCGFunc<OcticFunc>(m, "OcticFunc");
 }

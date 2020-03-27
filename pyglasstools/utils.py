@@ -53,13 +53,13 @@ class data(object):
         self.velocity = velocity
         
         # create the c++ mirror class
-        self.particledata = _pyglasstools.ParticleSystem(   len(diameter),
+        self.particledata = _pyglasstools.ParticleSystem(   simbox._getSimBox(), 
+                                                            pairpotential._getPairPotential(),
+                                                            len(diameter),
                                                             self.diameter,
                                                             self.mass,
                                                             self.position,
-                                                            self.velocity, 
-                                                            simbox._getSimBox(), 
-                                                            pairpotential._getPairPotential()
+                                                            self.velocity 
                                                             );
     def _getSystemData(self):
         return self.particledata

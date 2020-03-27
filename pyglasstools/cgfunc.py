@@ -31,9 +31,9 @@ class octic(object):
         return self.cgfunc.getRi()
     
     def set_dr(self,dr):
-        self.cgfunc.setDR(dr.astype('float64'))
+        self.cgfunc.setRij(dr.astype('float64'))
     def get_dr(self):
-        return self.cgfunc.getDR()
+        return self.cgfunc.getRij()
     
     def get_deltafunc(self):
         return self.cgfunc.getDeltaFunc()

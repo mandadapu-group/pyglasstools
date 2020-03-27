@@ -53,6 +53,17 @@ class PYBIND11_EXPORT PairPotential
         {
             return m_rij;//m_rij = rij;
         };
+        virtual void setRcut(double rcut)
+        {
+        };
+        virtual double getRcut()
+        {
+            return 0.0;
+        };
+        virtual bool checkRange(Vector3d dr)
+        {
+            return true;
+        };
 
         virtual void setParams(std::vector<double> params)
         {
@@ -101,6 +112,13 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
         {
             return m_rcut;
         };
+        virtual bool checkRange(Vector3d dr)
+        {
+            if (dr.dot(dr) < 0.25*m_rcut*m_rcut*(m_di+m_dj))
+                return true;
+            else
+                return false;
+        };
 
         //! Evaluate the force and energy
         double getPairForce()
@@ -130,7 +148,8 @@ void export_PairPotential(py::module& m)
     ;
 };
 
-template < class T > void export_ShortRangePairPotential(py::module& m, const std::string& name)
+template < class T > 
+void export_ShortRangePairPotential(py::module& m, const std::string& name)
 {
     py::class_<T, PairPotential, std::shared_ptr<T> >(m, name.c_str())
     .def(py::init<double, std::vector<double> >())
@@ -139,6 +158,7 @@ template < class T > void export_ShortRangePairPotential(py::module& m, const st
     ;
 };
 
+// DEFINE Your Models HERE 
 //(1): 1-parameter LennardJones
 class LennardJones
 {

@@ -55,4 +55,40 @@ std::vector<T> operator*(const T& b, const std::vector<T>& a)
     return result;
 };
 
+struct SymmetricTensorField
+{
+    std::vector<double> XX;
+    std::vector<double> YY;
+    std::vector<double> XY;
+    std::vector<double> ZZ;
+    std::vector<double> XZ;
+    std::vector<double> YZ;
+
+    void resize(unsigned int size)
+    {
+        XX.resize(size); 
+        YY.resize(size); 
+        XY.resize(size); 
+        ZZ.resize(size); 
+        XZ.resize(size); 
+        XX.resize(size); 
+    }
+};
+
+struct VectorField
+{
+    std::vector<double> X;
+    std::vector<double> Y;
+    std::vector<double> Z;
+
+    void resize(unsigned int size)
+    {
+        X.resize(size); 
+        Y.resize(size); 
+        Z.resize(size); 
+    }
+};
+
+typedef std::vector<double> ScalarField;
+
 #endif

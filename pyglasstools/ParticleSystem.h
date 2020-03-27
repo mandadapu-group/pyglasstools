@@ -9,32 +9,37 @@
 namespace py = pybind11;
 using namespace Aboria;
 
+ABORIA_VARIABLE(velocity, vdouble3, "velocity");
+ABORIA_VARIABLE(mass, double, "mass");
+ABORIA_VARIABLE(diameter, double, "diameter");
+typedef typename Particles< std::tuple<velocity, diameter, mass> >::position position;        
+
 //template<class PairPotential>
 class PYBIND11_EXPORT ParticleSystem
 {
     public:
-        ABORIA_VARIABLE(velocity, vdouble3, "velocity")
-        ABORIA_VARIABLE(mass, double, "mass")
-        ABORIA_VARIABLE(diameter, double, "diameter")
-        typedef typename Particles< std::tuple<velocity, diameter, mass> >::position position;        
+        std::shared_ptr<SimBox> m_simbox;
+        std::shared_ptr<PairPotential> m_potential;
+        Particles< std::tuple<velocity, diameter, mass> > m_particles;
         
-        ParticleSystem( unsigned int numparticles, std::vector<double> atomdiameter, 
+        ParticleSystem( std::shared_ptr< SimBox > simbox,std::shared_ptr< PairPotential > potential,
+                        unsigned int numparticles, std::vector<double> atomdiameter, 
                         std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
-                        std::vector< std::vector<double> > atomvelocity, std::shared_ptr< SimBox > simbox, 
-                        std::shared_ptr< PairPotential > potential)
-                        :   m_numparticles(numparticles), m_particles(numparticles), m_atomposition(atomposition), 
-                            m_atomvelocity(atomvelocity), m_simbox(simbox), m_potential(potential) 
+                        std::vector< std::vector<double> > atomvelocity)
+                        :   m_simbox(simbox), m_potential(potential), m_particles(numparticles), 
+                            m_numparticles(numparticles), m_atomposition(atomposition), m_atomvelocity(atomvelocity)  
         {
             get<diameter>(m_particles) = atomdiameter;
             get<mass>(m_particles) = atommass;
+
             for(unsigned int i=0; i < numparticles; i++)
             {
-                get<position>(m_particles[i]) = vdouble3(atomposition[i][0],atomposition[i][1],atomposition[i][2]);
-                get<velocity>(m_particles[i]) = vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
+                get<position>(m_particles[i]) = vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
+                get<velocity>(m_particles[i]) = vdouble3(atomvelocity[i][0], atomvelocity[i][1], atomvelocity[i][2]);
             }
-            vdouble3 boxmax = vdouble3(m_simbox->getUpperBound(0),m_simbox->getUpperBound(1),m_simbox->getUpperBound(2));
-            vdouble3 boxmin = vdouble3(m_simbox->getLowerBound(0),m_simbox->getLowerBound(1),m_simbox->getLowerBound(2));
-            vbool3 periodic = vbool3(m_simbox->getPeriodic(0),m_simbox->getPeriodic(1),m_simbox->getPeriodic(2));
+            vdouble3 boxmax = vdouble3(m_simbox->getUpperBound(0), m_simbox->getUpperBound(1), m_simbox->getUpperBound(2));
+            vdouble3 boxmin = vdouble3(m_simbox->getLowerBound(0), m_simbox->getLowerBound(1), m_simbox->getLowerBound(2));
+            vbool3 periodic = vbool3((bool)m_simbox->getPeriodic(0),(bool)m_simbox->getPeriodic(1),(bool)m_simbox->getPeriodic(2));
             m_particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
         ~ParticleSystem(){};
@@ -109,7 +114,8 @@ class PYBIND11_EXPORT ParticleSystem
         {
 
             std::vector<unsigned int> particleID;
-            for (auto particle = euclidean_search(m_particles.get_query(), vdouble3(point[0],point[1],point[2]), radius); particle != false; ++particle)
+            for(    auto particle = euclidean_search(  m_particles.get_query(), vdouble3(point[0],point[1],point[2]), radius); 
+                    particle != false; ++particle)
             {
                 particleID.push_back(get<id>(*particle));
             }
@@ -118,31 +124,28 @@ class PYBIND11_EXPORT ParticleSystem
     private: 
         //Atomic properties, fed in to the system
         unsigned int m_numparticles;
-        Particles< std::tuple<velocity, diameter, mass> > m_particles;
         
         //positions and velocities in terms of vectors
         std::vector< std::vector<double> > m_atomposition;        
         std::vector< std::vector<double> > m_atomvelocity;        
-        //The Simulation Box
-        std::shared_ptr< SimBox> m_simbox; 
-        std::shared_ptr< PairPotential > m_potential; 
 };
 
 //an export function here
-template < class T > void export_ParticleSystem(py::module& m, const std::string& name)
+void export_ParticleSystem(py::module& m)
 {
-    py::class_<T, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init<  unsigned int, std::vector<double>, std::vector<double>, 
-                    std::vector< std::vector<double> >, std::vector< std::vector<double> >, std::shared_ptr< SimBox >, std::shared_ptr< PairPotential > >())
-    .def("getMass", &T::getMass)
-    .def("setMass", &T::setMass)
-    .def("getDiameter", &T::getDiameter)
-    .def("setDiameter", &T::setDiameter)
-    .def("getAtomPosition", &T::getAtomPosition)
-    .def("setAtomPosition", &T::setAtomPosition)
-    .def("getAtomVelocity", &T::getAtomVelocity)
-    .def("setAtomVelocity", &T::setAtomVelocity)
-    .def("getNeighbors", &T::getNeighbors)
+    py::class_<ParticleSystem, std::shared_ptr<ParticleSystem> >(m,"ParticleSystem")
+    .def(py::init<  std::shared_ptr< SimBox >, std::shared_ptr< PairPotential >,
+                     unsigned int, std::vector<double>, std::vector<double>, 
+                    std::vector< std::vector<double> >, std::vector< std::vector<double> > >())
+    .def("getMass", &ParticleSystem::getMass)
+    .def("setMass", &ParticleSystem::setMass)
+    .def("getDiameter", &ParticleSystem::getDiameter)
+    .def("setDiameter", &ParticleSystem::setDiameter)
+    .def("getAtomPosition", &ParticleSystem::getAtomPosition)
+    .def("setAtomPosition", &ParticleSystem::setAtomPosition)
+    .def("getAtomVelocity", &ParticleSystem::getAtomVelocity)
+    .def("setAtomVelocity", &ParticleSystem::setAtomVelocity)
+    .def("getNeighbors", &ParticleSystem::getNeighbors)
     ;
 };
 #endif //__SYSTEM_DATA_H__

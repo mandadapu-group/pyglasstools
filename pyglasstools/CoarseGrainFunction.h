@@ -10,36 +10,22 @@ namespace py = pybind11;
 using namespace Eigen;
 
 //Encapsulates All Coarse-Graining Function Needs
-template<class Distribution>
 class PYBIND11_EXPORT CoarseGrainFunction
 {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //Zero initialize 
         CoarseGrainFunction()  
-            : m_rcut(0), m_x(Vector3d::Zero()), m_ri(Vector3d::Zero()), m_dr(Vector3d::Zero())
+            : m_x(Vector3d::Zero()), m_ri(Vector3d::Zero()), m_dr(Vector3d::Zero())
         {
         };
         //Parametrize initialization
-        CoarseGrainFunction(double cg_rcut)  
-            : m_rcut(cg_rcut), m_x(Vector3d::Zero()), m_ri(Vector3d::Zero()), m_dr(Vector3d::Zero())
-        {
-        };
-        //Parametrize initialization
-        CoarseGrainFunction(double cg_rcut, Vector3d x, Vector3d ri, Vector3d dr)  
-            : m_rcut(cg_rcut), m_x(x), m_ri(ri), m_dr(dr)
+        CoarseGrainFunction(Vector3d x, Vector3d ri, Vector3d dr)  
+            : m_x(x), m_ri(ri), m_dr(dr)
         {
         };
         virtual ~CoarseGrainFunction(){};
 
-        virtual void setRcut(double cg_rcut)
-        {
-            m_rcut = cg_rcut;
-        };
-        virtual double getRcut()
-        {
-            return m_rcut;
-        };
         
         virtual void setX(Vector3d x)
         {
@@ -59,16 +45,83 @@ class PYBIND11_EXPORT CoarseGrainFunction
             return m_ri;
         };
         
-        virtual void setDR(Vector3d dr)
+        virtual void setRij(Vector3d dr)
         {
             m_dr = dr;
         };
-        virtual Vector3d getDR()
+        virtual Vector3d getRij()
         {
             return m_dr;
         };
+        virtual void setRcut(double cg_rcut)
+        {
+        };
+        virtual double getRcut()
+        {
+            return 0.0;
+        };
+        virtual bool checkRange(Vector3d dr)
+        {
+            return true;
+        };
         
         virtual double getDeltaFunc()
+        {
+            return 0.0;//func.compute();
+        };
+        
+        virtual double getObjFunc(double s)
+        {
+            return 0.0;//func.compute();
+        };
+
+        virtual double getBondFunc()
+        {
+            return 0.0;
+        };
+
+    protected:
+        Vector3d m_x;
+        Vector3d m_ri;
+        Vector3d m_dr;
+};
+
+template<class Distribution>
+class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
+{
+    public:
+        //Zero initialize 
+        ShortRangeCGFunc()  
+            : m_rcut(0)
+        {
+        };
+        //Parametrize initialization
+        ShortRangeCGFunc(double cg_rcut)  
+            : m_rcut(cg_rcut)
+        {
+        };
+        //Parametrize initialization
+        ShortRangeCGFunc(double cg_rcut, Vector3d x, Vector3d ri, Vector3d dr)  
+            : CoarseGrainFunction(x,ri,dr), m_rcut(cg_rcut)
+        {
+        };
+        virtual bool checkRange(Vector3d dr)
+        {
+            if (dr.dot(dr) < m_rcut*m_rcut)
+                return true;
+            else
+                return false;
+        };
+
+        virtual void setRcut(double cg_rcut)
+        {
+            m_rcut = cg_rcut;
+        };
+        virtual double getRcut()
+        {
+            return m_rcut;
+        };
+        double getDeltaFunc()
         {
             Vector3d dr = m_x-m_ri;
             double dr_sq = dr.dot(dr);
@@ -76,7 +129,7 @@ class PYBIND11_EXPORT CoarseGrainFunction
             return func.compute();
         };
         
-        virtual double getObjFunc(double s)
+        double getObjFunc(double s)
         {
             Vector3d dr = m_x-(m_ri+s*m_dr);
             double dr_sq = dr.dot(dr);
@@ -84,34 +137,38 @@ class PYBIND11_EXPORT CoarseGrainFunction
             return func.compute();
         };
 
-        virtual double getBondFunc()
+        double getBondFunc()
         {
             return GSLQuadrature([&](double s) { return getObjFunc(s); }, {0,1});
         };
-
     private:
         double m_rcut;
-        Vector3d m_x;
-        Vector3d m_ri;
-        Vector3d m_dr;
 };
 
-template < class T > void export_CoarseGrainFunction(py::module& m, const std::string& name)
+void export_CoarseGrainFunction(py::module& m)
 {
-    py::class_<T, std::shared_ptr<T> >(m, name.c_str())
+    py::class_<CoarseGrainFunction, std::shared_ptr<CoarseGrainFunction> >(m, "CoarseGrainFunction")
+    .def(py::init<Vector3d, Vector3d, Vector3d>())
+    .def("setX", &CoarseGrainFunction::setX)
+    .def("getX", &CoarseGrainFunction::getX)
+    .def("setRi", &CoarseGrainFunction::setRi)
+    .def("getRi", &CoarseGrainFunction::getRi)
+    .def("setRij", &CoarseGrainFunction::setRij)
+    .def("getRij", &CoarseGrainFunction::getRij)
+    .def("getDeltaFunc", &CoarseGrainFunction::getDeltaFunc)
+    .def("getObjFunc", &CoarseGrainFunction::getObjFunc)
+    .def("getBondFunc", &CoarseGrainFunction::getBondFunc)
+    ;
+};
+
+template < class T > 
+void export_ShortRangeCGFunc(py::module& m, const std::string& name)
+{
+    py::class_<T, CoarseGrainFunction, std::shared_ptr<T> >(m, name.c_str())
     .def(py::init<double>())
     .def(py::init<double, Vector3d, Vector3d, Vector3d>())
     .def("setRcut", &T::setRcut)
     .def("getRcut", &T::getRcut)
-    .def("setX", &T::setX)
-    .def("getX", &T::getX)
-    .def("setRi", &T::setRi)
-    .def("getRi", &T::getRi)
-    .def("setDR", &T::setDR)
-    .def("getDR", &T::getDR)
-    .def("getDeltaFunc", &T::getDeltaFunc)
-    .def("getObjFunc", &T::getObjFunc)
-    .def("getBondFunc", &T::getBondFunc)
     ;
 };
 

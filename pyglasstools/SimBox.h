@@ -142,8 +142,7 @@ class PYBIND11_EXPORT SimBox
                 return m_boxsize[0]*m_boxsize[1]*m_boxsize[2];
         }
 
-    private:
-          
+    protected:
         int dim;
         std::vector<double> m_origin;
         std::vector<double> m_boxsize;       //!< L precomputed (used to avoid subtractions in boundary conditions)

@@ -19,13 +19,15 @@ typedef typename MyParticles::position position;
 class PYBIND11_EXPORT ParticleSystem
 {
     public:
-        ParticleSystem( std::shared_ptr< SimBox > simbox,std::shared_ptr< PairPotential > potential,
+        ParticleSystem( std::shared_ptr< SimBox > simbox, std::shared_ptr<PairPotential> _potential,
                         unsigned int numparticles, std::vector<double> atomdiameter, 
                         std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
                         std::vector< std::vector<double> > atomvelocity)
-                        :   simbox(simbox), potential(potential), particles(numparticles), 
+                        :   simbox(simbox), potential(_potential), particles(numparticles), 
                             m_numparticles(numparticles), m_atomposition(atomposition), m_atomvelocity(atomvelocity)  
         {
+            //py::print("What is the input potential scaled rcut", _potential->getScaledRcut());
+            //py::print("What is the system scaled rcut", potential->getScaledRcut());
             get<diameter>(particles) = atomdiameter;
             get<mass>(particles) = atommass;
             for(unsigned int i=0; i < numparticles; i++)
@@ -107,6 +109,12 @@ class PYBIND11_EXPORT ParticleSystem
             return true; 
         };
         
+        double getScaledRcut()
+        {
+            //py::print("Rcut from system data", potential->getScaledRcut());
+            return potential->getScaledRcut(); 
+        };
+        
         unsigned int getN()
         {
             return m_numparticles; 
@@ -124,6 +132,7 @@ class PYBIND11_EXPORT ParticleSystem
         };
         
         std::shared_ptr<SimBox> simbox;
+        //std::shared_ptr<PairPotential> potential;
         std::shared_ptr<PairPotential> potential;
         MyParticles particles;
     
@@ -152,6 +161,7 @@ void export_ParticleSystem(py::module& m)
     .def("getAtomVelocity", &ParticleSystem::getAtomVelocity)
     .def("setAtomVelocity", &ParticleSystem::setAtomVelocity)
     .def("getNeighbors", &ParticleSystem::getNeighbors)
+    .def("getScaledRcut", &ParticleSystem::getScaledRcut)
     ;
 };
 #endif //__SYSTEM_DATA_H__

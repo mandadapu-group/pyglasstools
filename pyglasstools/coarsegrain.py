@@ -51,8 +51,9 @@ class ikfield(object):
     def __init__(self, gridpoints, sysdata, cgfunc):
         self.irvingkirkwood = _pyglasstools.IrvingKirkwood(gridpoints, sysdata._getParticleSystem(), cgfunc._getCGFunc());
         self.rho = self.irvingkirkwood.getRho() 
-        self.Tv_xy = self.irvingkirkwood.getTv_xy()
+        self.Tv_xy = self.irvingkirkwood.getTvxy()
     def compute(self):
-        self.irvingkirkwood.compute()
+        #self.irvingkirkwood.compute()
+        self.irvingkirkwood.globalcompute()
         self.rho = self.irvingkirkwood.getRho() 
-        self.Tv_xy = self.irvingkirkwood.getTv_xy()
+        self.Tv_xy = self.irvingkirkwood.getTvxy()

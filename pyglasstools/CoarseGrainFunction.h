@@ -60,11 +60,6 @@ class PYBIND11_EXPORT CoarseGrainFunction
         {
             return 0.0;
         };
-        virtual bool checkRange(Vector3d dr)
-        {
-            return true;
-        };
-        
         virtual double getDeltaFunc()
         {
             return 0.0;//func.compute();
@@ -105,19 +100,11 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
             : CoarseGrainFunction(x,ri,dr), m_rcut(cg_rcut)
         {
         };
-        virtual bool checkRange(Vector3d dr)
-        {
-            if (dr.dot(dr) < m_rcut*m_rcut)
-                return true;
-            else
-                return false;
-        };
-
-        virtual void setRcut(double cg_rcut)
+        void setRcut(double cg_rcut)
         {
             m_rcut = cg_rcut;
         };
-        virtual double getRcut()
+        double getRcut()
         {
             return m_rcut;
         };

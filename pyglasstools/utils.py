@@ -70,6 +70,9 @@ class data(object):
     def get_diameters(self):
         return self.particledata.getDiameter()
     
+    def get_scaledrcut(self):
+        return self.particledata.getScaledRcut()
+    
     def set_mass(self,mass):
         self.particledata.setMass(mass.astype('float64'))
     

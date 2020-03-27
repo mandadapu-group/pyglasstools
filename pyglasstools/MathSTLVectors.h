@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <vector>
 #include <cassert>
 
 template <typename T>

@@ -9,8 +9,8 @@
 
 //Typedefs several pair potentials here
 typedef ShortRangePairPotential<LennardJones> PairPotentialLJ;
-//typedef ParticleSystem<PairPotentialLJ> LennardJonesSystem;
 typedef ShortRangePairPotential<ForceShiftedLennardJones> PairPotentialForceShiftedLJ;
+typedef ShortRangePairPotential<Polydisperse12> PairPotentialPoly12;
 
 //Typedefs several coarsegrain functions  here
 typedef ShortRangeCGFunc<Octic> OcticFunc;
@@ -31,6 +31,7 @@ PYBIND11_MODULE(_pyglasstools, m)
     
     export_ShortRangePairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
     export_ShortRangePairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");
+    export_ShortRangePairPotential<PairPotentialPoly12>(m, "PairPotentialPoly12");
     
     
     export_ShortRangeCGFunc<OcticFunc>(m, "OcticFunc");

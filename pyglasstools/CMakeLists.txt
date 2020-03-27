@@ -13,7 +13,7 @@ include_directories( ${EIGEN3_INCLUDE_DIRS})
 find_package(GSL REQUIRED)   
 
 #Find Aboria
-set(Aboria_LOG_LEVEL 2 CACHE STRING "Logging level (1 = least, 3 = most)")
+set(Aboria_LOG_LEVEL 1 CACHE STRING "Logging level (1 = least, 3 = most)")
 add_definitions(-DABORIA_LOG_LEVEL=${Aboria_LOG_LEVEL})
 list(APPEND ABORIA_INCLUDE_DIRS ./extern/Aboria/src)
 list(APPEND ABORIA_INCLUDE_DIRS ./extern/Aboria/third-party)

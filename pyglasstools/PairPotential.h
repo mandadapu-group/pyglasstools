@@ -2,6 +2,7 @@
 #define __PAIR_POTENTIAL_H__
 
 #include <Eigen/Dense>
+#include <cmath>
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include "extern/pybind11/include/pybind11/eigen.h"
 #include "extern/pybind11/include/pybind11/stl.h"
@@ -24,54 +25,54 @@ class PYBIND11_EXPORT PairPotential
             : m_di(0), m_dj(0), m_rij(Vector3d::Zero()), m_params(_params)
         {
         };
-        virtual bool needsDiameter()
+        bool needsDiameter()
         { 
             return true; 
         };
         
-        virtual bool isPolydisperse()
+        bool isPolydisperse()
         { 
             return true; 
         };
 
-        virtual void setDiameters(double di, double dj)
+        void setDiameters(double di, double dj)
         {   
            m_di = di;
            m_dj = dj;
         };
 
-        virtual std::tuple<double, double> getDiameters()
+        std::tuple<double, double> getDiameters()
         {
             return std::make_tuple(m_di,m_dj);  
         };
 
-        virtual void setRij(Vector3d rij)
+        void setRij(Vector3d rij)
         {
             m_rij = rij;
         };
-        virtual Vector3d getRij()
+        Vector3d getRij()
         {
             return m_rij;//m_rij = rij;
         };
-        virtual void setRcut(double rcut)
+        void setParams(std::vector<double> params)
         {
+            m_params = params;
+        };
+        std::vector<double> getParams()
+        {
+            return m_params;
+        };
+        //Virtual methods here
+        virtual void setScaledRcut(double rcut)
+        {
+        };
+        virtual double getScaledRcut()
+        {
+            return 0.0;
         };
         virtual double getRcut()
         {
             return 0.0;
-        };
-        virtual bool checkRange(Vector3d dr)
-        {
-            return true;
-        };
-
-        virtual void setParams(std::vector<double> params)
-        {
-            m_params = params;
-        };
-        virtual std::vector<double> getParams()
-        {
-            return m_params;
         };
         //! Evaluate the force and energy
         virtual double getPairForce()
@@ -84,6 +85,34 @@ class PYBIND11_EXPORT PairPotential
         Vector3d m_rij;
         std::vector<double> m_params;
 };
+
+/*
+//Basic interface for common functions
+class PYBIND11_EXPORT PyPairPotential : public PairPotential
+{
+    public:
+        //Zero initialize everything
+        using PairPotential::PairPotential;
+        
+        //Virtual methods here
+        virtual void setScaledRcut(double rcut)
+        {
+        };
+        virtual double getScaledRcut()
+        {
+            return 0.0;
+        };
+        virtual double getRcut()
+        {
+            return 0.0;
+        };
+        //! Evaluate the force and energy
+        virtual double getPairForce()
+        {
+            return 0.0;
+        };
+};
+*/
 
 template<class ShortRangeModel>
 class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
@@ -104,22 +133,22 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
 
         ~ShortRangePairPotential(){};
 
-        virtual void setRcut(double rcut)
+        void setScaledRcut(double rcut)
         {
             m_rcut = rcut;
         };
-        virtual double getRcut()
+        double getScaledRcut()
         {
+            //py::print("scaled rcut is ", m_rcut);
             return m_rcut;
         };
-        virtual bool checkRange(Vector3d dr)
+        double getRcut()
         {
-            if (dr.dot(dr) < 0.25*m_rcut*m_rcut*(m_di+m_dj))
-                return true;
-            else
-                return false;
+            double rsq_ij = m_rij.dot(m_rij);
+            double rsq_cut = m_rcut*m_rcut;
+            ShortRangeModel model(rsq_ij, rsq_cut, m_params);
+            return model.computeRcut(m_di,m_dj);
         };
-
         //! Evaluate the force and energy
         double getPairForce()
         {
@@ -144,6 +173,9 @@ void export_PairPotential(py::module& m)
     .def("getRij", &PairPotential::getRij)
     .def("setParams", &PairPotential::setParams)
     .def("getParams", &PairPotential::getParams)
+    .def("setScaledRcut", &PairPotential::setScaledRcut)
+    .def("getScaledRcut", &PairPotential::getScaledRcut)
+    .def("getRcut", &PairPotential::getRcut)
     .def("getPairForce", &PairPotential::getPairForce)
     ;
 };
@@ -153,8 +185,10 @@ void export_ShortRangePairPotential(py::module& m, const std::string& name)
 {
     py::class_<T, PairPotential, std::shared_ptr<T> >(m, name.c_str())
     .def(py::init<double, std::vector<double> >())
-    .def("setRcut", &T::setRcut)
-    .def("getRcut", &T::getRcut)
+    //.def("setScaledRcut", &T::setScaledRcut)
+    //.def("getScaledRcut", &T::getScaledRcut)
+   // .def("getRcut", &T::getRcut)
+   // .def("getPairForce", &T::getPairForce)
     ;
 };
 
@@ -191,11 +225,67 @@ class LennardJones
             else
                 return 0.0;
         }
+        virtual double computeRcut(double d_i, double d_j)
+        {
+            double sigma = 0.5*(d_i+d_j);
+            return rcutsq*sigma*sigma;
+        }
 
     protected:
         double rsq;     //!< Stored rsq from the constructor
         double rcutsq;  //!< Stored rcutsq from the constructor
         double eps;     //!< epsilon_parameter
+};
+
+class Polydisperse12
+{
+    public:
+        //! Constructs the pair potential evaluator
+        /*! \param _rsq Squared distance between the particles
+            \param _rcutsq Squared distance at which the potential goes to 0
+            \param _params Per type pair parameters of this potential
+        */
+        Polydisperse12(double _rsq, double _rcutsq, std::vector<double> _params)
+            : rsq(_rsq), rcutsq(_rcutsq), v0(_params[0]), eps(_params[1])
+            {
+                c0 =  -28.0*v0/pow(_rcutsq,6);
+                c1 =  48.0*v0/pow(_rcutsq,7);
+                c2 =  -21.0*v0/pow(_rcutsq,8);
+            }
+        ~Polydisperse12(){}; 
+        //! Evaluate the force and energy
+        virtual double computeForce(double d_i, double d_j)
+        {
+            double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
+            double actualrcutsq = rcutsq*sigma*sigma;
+            
+            // compute the force divided by r in force_divr
+            if (rsq < actualrcutsq)
+                {
+                    double r2inv = 1.0/rsq;
+                    r2inv *= sigma*sigma;
+                    double _rsq = rsq/(sigma*sigma);
+                    double r6inv = r2inv * r2inv * r2inv;
+                    double force_divr = 12.0*v0*r2inv*r6inv*r6inv-2.0*c1 -4.0*c2*_rsq;
+                    return force_divr;
+                }
+            else
+                return 0.0;
+        }
+        virtual double computeRcut(double d_i, double d_j)
+        {
+            double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
+            return rcutsq*sigma*sigma;
+        }
+
+    protected:
+        double rsq;     //!< Stored rsq from the constructor
+        double rcutsq;  //!< Stored rcutsq from the constructor
+        double v0;
+        double eps;     //!< epsilon_parameter
+        double c0;
+        double c1;
+        double c2;
 };
 
 //(2): 1-parameter Force-Shifted LennardJones

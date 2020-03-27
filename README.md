@@ -11,3 +11,5 @@ Update (03/23/2020): Implemented simulation box class.
 Update (03/24/2020): Implemented pair potential and coarse graining function classes.
 
 Update (03/25/2020): Implemented system data class with neighbor list functionality using Aboria.
+
+Update (03/27/2020): Implemented Irving Kirkwood class to compute global shear stres.

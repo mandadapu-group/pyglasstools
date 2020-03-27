@@ -13,6 +13,8 @@ class octic(object):
         self.rcut = rcut
         # create the c++ mirror class
         self.cgfunc = _pyglasstools.OcticFunc(self.rcut);
+    def _getCGFunc(self):
+        return self.cgfunc
 
     def set_rcut(self, rcut):
         self.rcut = rcut
@@ -41,3 +43,16 @@ class octic(object):
         return self.cgfunc.getObjFunc(s)
     def get_bondfunc(self):
         return self.cgfunc.getBondFunc()
+
+class ikfield(object):
+    R""" Lennard-Jones pair potential.
+
+    """
+    def __init__(self, gridpoints, sysdata, cgfunc):
+        self.irvingkirkwood = _pyglasstools.IrvingKirkwood(gridpoints, sysdata._getParticleSystem(), cgfunc._getCGFunc());
+        self.rho = self.irvingkirkwood.getRho() 
+        self.Tv_xy = self.irvingkirkwood.getTv_xy()
+    def compute(self):
+        self.irvingkirkwood.compute()
+        self.rho = self.irvingkirkwood.getRho() 
+        self.Tv_xy = self.irvingkirkwood.getTv_xy()

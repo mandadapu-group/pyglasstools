@@ -43,7 +43,7 @@ ENDMACRO(copy_file)
 set(files   __init__.py
             utils.py
             potential.py
-            cgfunc.py
+            coarsegrain.py
     )
 
 install(FILES ${files}

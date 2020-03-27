@@ -2,6 +2,7 @@
 #include "ParticleSystem.h"
 #include "PairPotential.h"
 #include "Quadrature.h"
+#include "IrvingKirkwood.h"
 #include "CoarseGrainFunction.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
@@ -21,10 +22,12 @@ typedef ShortRangeCGFunc<Octic> OcticFunc;
 
 PYBIND11_MODULE(_pyglasstools, m)
 {
+    export_GridPoints(m);
     export_SimBox(m);
     export_PairPotential(m);
     export_CoarseGrainFunction(m);
     export_ParticleSystem(m);
+    export_IrvingKirkwood(m);
     
     export_ShortRangePairPotential<PairPotentialLJ>(m, "PairPotentialLJ");
     export_ShortRangePairPotential<PairPotentialForceShiftedLJ>(m, "PairPotentialForceShiftedLJ");

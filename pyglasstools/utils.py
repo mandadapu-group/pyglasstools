@@ -61,7 +61,7 @@ class data(object):
                                                             self.position,
                                                             self.velocity 
                                                             );
-    def _getSystemData(self):
+    def _getParticleSystem(self):
         return self.particledata
     
     def set_diameters(self,diameter):

@@ -70,7 +70,15 @@ class PYBIND11_EXPORT IrvingKirkwood
         };
         ~IrvingKirkwood(){};
         virtual void compute();
-        
+        std::vector<double> getRho()
+        {
+            return rho;
+        };
+        std::vector<double> getTv_xy()
+        {
+            return Tv.XY;
+        };
+
         GridPoints grid; //convenient struct for storing gridpoints
         ScalarField rho; //density
         SymmetricTensorField Tv; //virial stress
@@ -169,5 +177,7 @@ void export_IrvingKirkwood(py::module& m)
     py::class_<IrvingKirkwood, std::shared_ptr<IrvingKirkwood> >(m,"IrvingKirkwood")
     .def(py::init< std::vector< Vector3d >, std::shared_ptr< ParticleSystem >, std::shared_ptr< CoarseGrainFunction > >())
     .def("compute", &IrvingKirkwood::compute)
+    .def("getRho", &IrvingKirkwood::getRho)
+    .def("getTv_xy", &IrvingKirkwood::getTv_xy)
     ;
 };

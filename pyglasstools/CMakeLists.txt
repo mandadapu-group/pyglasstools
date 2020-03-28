@@ -28,7 +28,7 @@ install(TARGETS _${COMPONENT_NAME}
         )
 target_link_libraries(_${COMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
-    ################ Python only modules
+################ Python only modules
 # copy python modules to the build directory to make it a working python package
 MACRO(copy_file file)
     add_custom_command (
@@ -42,7 +42,6 @@ ENDMACRO(copy_file)
 
 set(files   __init__.py
             utils.py
-            potential.py
             coarsegrain.py
     )
 
@@ -55,3 +54,8 @@ foreach(file ${files})
 endforeach()
 
 add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
+
+# add Coarse Graining funciton module
+add_subdirectory(cgfunc)
+add_subdirectory(potential)
+add_subdirectory(observables)

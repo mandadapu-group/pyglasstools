@@ -3,7 +3,7 @@
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include "extern/pybind11/include/pybind11/stl.h"
-#include "PairPotential.h"
+#include <pyglasstools/potential/PairPotential.h>
 #include "SimBox.h"
 
 #include <Aboria.h>

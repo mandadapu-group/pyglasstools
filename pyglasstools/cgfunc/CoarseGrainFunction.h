@@ -3,8 +3,8 @@
 
 #include "Quadrature.h"
 
-#include "extern/pybind11/include/pybind11/pybind11.h"
-#include "extern/pybind11/include/pybind11/eigen.h"
+#include "../extern/pybind11/include/pybind11/pybind11.h"
+#include "../extern/pybind11/include/pybind11/eigen.h"
 namespace py = pybind11;
 
 #include <Eigen/Dense>
@@ -158,16 +158,11 @@ void export_ShortRangeCGFunc(py::module& m, const std::string& name)
     .def("getRcut", &T::getRcut)
     ;
 };
-
-//(1): Coarse-Graining Function based on an 8-th order polynomial
+/*
 class Octic
 {
     public:
         //! Constructs the pair potential evaluator
-        /*! \param _rsq Squared distance between the particles
-            \param _rcutsq Squared distance at which the potential goes to 0
-            \param _params Per type pair parameters of this potential
-        */
         Octic(double _dr_sq, double _rcut)
             : dr_sq(_dr_sq), rcut(_rcut)
             {
@@ -193,4 +188,5 @@ class Octic
         double dr_sq;     //!< Stored rsq from the constructor
         double rcut;  //!< Stored rcutsq from the constructor
 };
+*/
 #endif //__COARSE_GRAIN_FUNC_H__

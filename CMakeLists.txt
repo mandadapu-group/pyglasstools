@@ -21,5 +21,7 @@ set(BUILD_SHARED_LIBS on)
 set(PYTHON_MODULE_BASE_DIR ${CMAKE_INSTALL_PREFIX})
 message(STATUS "Install module to: " ${PYTHON_MODULE_BASE_DIR})
 
+# include current source directory as its own include directory
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # add subdirectories
 add_subdirectory(${PROJECT_NAME})

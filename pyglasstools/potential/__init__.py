@@ -1,6 +1,6 @@
 R""" Pair potentials.
 """
-from pyglasstools import _pyglasstools
+from pyglasstools.potential import _potential
 import pyglasstools
 import numpy as np
 
@@ -17,9 +17,9 @@ class lj(object):
         
         # create the c++ mirror class
         if (mode == "truncated"):
-            self.pairpotential = _pyglasstools.PairPotentialLJ(self.rcut,self.params);
+            self.pairpotential = _potential.PairPotentialLJ(self.rcut,self.params);
         elif (mode == "force-shifted"):
-            self.pairpotential = _pyglasstools.PairPotentialForceShiftedLJ(self.rcut,self.params);
+            self.pairpotential = _potential.PairPotentialForceShiftedLJ(self.rcut,self.params);
         elif (mode == None):
             raise NameError('Please select a Lennard-Jones potential available modes: truncated and force-shifted are available')
         else:
@@ -68,7 +68,7 @@ class polydisperse(object):
         self.params = np.array(self.params).astype('float64')
         
         # create the c++ mirror class
-        self.pairpotential = _pyglasstools.PairPotentialPoly12(self.rcut,self.params);
+        self.pairpotential = _potential.PairPotentialPoly12(self.rcut,self.params);
     def _getPairPotential(self):
         return self.pairpotential
     def get_potentialname(seld):

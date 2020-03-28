@@ -76,7 +76,7 @@ class gsl_quad
 template < typename F >
 double GSLQuadrature(F func,
             std::pair<double,double> const& range,
-            double epsabs = 1.49e-9, double epsrel = 1.49e-9,
+            double epsabs = 1.49e-15, double epsrel = 1.49e-15,
             int limit = 200)
 {
     return gsl_quad<F>(func, limit).integrate(range.first, range.second, epsabs, epsrel);

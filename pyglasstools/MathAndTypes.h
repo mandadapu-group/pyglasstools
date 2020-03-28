@@ -6,6 +6,8 @@
 #include <vector>
 #include <cassert>
 
+#include <Eigen/Dense>
+
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
@@ -79,27 +81,8 @@ struct TensorField
     }
 };
 
-struct Tensor
-{
-    double XX;
-    double YY;
-    double XY;
-    double YX;
-    double ZZ;
-    double XZ;
-    double ZX;
-    double YZ;
-    double ZY;
-    void div_with(double scalar)
-    {
-        XX /= scalar; 
-        YY /= scalar; 
-        XY /= scalar; 
-        ZZ /= scalar; 
-        XZ /= scalar; 
-        XX /= scalar; 
-    }
-};
+
+typedef Eigen::MatrixXd Tensor;//ScalarField;
 
 struct VectorField
 {

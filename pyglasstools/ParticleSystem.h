@@ -5,15 +5,16 @@
 #include "extern/pybind11/include/pybind11/stl.h"
 #include "PairPotential.h"
 #include "SimBox.h"
+
 #include <Aboria.h>
 namespace py = pybind11;
-using namespace Aboria;
+namespace abr = Aboria;
 
-ABORIA_VARIABLE(velocity, vdouble3, "velocity");
+ABORIA_VARIABLE(velocity, abr::vdouble3, "velocity");
 ABORIA_VARIABLE(mass, double, "mass");
 ABORIA_VARIABLE(diameter, double, "diameter");
-typedef Particles< std::tuple<velocity, diameter, mass> > MyParticles;
-typedef typename MyParticles::position position;        
+typedef abr::Particles< std::tuple<velocity, diameter, mass> > AboriaParticles;
+typedef typename AboriaParticles::position position;        
 
 //template<class PairPotential>
 class PYBIND11_EXPORT ParticleSystem
@@ -28,16 +29,16 @@ class PYBIND11_EXPORT ParticleSystem
         {
             //py::print("What is the input potential scaled rcut", _potential->getScaledRcut());
             //py::print("What is the system scaled rcut", potential->getScaledRcut());
-            get<diameter>(particles) = atomdiameter;
-            get<mass>(particles) = atommass;
+            abr::get<diameter>(particles) = atomdiameter;
+            abr::get<mass>(particles) = atommass;
             for(unsigned int i=0; i < numparticles; i++)
             {
-                get<position>(particles[i]) = vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
-                get<velocity>(particles[i]) = vdouble3(atomvelocity[i][0], atomvelocity[i][1], atomvelocity[i][2]);
+                abr::get<position>(particles[i]) = abr::vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
+                abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0], atomvelocity[i][1], atomvelocity[i][2]);
             }
-            vdouble3 boxmax = vdouble3(simbox->getUpperBound(0), simbox->getUpperBound(1), simbox->getUpperBound(2));
-            vdouble3 boxmin = vdouble3(simbox->getLowerBound(0), simbox->getLowerBound(1), simbox->getLowerBound(2));
-            vbool3 periodic = vbool3((bool)simbox->getPeriodic(0),(bool)simbox->getPeriodic(1),(bool)simbox->getPeriodic(2));
+            abr::vdouble3 boxmax = abr::vdouble3(simbox->getUpperBound(0), simbox->getUpperBound(1), simbox->getUpperBound(2));
+            abr::vdouble3 boxmin = abr::vdouble3(simbox->getLowerBound(0), simbox->getLowerBound(1), simbox->getLowerBound(2));
+            abr::vbool3 periodic = abr::vbool3((bool)simbox->getPeriodic(0),(bool)simbox->getPeriodic(1),(bool)simbox->getPeriodic(2));
             particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
         ~ParticleSystem(){};
@@ -47,11 +48,11 @@ class PYBIND11_EXPORT ParticleSystem
             if (m_numparticles != atommass.size() )
                 throw std::invalid_argument("[ERROR]: Size of mass array mismatch with # of particles!");
             else
-                get<mass>(particles) = atommass;
+                abr::get<mass>(particles) = atommass;
         };
         std::vector<double> getMass()
         {
-            return get<mass>(particles); 
+            return abr::get<mass>(particles); 
         };
         
         void setDiameter(std::vector<double> atomdiameter)
@@ -59,11 +60,11 @@ class PYBIND11_EXPORT ParticleSystem
             if (m_numparticles != atomdiameter.size() )
                 throw std::invalid_argument("[ERROR]: Size of diameter array mismatch with # of particles!");
             else
-                get<diameter>(particles) = atomdiameter;
+                abr::get<diameter>(particles) = atomdiameter;
         };
         std::vector<double> getDiameter()
         {
-            return get<diameter>(particles); 
+            return abr::get<diameter>(particles); 
         };
         
         void setAtomPosition(std::vector< std::vector<double> > atomposition)
@@ -75,7 +76,7 @@ class PYBIND11_EXPORT ParticleSystem
                 m_atomposition = atomposition;
                 for(unsigned int i=0; i < m_numparticles; i++)
                 {
-                    get<position>(particles[i]) = vdouble3(atomposition[i][0],atomposition[i][1],atomposition[i][2]);
+                    abr::get<position>(particles[i]) = abr::vdouble3(atomposition[i][0],atomposition[i][1],atomposition[i][2]);
                 }
             }
         };
@@ -94,7 +95,7 @@ class PYBIND11_EXPORT ParticleSystem
                 m_atomvelocity = atomvelocity;
                 for(unsigned int i=0; i < m_numparticles; i++)
                 {
-                    get<velocity>(particles[i]) = vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
+                    abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
                 }
             }
         };
@@ -123,10 +124,10 @@ class PYBIND11_EXPORT ParticleSystem
         {
 
             std::vector<unsigned int> particleID;
-            for(    auto particle = euclidean_search(  particles.get_query(), vdouble3(point[0],point[1],point[2]), radius); 
+            for(    auto particle = abr::euclidean_search(  particles.get_query(), abr::vdouble3(point[0],point[1],point[2]), radius); 
                     particle != false; ++particle)
             {
-                particleID.push_back(get<id>(*particle));
+                particleID.push_back(abr::get<abr::id>(*particle));
             }
             return particleID;
         };
@@ -134,7 +135,7 @@ class PYBIND11_EXPORT ParticleSystem
         std::shared_ptr<SimBox> simbox;
         //std::shared_ptr<PairPotential> potential;
         std::shared_ptr<PairPotential> potential;
-        MyParticles particles;
+        AboriaParticles particles;
     
     private: 
         //Atomic properties, fed in to the system

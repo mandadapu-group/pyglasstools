@@ -3,11 +3,11 @@
 
 #include "Quadrature.h"
 
-#include <Eigen/Dense>
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include "extern/pybind11/include/pybind11/eigen.h"
 namespace py = pybind11;
-using namespace Eigen;
+
+#include <Eigen/Dense>
 
 //Encapsulates All Coarse-Graining Function Needs
 class PYBIND11_EXPORT CoarseGrainFunction
@@ -16,40 +16,40 @@ class PYBIND11_EXPORT CoarseGrainFunction
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //Zero initialize 
         CoarseGrainFunction()  
-            : m_x(Vector3d::Zero()), m_ri(Vector3d::Zero()), m_dr(Vector3d::Zero())
+            : m_x(Eigen::Vector3d::Zero()), m_ri(Eigen::Vector3d::Zero()), m_dr(Eigen::Vector3d::Zero())
         {
         };
         //Parametrize initialization
-        CoarseGrainFunction(Vector3d x, Vector3d ri, Vector3d dr)  
+        CoarseGrainFunction(Eigen::Vector3d x, Eigen::Vector3d ri, Eigen::Vector3d dr)  
             : m_x(x), m_ri(ri), m_dr(dr)
         {
         };
         virtual ~CoarseGrainFunction(){};
 
         
-        virtual void setX(Vector3d x)
+        virtual void setX(Eigen::Vector3d x)
         {
             m_x = x;
         };
-        virtual Vector3d getX()
+        virtual Eigen::Vector3d getX()
         {
             return m_x;
         };
         
-        virtual void setRi(Vector3d ri)
+        virtual void setRi(Eigen::Vector3d ri)
         {
             m_ri = ri;
         };
-        virtual Vector3d getRi()
+        virtual Eigen::Vector3d getRi()
         {
             return m_ri;
         };
         
-        virtual void setRij(Vector3d dr)
+        virtual void setRij(Eigen::Vector3d dr)
         {
             m_dr = dr;
         };
-        virtual Vector3d getRij()
+        virtual Eigen::Vector3d getRij()
         {
             return m_dr;
         };
@@ -76,9 +76,9 @@ class PYBIND11_EXPORT CoarseGrainFunction
         };
 
     protected:
-        Vector3d m_x;
-        Vector3d m_ri;
-        Vector3d m_dr;
+        Eigen::Vector3d m_x;
+        Eigen::Vector3d m_ri;
+        Eigen::Vector3d m_dr;
 };
 
 template<class Distribution>
@@ -96,7 +96,7 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
         {
         };
         //Parametrize initialization
-        ShortRangeCGFunc(double cg_rcut, Vector3d x, Vector3d ri, Vector3d dr)  
+        ShortRangeCGFunc(double cg_rcut, Eigen::Vector3d x, Eigen::Vector3d ri, Eigen::Vector3d dr)  
             : CoarseGrainFunction(x,ri,dr), m_rcut(cg_rcut)
         {
         };
@@ -110,7 +110,7 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
         };
         double getDeltaFunc()
         {
-            Vector3d dr = m_x-m_ri;
+            Eigen::Vector3d dr = m_x-m_ri;
             double dr_sq = dr.dot(dr);
             Distribution func(dr_sq, m_rcut);
             return func.compute();
@@ -118,7 +118,7 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
         
         double getObjFunc(double s)
         {
-            Vector3d dr = m_x-(m_ri+s*m_dr);
+            Eigen::Vector3d dr = m_x-(m_ri+s*m_dr);
             double dr_sq = dr.dot(dr);
             Distribution func(dr_sq, m_rcut);
             return func.compute();
@@ -135,7 +135,7 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
 void export_CoarseGrainFunction(py::module& m)
 {
     py::class_<CoarseGrainFunction, std::shared_ptr<CoarseGrainFunction> >(m, "CoarseGrainFunction")
-    .def(py::init<Vector3d, Vector3d, Vector3d>())
+    .def(py::init<Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>())
     .def("setX", &CoarseGrainFunction::setX)
     .def("getX", &CoarseGrainFunction::getX)
     .def("setRi", &CoarseGrainFunction::setRi)
@@ -153,7 +153,7 @@ void export_ShortRangeCGFunc(py::module& m, const std::string& name)
 {
     py::class_<T, CoarseGrainFunction, std::shared_ptr<T> >(m, name.c_str())
     .def(py::init<double>())
-    .def(py::init<double, Vector3d, Vector3d, Vector3d>())
+    .def(py::init<double, Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>())
     .def("setRcut", &T::setRcut)
     .def("getRcut", &T::getRcut)
     ;

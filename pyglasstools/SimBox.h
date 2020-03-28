@@ -17,21 +17,24 @@ class PYBIND11_EXPORT SimBox
             \post Box ranges from \c -m_boxsize/2 to \c +m_boxsize/2 in all 3 dimensions
             \post periodic = (1,1,1)
         */
-        SimBox(const double& boxsize, const std::vector<double>& origin, const int& _dim)
+        SimBox(const double& _boxsize, const std::vector<double>& _origin, const int& _dim)
         {
             dim = _dim;
-            m_origin = origin;
-            m_boxsize.resize(3);
-            std::fill(m_boxsize.begin(),m_boxsize.end(),boxsize);    //.fill(0);
+            origin = _origin;
+            boxsize.resize(3);
+            std::fill(boxsize.begin(),boxsize.end(),_boxsize);    //.fill(0);
             setBounds();
-            m_periodic.resize(3);
-            std::fill(m_periodic.begin(),m_periodic.end(),(int)1);    //.fill(0);
+            periodic.resize(3);
+            std::fill(periodic.begin(), periodic.end(),(int)1);    //.fill(0);
             if (dim == 2)
             {
-                m_boxsize[2] = 1.0;
-                m_periodic[2] = 0;
-                m_origin[2] = 0.0; //assert the zero in third axis of origin
+                boxsize[2] = 1.0;
+                periodic[2] = 0;
+                origin[2] = 0.0; //assert the zero in third axis of origin
+                vol = boxsize[0]*boxsize[1];
             }
+            else
+                vol = boxsize[0]*boxsize[1]*boxsize[2];
         };
 
         //! Constructs a box from -m_boxsize_x/2 to m_boxsize_x/2 for each dimension
@@ -40,20 +43,23 @@ class PYBIND11_EXPORT SimBox
             \param m_boxsize_z m_boxsizegth of the x dimension of the box
             \post periodic = (1,1,1)
         */
-        SimBox(const std::vector<double>& boxsize, const std::vector<double>& origin, const int& _dim)
+        SimBox(const std::vector<double>& _boxsize, const std::vector<double>& _origin, const int& _dim)
         {
             dim = _dim;
-            m_origin = origin;
-            m_boxsize = boxsize;//.fill(boxsize);    //.fill(0);
+            origin = _origin;
+            boxsize = _boxsize;//.fill(boxsize);    //.fill(0);
             setBounds();
-            m_periodic.resize(3);
-            std::fill(m_periodic.begin(),m_periodic.end(),(int)1);    //.fill(0);
+            periodic.resize(3);
+            std::fill(periodic.begin(),periodic.end(),(int)1);    //.fill(0);
             if (dim == 2)
             {
-                m_boxsize[2] = 1.0;
-                m_periodic[2] = 0;
-                m_origin[2] = 0.0; //assert the zero in third axis of origin
+                boxsize[2] = 1.0;
+                periodic[2] = 0;
+                origin[2] = 0.0; //assert the zero in third axis of origin
+                vol = boxsize[0]*boxsize[1];
             }
+            else
+                vol = boxsize[0]*boxsize[1]*boxsize[2];
         };
         
         ~SimBox(){};
@@ -63,9 +69,9 @@ class PYBIND11_EXPORT SimBox
             \post Period flags are set to \a periodic
             \note It is invalid to set 1 for a periodic dimension where lo != -hi. This error is not checked for.
         */
-        void setPeriodic(const std::vector<int>& periodic)
+        void setPeriodic(const std::vector<int>& _periodic)
         {
-            m_periodic = periodic;
+            periodic = _periodic;
         };
         
         //! Get the periodic flags
@@ -73,11 +79,11 @@ class PYBIND11_EXPORT SimBox
         */
         const std::vector<int> getPeriodicVec()
         {
-            return m_periodic;
+            return periodic;
         };
         bool getPeriodic(unsigned int i)
         {
-            return (bool)m_periodic[i];
+            return (bool)periodic[i];
         };
 
 
@@ -86,33 +92,33 @@ class PYBIND11_EXPORT SimBox
         */
         void setBounds()
         {
-            m_upperbound = 0.5*m_boxsize-m_origin;
-            m_lowerbound = (-1.0)*m_upperbound-2.0*m_origin;
+            upperbound = 0.5*boxsize-origin;
+            lowerbound = (-1.0)*upperbound-2.0*origin;
         }
         //! Get the length of the box in each direction
         /*! \returns The length of the box in each direction (hi - lo)
         */
         std::vector<double> getBoxSizeVec() const
         {
-            return m_boxsize;
+            return boxsize;
         }
 
         std::vector<double> getUpperBoundVec() const
         {
-            return m_upperbound;
+            return upperbound;
         }
         double getUpperBound(unsigned int i) const
         {
-            return m_upperbound[i];
+            return upperbound[i];
         }
         
         std::vector<double> getLowerBoundVec() const
         {
-            return m_lowerbound;
+            return lowerbound;
         }
         double getLowerBound(unsigned int i) const
         {
-            return m_lowerbound[i];
+            return lowerbound[i];
         }
         
         //! Update the box length
@@ -137,18 +143,18 @@ class PYBIND11_EXPORT SimBox
         const double getVolume()
         {
             if (dim == 2)
-                return m_boxsize[0]*m_boxsize[1];
+                return boxsize[0]*boxsize[1];
             else
-                return m_boxsize[0]*m_boxsize[1]*m_boxsize[2];
+                return boxsize[0]*boxsize[1]*boxsize[2];
         }
-
-    protected:
+        
         int dim;
-        std::vector<double> m_origin;
-        std::vector<double> m_boxsize;       //!< L precomputed (used to avoid subtractions in boundary conditions)
-        std::vector<double> m_lowerbound;       //!< L precomputed (used to avoid subtractions in boundary conditions)
-        std::vector<double> m_upperbound;       //!< minimum value of L, per coordinate precomputed
-        std::vector<int> m_periodic; //!< 0/1 in each direction to tell if the box is periodic in that direction
+        std::vector<double> origin;
+        std::vector<double> boxsize;       //!< L precomputed (used to avoid subtractions in boundary conditions)
+        std::vector<double> lowerbound;       //!< L precomputed (used to avoid subtractions in boundary conditions)
+        std::vector<double> upperbound;       //!< minimum value of L, per coordinate precomputed
+        std::vector<int> periodic; //!< 0/1 in each direction to tell if the box is periodic in that direction
+        double vol;
         //Matrix<double, Dynamic, 3, ColMajor> m_gridposition;
 };
 
@@ -167,6 +173,14 @@ void export_SimBox(py::module& m)
     .def("getDim", &SimBox::getDim)
     .def("setDim", &SimBox::setDim)
     .def("getVolume", &SimBox::getVolume)
+    
+    .def_readwrite("dim", &SimBox::dim)
+    .def_readwrite("origin", &SimBox::origin)
+    .def_readwrite("boxsize", &SimBox::boxsize)
+    .def_readwrite("upperbound", &SimBox::upperbound)
+    .def_readwrite("lowerbound", &SimBox::lowerbound)
+    .def_readwrite("periodic", &SimBox::periodic)
+    .def_readwrite("vol", &SimBox::vol)
     ;
 };
 #endif // __SIMBOX_H__

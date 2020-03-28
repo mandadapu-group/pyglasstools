@@ -18,26 +18,28 @@ class simbox(object):
         else:
             boxsize = np.array([Lx,Ly,Lz])#.astype('float64')
             self.SimBox = _pyglasstools.SimBox(boxsize,origin,ndim);
-
+    
+    #Redefine attributes so that it directly access SimBox C++ class 
+    #attributes
+    def __getattr__(self,attr):
+            orig_attr = self.SimBox.__getattribute__(attr)
+            if callable(orig_attr):
+                def hooked(*args, **kwargs):
+                    self.pre()
+                    result = orig_attr(*args, **kwargs)
+                    # prevent SimBox from becoming unwrapped
+                    if result == self.SimBox:
+                        return self
+                    self.post()
+                    return result
+                return hooked
+            else:
+                return orig_attr
+    
     ## \internal
     # \brief Get a C++ boxdim
     def _getSimBox(self):
         return self.SimBox
-
-    def get_volume(self):
-        return self.SimBox.getVolume();
-    
-    def get_dim(self):
-        return self.SimBox.getDim();
-    
-    def get_boxsizevec(self):
-        return self.SimBox.getBoxSizeVec();
-    
-    def get_upperboundvec(self):
-        return self.SimBox.getUpperBoundVec();
-    
-    def get_lowerboundvec(self):
-        return self.SimBox.getLowerBoundVec();
 
 
 class data(object):

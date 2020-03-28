@@ -13,3 +13,5 @@ Update (03/24/2020): Implemented pair potential and coarse graining function cla
 Update (03/25/2020): Implemented system data class with neighbor list functionality using Aboria.
 
 Update (03/27/2020): Implemented Irving Kirkwood class to compute global shear stres.
+
+Update (03/28/2020): Changed module design and structure and included Observable class for general computations. 

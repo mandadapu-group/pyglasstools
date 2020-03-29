@@ -48,3 +48,4 @@ The requirements for installing the plugin is the same as standard HOOMD, except
 
 Note that for the eigensolver, this will require choosing an external library. Multiple options to use different external library would be highly desirable. Example: [Spectra](https://spectralib.org/), [SLEPc](https://slepc.upv.es/), and [FEAST](http://www.ecs.umass.edu/~polizzi/feast/). 
 
+For the pseudoinverse problem, libraries specializing on (truncated) SVD would be extremely useful.

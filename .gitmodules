@@ -4,3 +4,12 @@
 [submodule "pyglasstools/extern/pybind11"]
 	path = pyglasstools/extern/pybind11
 	url = https://github.com/pybind/pybind11
+[submodule "pyglasstools/extern/rsvd"]
+	path = pyglasstools/extern/rsvd
+	url = https://github.com/mp4096/rsvd.git
+[submodule "pyglasstools/extern/slepc"]
+	path = pyglasstools/extern/slepc
+	url = https://gitlab.com/slepc/slepc.git
+[submodule "pyglasstools/extern/spectra"]
+	path = pyglasstools/extern/spectra
+	url = https://github.com/yixuan/spectra/

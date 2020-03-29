@@ -35,3 +35,16 @@ The requirements for installing the plugin is the same as standard HOOMD, except
 (03/27/2020): Implemented Irving Kirkwood class to compute global shear stres.
 
 (03/28/2020): Changed module design and structure and included Observable class for general computations. 
+
+## **To-Do List**
+1. Local calculator and stress field calculation
+2. Elasticity tensor calculation
+3. Eigenvalue solvers for many tasks:
+   * Computing pseudo-inverse of the Hessian matrix
+   * Computing the soft-modes of the glass
+   * (*Optional*) Computing the localization landscape (see https://cse.umn.edu/wave)
+4. (*Optional*) Implement stress and density auto-correlatoin functions
+5. (*Optional*) Interface for 'quick' plotting and movie generation. 
+
+Note that for the eigensolver, this will require choosing an external library. Multiple options to use different external library would be highly desirable. Example: [Spectra](https://spectralib.org/), [SLEPc](https://slepc.upv.es/), and [FEAST](http://www.ecs.umass.edu/~polizzi/feast/). 
+

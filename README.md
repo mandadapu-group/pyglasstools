@@ -11,7 +11,7 @@ Files that come with this module:
  - CompilerFlagsSetup.cmake : CMake file for setting up compiler flags
  - SetupPybind11.cmake      : CMake file for setting Python build using [pybind11](https://pybind11.readthedocs.io/en/stable/)
  - README.md                : This file
- - swapmc                   : Directory containing C++ and Python source codes that make up the module
+ - pyglasstools             : Directory containing C++ and Python source codes that make up the module
 
 ## **Requirements**
 

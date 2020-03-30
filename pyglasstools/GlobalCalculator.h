@@ -10,7 +10,6 @@
 
 #include "MathAndTypes.h"
 #include "ParticleSystem.h"
-#include <pyglasstools/cgfunc/CoarseGrainFunction.h>
 #include "SimBox.h"
 #include <pyglasstools/observables/Observables.h>
 
@@ -25,67 +24,33 @@ namespace abr = Aboria;
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 
-/*
-class PYBIND11_EXPORT GridPoints
+
+class PYBIND11_EXPORT GlobalCalculator
 {
     public:
-        GridPoints() : totsize(0){};
-        GridPoints(const std::vector< Eigen::Vector3d >& _points)
-            : totsize(_points.size()), points(_points)
-        {};
-        ~GridPoints(){};
-        
-        unsigned int totsize;
-        std::vector< Eigen::Vector3d > points;
-};
+        GlobalCalculator(std::shared_ptr< ParticleSystem > sysdata)
+            : m_sysdata(sysdata)
+            {
+                double maxforce_rcut = m_sysdata->potential->getScaledRcut();
+                double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
+                                                        std::end(abr::get<diameter>(m_sysdata->particles)) );
+                maxforce_rcut *= maxdiameter;
+                max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
+            };
+        ~GlobalCalculator(){};
 
-void export_GridPoints(py::module& m)
-{
-    py::class_<GridPoints, std::shared_ptr<GridPoints> >(m,"GridPoints")
-    .def(py::init<std::vector< Eigen::Vector3d > >())
-    ;
-};
-*/
-
-class PYBIND11_EXPORT Calculator
-{
-    public:
-        Calculator(std::shared_ptr< ParticleSystem > sysdata) : m_sysdata(sysdata){};
-        ~Calculator(){};
-        
         void addObservable(std::shared_ptr<Observable> obs)
             {
                 m_observables.insert(std::pair<std::string, std::shared_ptr<Observable> >(obs->name, obs));
             }
-        
         MatrixXd getObservable(std::string name)
             {
-                return m_observables[name]->val;
+                return m_observables[name]->getGlobalValue();
             }
             
-        virtual void compute(){};
+        virtual void compute();
         
-    protected:
-        std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
-        std::map< std::string, std::shared_ptr<Observable> > m_observables; 
-};
-
-
-class PYBIND11_EXPORT GlobalCalculator : public Calculator
-{
-    public:
-        GlobalCalculator(std::shared_ptr< ParticleSystem > sysdata)
-            : Calculator(sysdata)
-        {
-            double maxforce_rcut = m_sysdata->potential->getScaledRcut();
-            double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
-                                                    std::end(abr::get<diameter>(m_sysdata->particles)) );
-            maxforce_rcut *= maxdiameter;
-            max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
-        };
-        ~GlobalCalculator(){};
-        void compute();
-        void computeLocalObs(AboriaParticles::value_type particle_i) 
+        virtual void computeLocalObs(AboriaParticles::value_type particle_i) 
             {
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
@@ -95,8 +60,8 @@ class PYBIND11_EXPORT GlobalCalculator : public Calculator
                         continue;
                 }
             }
-        void computePairObs(    AboriaParticles::value_type particle_i, 
-                                AboriaParticles::value_type particle_j ) 
+        virtual void computePairObs(    AboriaParticles::value_type particle_i, 
+                                        AboriaParticles::value_type particle_j)
             {
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
@@ -113,8 +78,10 @@ class PYBIND11_EXPORT GlobalCalculator : public Calculator
                     }
                 }
             }
-    private:
+    protected:
         double max_rcut;
+        std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
+        std::map< std::string, std::shared_ptr<Observable> > m_observables; 
 };
 
 //Compute a Global Observable
@@ -147,20 +114,13 @@ void GlobalCalculator::compute()
     } //end of for loop n
 };
 
-void export_Calculator(py::module& m)
-{
-    py::class_<Calculator, std::shared_ptr<Calculator> >(m,"Calculator")
-    .def(py::init< std::shared_ptr< ParticleSystem > >())
-    .def("addObservable", &Calculator::addObservable)
-    .def("getObservable", &Calculator::getObservable)
-    .def("compute", &Calculator::compute)
-    ;
-};
-
 void export_GlobalCalculator(py::module& m)
 {
-    py::class_<GlobalCalculator, Calculator, std::shared_ptr<GlobalCalculator> >(m,"GlobalCalculator")
+    py::class_<GlobalCalculator, std::shared_ptr<GlobalCalculator> >(m,"GlobalCalculator")
     .def(py::init< std::shared_ptr< ParticleSystem > >())
+    .def("addObservable", &GlobalCalculator::addObservable)
+    .def("getObservable", &GlobalCalculator::getObservable)
+    .def("compute", &GlobalCalculator::compute)
     ;
 };
 

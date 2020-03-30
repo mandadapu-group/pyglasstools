@@ -15,7 +15,6 @@ Files that come with this module:
 
 ## **Requirements**
 
-The requirements for installing the plugin is the same as standard HOOMD, except that you need the following package as REQUIRED:
 - Python >= 3.5
 - NumPy >= 1.7
 - CMake >= 2.8.10.1

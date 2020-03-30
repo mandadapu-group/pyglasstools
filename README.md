@@ -15,7 +15,6 @@ Files that come with this module:
 
 ## **Requirements**
 
-The requirements for installing the plugin is the same as standard HOOMD, except that you need the following package as REQUIRED:
 - Python >= 3.5
 - NumPy >= 1.7
 - CMake >= 2.8.10.1
@@ -42,7 +41,6 @@ The requirements for installing the plugin is the same as standard HOOMD, except
 3. Eigenvalue solvers for many tasks:
    * Computing pseudo-inverse of the Hessian matrix
    * Computing the soft-modes of the glass
-   * (*Optional*) Computing the localization landscape (see https://cse.umn.edu/wave)
 4. (*Optional*) Implement stress and density auto-correlatoin functions
 5. (*Optional*) Interface for 'quick' plotting and movie generation. 
 

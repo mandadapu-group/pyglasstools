@@ -42,7 +42,6 @@ The requirements for installing the plugin is the same as standard HOOMD, except
 3. Eigenvalue solvers for many tasks:
    * Computing pseudo-inverse of the Hessian matrix
    * Computing the soft-modes of the glass
-   * (*Optional*) Computing the localization landscape (see https://cse.umn.edu/wave)
 4. (*Optional*) Implement stress and density auto-correlatoin functions
 5. (*Optional*) Interface for 'quick' plotting and movie generation. 
 

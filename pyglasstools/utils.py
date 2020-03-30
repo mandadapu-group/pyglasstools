@@ -84,14 +84,14 @@ class data(object):
     def set_position(self,position):
         self.particledata.setAtomPosition(position.astype('float64'))
     
-    def get_position(self):
-        return self.particledata.getAtomPosition()
+    #def get_position(self):
+    #    return self.particledata.getAtomPosition()
     
     def set_velocity(self,velocity):
         self.particledata.setAtomVelocity(velocity.astype('float64'))
     
-    def get_velocity(self):
-        return self.particledata.getAtomVelocity()
+    #def get_velocity(self):
+    #    return self.particledata.getAtomVelocity()
     
     def get_neighbors(self, point, radius):
         return self.particledata.getNeighbors(point,radius)

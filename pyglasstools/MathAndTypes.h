@@ -5,8 +5,15 @@
 #include <functional>
 #include <vector>
 #include <cassert>
-
 #include <Eigen/Dense>
+
+#include <Aboria.h>
+
+ABORIA_VARIABLE(velocity, Aboria::vdouble3, "velocity");
+ABORIA_VARIABLE(mass, double, "mass");
+ABORIA_VARIABLE(diameter, double, "diameter");
+typedef Aboria::Particles< std::tuple<velocity, diameter, mass> > AboriaParticles;
+typedef typename AboriaParticles::position position;        
 
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)

@@ -26,7 +26,7 @@ pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_E
 install(TARGETS _${COMPONENT_NAME} 
         LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
         )
-target_link_libraries(_${COMPONENT_NAME} GSL::gsl GSL::gslcblas)
+    #target_link_libraries(_${COMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
 ################ Python only modules
 # copy python modules to the build directory to make it a working python package

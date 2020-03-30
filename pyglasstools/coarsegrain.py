@@ -13,9 +13,9 @@ class ikglobal(object):
     def compute(self):
         self.irvingkirkwood.compute();
     def get_virialstressvalue(self):
-        return self.irvingkirkwood.getObservable("Virial Stress")/self.vol;
+        return self.irvingkirkwood.getGlobalObservable("Virial Stress")/self.vol;
     def get_kineticstressvalue(self):
-        return self.irvingkirkwood.getObservable("Kinetic Stress")/self.vol;
+        return self.irvingkirkwood.getGlobalObservable("Kinetic Stress")/self.vol;
 R""""
 class iklocal(object):
     def __init__(self, gridpoints, sysdata, cgfunc, vol):

@@ -25,6 +25,7 @@ class PYBIND11_EXPORT PairPotential
             : m_di(0), m_dj(0), m_rij(Vector3d::Zero()), m_params(_params)
         {
         };
+        virtual ~PairPotential(){};
         bool needsDiameter()
         { 
             return true; 

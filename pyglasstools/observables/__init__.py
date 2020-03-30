@@ -9,7 +9,7 @@ class virialstress(object):
 
     """
     def __init__(self, dim):
-        self.Tv = _observables.VirialStress(dim)#rcut
+        self.Tv = _observables.GlobVirialStress("Virial Stress", "TENSOR", False, True, dim)#rcut
     
     #Redefine attributes so that it directly access SimBox C++ class 
     #attributes
@@ -36,7 +36,7 @@ class kineticstress(object):
 
     """
     def __init__(self, dim):
-        self.Tk = _observables.KineticStress(dim)#rcut
+        self.Tk = _observables.GlobKineticStress("Kinetic Stress", "TENSOR", True, False, dim)#rcut
     
     #Redefine attributes so that it directly access SimBox C++ class 
     #attributes

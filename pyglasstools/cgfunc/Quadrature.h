@@ -48,7 +48,7 @@ class gsl_quad
             {
                 gsl_integration_qag ( &gsl_f, min, max,
                                      epsabs, epsrel, limit,
-                                     6,workspace.get(), &result, &error );
+                                     1,workspace.get(), &result, &error );
             }
             else if ( std::isinf(min) && !std::isinf(max) )
             {
@@ -76,8 +76,8 @@ class gsl_quad
 template < typename F >
 double GSLQuadrature(F func,
             std::pair<double,double> const& range,
-            double epsabs = 1.49e-15, double epsrel = 1.49e-15,
-            int limit = 200)
+            double epsabs = 1.49e-10, double epsrel = 1.49e-10,
+            int limit = 5000)
 {
     return gsl_quad<F>(func, limit).integrate(range.first, range.second, epsabs, epsrel);
 }

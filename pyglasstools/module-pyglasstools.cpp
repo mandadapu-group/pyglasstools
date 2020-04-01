@@ -18,4 +18,6 @@ PYBIND11_MODULE(_pyglasstools, m)
     export_ParticleSystem(m);
     
     export_GlobalCalculator(m);    
+    
+    export_LocalCalculator(m);    
 }

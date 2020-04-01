@@ -8,6 +8,6 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 endif()
 
-# Enable compiler warnings and O2 opeimization on gcc and g++
+# Enable compiler warnings and Ofast opeimization on gcc and g++
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -march=native -Wall -Wno-unknown-pragmas -Wno-deprecated-declarations")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast -flto -march=native -Wall -Wno-unknown-pragmas")

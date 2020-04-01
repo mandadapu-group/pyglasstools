@@ -12,7 +12,6 @@
 #include "ParticleSystem.h"
 #include <pyglasstools/observables/Observables.h>
 #include <pyglasstools/cgfunc/CoarseGrainFunction.h>
-
 #include "extern/pybind11/include/pybind11/pybind11.h"
 //#include "extern/pybind11/include/pybind11/stl.h"
 //#include "extern/pybind11/include/pybind11/eigen.h"
@@ -71,6 +70,13 @@ class PYBIND11_EXPORT GlobalCalculator
                         it->second->accumulate(particle_i,particle_j);
                 }
             }
+        virtual void clearState()
+            {
+                for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
+                {
+                    it->second->clear();
+                }
+            }
     protected:
         double max_rcut;
         std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
@@ -108,17 +114,16 @@ void GlobalCalculator::compute()
 class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 {
     public:
-        LocalCalculator(    std::vector< Eigen::Vector3d > gridpoints, 
-                            std::shared_ptr< ParticleSystem > sysdata, 
+        LocalCalculator(    std::shared_ptr< ParticleSystem > sysdata, 
                             std::shared_ptr< CoarseGrainFunction > cgfunc )
-            : GlobalCalculator(sysdata), m_gridpoints(gridpoints), m_cgfunc(cgfunc)
+            : GlobalCalculator(sysdata), m_cgfunc(cgfunc)
         {
         }; 
         ~LocalCalculator(){};
         
-        virtual void compute();
+        virtual void computelocal(const std::vector< Eigen::Vector3d >& gridpoints);
         
-        std::vector< MatrixXd> getField(std::string name)
+        std::vector< MatrixXd > getField(std::string name)
             {
                 return m_observables[name]->getField();
             }
@@ -145,30 +150,30 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
                 }
             }
     private:
-        std::vector< Eigen::Vector3d > m_gridpoints;
         std::shared_ptr< CoarseGrainFunction > m_cgfunc; //!< particle system, equipped with neighbor list 
 };
 
 //Compute a Global Observable
-void LocalCalculator::compute()
+void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoints)
 {
-    unsigned int grid_id = 0;
-    for (auto gridpoint : m_gridpoints)
+    //Make sure to clear out any stored values form last compute
+    clearState();
+    for (unsigned int i = 0; i < gridpoints.size(); ++i)//auto gridpoint : gridpoints)
     {
         //#pragma omp parallel for reduction(+:totTvxy)
         for( auto p_i = abr::euclidean_search(m_sysdata->particles.get_query(), 
-                        abr::vdouble3(gridpoint[0],gridpoint[1],gridpoint[2]), m_cgfunc->getRcut()); 
+                        abr::vdouble3(gridpoints[i][0],gridpoints[i][1],gridpoints[i][2]), m_cgfunc->getRcut()); 
                         p_i != false; ++p_i)
         {
             //Set grid point X and position of particle Ri
-            m_cgfunc->setX(gridpoint);
+            m_cgfunc->setX(gridpoints[i]);
             Vector3d dr;
             dr << p_i.dx()[0], p_i.dx()[1],p_i.dx()[2];
-            m_cgfunc->setRi(gridpoint+dr);
-            double cgval = m_cgfunc->getBondFunc();
+            m_cgfunc->setRi(gridpoints[i]-dr);
+            double cgval = m_cgfunc->getDeltaFunc();
             
             //Compute a list of local obsercavles 
-            computeLocalObsPerGrid(*p_i,cgval,grid_id);
+            computeLocalObsPerGrid(*p_i,cgval,i);
 
             //Next we loop through the j-th particles for the virial stress
             for( auto p_j = abr::euclidean_search(m_sysdata->particles.get_query(), 
@@ -180,7 +185,7 @@ void LocalCalculator::compute()
                 {
                     //set the distance between particle i and particle j
                     Eigen::Vector3d rij;
-                    rij << p_j.dx()[0], p_j.dx()[1], p_j.dx()[2];
+                    rij << -p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2];
                     m_sysdata->potential->setRij(rij);
                     m_cgfunc->setRij(rij);
                     double bondval = m_cgfunc->getBondFunc();
@@ -188,11 +193,10 @@ void LocalCalculator::compute()
                     //Don't forget to set diameters of the potential
                     m_sysdata->potential->setDiameters( abr::get<diameter>(*p_i),
                                                         abr::get<diameter>(*p_j));
-                    computePairObsPerGrid(*p_i,*p_j,bondval, grid_id);
+                    computePairObsPerGrid(*p_i,*p_j,bondval, i);
                 } 
             }   //end of for loop particle_j
         } //end of for loop particle_i
-        grid_id++;
     }
 };
 
@@ -209,8 +213,9 @@ void export_GlobalCalculator(py::module& m)
 void export_LocalCalculator(py::module& m)
 {
     py::class_<LocalCalculator, GlobalCalculator, std::shared_ptr<LocalCalculator> >(m,"LocalCalculator")
-    .def(py::init< std::vector< Eigen::Vector3d >, std::shared_ptr< ParticleSystem >, std::shared_ptr< CoarseGrainFunction > >())
-    .def("getGlobalObservable", &LocalCalculator::getGlobalObservable)
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< CoarseGrainFunction > >())
+    .def("getField", &LocalCalculator::getField)
+    .def("computelocal", &LocalCalculator::computelocal)
     ;
 };
 

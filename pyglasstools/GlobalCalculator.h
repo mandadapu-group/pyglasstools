@@ -12,9 +12,8 @@
 #include "ParticleSystem.h"
 #include <pyglasstools/observables/Observables.h>
 #include <pyglasstools/cgfunc/CoarseGrainFunction.h>
+
 #include "extern/pybind11/include/pybind11/pybind11.h"
-//#include "extern/pybind11/include/pybind11/stl.h"
-//#include "extern/pybind11/include/pybind11/eigen.h"
 namespace py = pybind11;
 
 #include <Aboria.h>
@@ -22,7 +21,7 @@ namespace abr = Aboria;
 
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
-
+#include <Eigen/Core>
 
 class PYBIND11_EXPORT GlobalCalculator
 {
@@ -156,25 +155,21 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 //Compute a Global Observable
 void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoints)
 {
-    //Make sure to clear out any stored values form last compute
     clearState();
-    for (unsigned int i = 0; i < gridpoints.size(); ++i)//auto gridpoint : gridpoints)
+    for (unsigned int i = 0; i < gridpoints.size(); ++i)
     {
-        //#pragma omp parallel for reduction(+:totTvxy)
         for( auto p_i = abr::euclidean_search(m_sysdata->particles.get_query(), 
                         abr::vdouble3(gridpoints[i][0],gridpoints[i][1],gridpoints[i][2]), m_cgfunc->getRcut()); 
                         p_i != false; ++p_i)
         {
+            
             //Set grid point X and position of particle Ri
             m_cgfunc->setX(gridpoints[i]);
-            Vector3d dr;
-            dr << p_i.dx()[0], p_i.dx()[1],p_i.dx()[2];
+            Vector3d dr(p_i.dx()[0], p_i.dx()[1],p_i.dx()[2]);
             m_cgfunc->setRi(gridpoints[i]-dr);
             double cgval = m_cgfunc->getDeltaFunc();
             
             //Compute a list of local obsercavles 
-            computeLocalObsPerGrid(*p_i,cgval,i);
-
             //Next we loop through the j-th particles for the virial stress
             for( auto p_j = abr::euclidean_search(m_sysdata->particles.get_query(), 
                             abr::get<position>(*p_i), max_rcut); 
@@ -184,8 +179,7 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
                 if (abr::get<abr::id>(*p_i) != abr::get<abr::id>(*p_j))
                 {
                     //set the distance between particle i and particle j
-                    Eigen::Vector3d rij;
-                    rij << -p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2];
+                    Eigen::Vector3d rij(-p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2]);
                     m_sysdata->potential->setRij(rij);
                     m_cgfunc->setRij(rij);
                     double bondval = m_cgfunc->getBondFunc();
@@ -195,8 +189,8 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
                                                         abr::get<diameter>(*p_j));
                     computePairObsPerGrid(*p_i,*p_j,bondval, i);
                 } 
-            }   //end of for loop particle_j
-        } //end of for loop particle_i
+            } 
+        }
     }
 };
 

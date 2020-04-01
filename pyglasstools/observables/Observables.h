@@ -1,6 +1,5 @@
 #ifndef __OBSERVABLES_H__
 #define __OBSERVABLES_H__
-
 #include <pyglasstools/MathAndTypes.h>
 namespace abr = Aboria;
 
@@ -49,14 +48,19 @@ class PYBIND11_EXPORT Observable
             {
                 throw std::runtime_error("[error] observable is not a field");
             }
+        virtual void clear()
+        {
+        }
         virtual Eigen::MatrixXd getGlobalValue()
         {
+            throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
             return Eigen::MatrixXd::Zero(1,1);
         }
         virtual std::vector< Eigen::MatrixXd > getField()
         {
-            std::vector< Eigen::MatrixXd > val(1,Eigen::MatrixXd::Zero(1,1));
-            return val;
+            throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
+            std::vector< Eigen::MatrixXd > temp(1,Eigen::MatrixXd::Zero(1,1));
+            return temp;
         }
         std::string name;
         std::string type;
@@ -86,22 +90,29 @@ class PYBIND11_EXPORT GlobalObservable : public Observable
             };
         virtual void accumulate(const AboriaParticles::value_type& particle_i)
             {
-                obs.compute(particle_i, val);
+                val += obs.compute(particle_i);
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j)
             {
-                obs.compute(particle_i, particle_j, val);
+                val += obs.compute(particle_i, particle_j);
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential)
             {
-                obs.compute(particle_i, particle_j, potential, val);
+                val += obs.compute(particle_i, particle_j, potential);
             }
         virtual Eigen::MatrixXd getGlobalValue()
         {
             return val;
+        }
+        
+        virtual std::vector< Eigen::MatrixXd > getField()
+        {
+            throw std::runtime_error("[ERROR] Observable Type is Global not Local");
+            std::vector< Eigen::MatrixXd > temp(1,val);
+            return temp;
         }
         
         AtomicObs obs;
@@ -114,7 +125,7 @@ class PYBIND11_EXPORT LocalObservable : public Observable
     public:
         LocalObservable() : Observable("NONE", "SCALAR", true, false, false,3), obs(3) {};
         LocalObservable(std::string _name, std::string _type, bool _islocal, bool _useforce, int _dim, int _gridsize) 
-            : Observable(_name, _type, _islocal, false, _useforce, _dim), obs(_dim) 
+            : Observable(_name, _type, _islocal, true, _useforce, _dim), obs(_dim) 
             {
                 val.resize(_gridsize);
                 if (type == "SCALAR")
@@ -122,41 +133,48 @@ class PYBIND11_EXPORT LocalObservable : public Observable
                 else if (type == "VECTOR")
                     std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
                 else if (type == "TENSOR")
-                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
                 else
                     throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
             };
         virtual void accumulate(const AboriaParticles::value_type& particle_i,
                                 double cgval, unsigned int grid_id)
             {
-                obs.compute(particle_i, val[grid_id]);
-                val[grid_id] *= cgval;
+                val[grid_id] += cgval*obs.compute(particle_i);
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j,
                                 double bondval, unsigned int grid_id)
             {
-                obs.compute(particle_i, particle_j, val[grid_id]);
-                val[grid_id] *= 0.5*bondval;
+                val[grid_id] += 0.5*bondval*obs.compute(particle_i, particle_j);
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential,
                                 double bondval, unsigned int grid_id)
             {
-                obs.compute(particle_i, particle_j, potential, val[grid_id]);
-                val[grid_id] *= 0.5*bondval;
+                val[grid_id] += 0.5*bondval*obs.compute(particle_i, particle_j, potential);
             }
-
         virtual Eigen::MatrixXd getGlobalValue()
         {
-            return std::accumulate(val.begin(), val.end(), Eigen::MatrixXd::Zero(dim,dim))/val.size();
+            throw std::runtime_error("[ERROR] Observable Type is Local not Global");
+            return Eigen::MatrixXd::Zero(1,1);
         }
-        virtual std::vector<Eigen::MatrixXd > getField()
+        virtual std::vector< Eigen::MatrixXd > getField()
         {
             return val;
         }
-        
+        void clear()
+        {
+            if (type == "SCALAR")
+                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(1,1));
+            else if (type == "VECTOR")
+                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
+            else if (type == "TENSOR")
+                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
+            else
+                throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
+        } 
         AtomicObs obs;
         std::vector< Eigen::MatrixXd > val;
 };
@@ -165,12 +183,6 @@ void export_Observable(py::module& m)
 {
     py::class_<Observable, std::shared_ptr<Observable> >(m,"Observable")
     .def(py::init< std::string, std::string, bool, bool, bool, int >()) 
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type)) &T::accumulate, "Accumulate value of local obs")
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type)) &T::accumulate, "Accumulate value of pair obs")
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type, const std::shared_ptr<PairPotential>&)) &T::accumulate, "Accumulate value of pair obs requiring force calc.")
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,double,unsigned int)) &T::accumulate, "Accumulate value of local obs")
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type,std::shared_ptr<CoarseGrainFunction>)) &T::accumulate, "Accumulate value of pair obs")
-    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type, const std::shared_ptr<PairPotential>&, std::shared_ptr<CoarseGrainFunction>)) &T::accumulate, "Accumulate value of pair obs requiring force calc.")
     .def("getGlobalValue",&Observable::getGlobalValue)
     .def("getField",&Observable::getField)
     .def_readwrite("name", &Observable::name)
@@ -190,14 +202,20 @@ void export_GlobalObservable(py::module& m, const std::string& name)
     ;
 };
 
-/*
 template<class T>
-void export_LocalObservable(py::module& m, std::string name)
+void export_LocalObservable(py::module& m, const std::string& name)
 {
-    py::class_<T, Observable, std::shared_ptr<T> >(m,name)
-    .def(py::init< std::string, std::string, bool, bool, int >()) 
+    py::class_<T, Observable, std::shared_ptr<T> >(m,name.c_str())
+    .def(py::init< std::string, std::string, bool, bool, int, int >()) 
     .def_readwrite("val", &T::val)
     ;
 };
+/*If I need to import these methods. . . .
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type)) &T::accumulate, "Accumulate value of local obs")
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type)) &T::accumulate, "Accumulate value of pair obs")
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type, const std::shared_ptr<PairPotential>&)) &T::accumulate, "Accumulate value of pair obs requiring force calc.")
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,double,unsigned int)) &T::accumulate, "Accumulate value of local obs")
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type,std::shared_ptr<CoarseGrainFunction>)) &T::accumulate, "Accumulate value of pair obs")
+    //.def("accumulate", (void (T::*)(AboriaParticles::value_type,AboriaParticles::value_type, const std::shared_ptr<PairPotential>&, std::shared_ptr<CoarseGrainFunction>)) &T::accumulate, "Accumulate value of pair obs requiring force calc.")
 */
 #endif

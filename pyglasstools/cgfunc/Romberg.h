@@ -18,8 +18,8 @@ class gsl_quad
     protected:
         F f;
         int limit;
-        std::unique_ptr < gsl_integration_workspace,
-                        std::function < void(gsl_integration_workspace*) >
+        std::unique_ptr < gsl_integration_romberg_workspace,
+                        std::function < void(gsl_integration_romberg_workspace*) >
                         > workspace;
 
         static double gsl_wrapper(double x, void * p)
@@ -32,7 +32,7 @@ class gsl_quad
         gsl_quad(F f, int limit)
             : f(f)
             , limit(limit)
-            , workspace(gsl_integration_workspace_alloc(limit), gsl_integration_workspace_free)
+            , workspace(gsl_integration_romberg_alloc(limit), gsl_integration_romberg_free)
         {}
         virtual ~gsl_quad(){};
 
@@ -44,9 +44,7 @@ class gsl_quad
 
             double result, error;
             
-            gsl_integration_qag ( &gsl_f, min, max,
-                                 epsabs, epsrel, limit,
-                                 1,workspace.get(), &result, &error );
+            gsl_integration_romberg ( &gsl_f, min, max, epsabs, epsrel, &result, limit, workspace.get());
             return result;
         }
 };
@@ -55,7 +53,7 @@ template < typename F >
 double GSLQuadrature(F func,
             std::pair<double,double> const& range,
             double epsabs = 1.49e-10, double epsrel = 1.49e-10,
-            int limit = 5000)
+            int limit = 10000)
 {
     return gsl_quad<F>(func, limit).integrate(range.first, range.second, epsabs, epsrel);
 }

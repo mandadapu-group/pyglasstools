@@ -9,5 +9,5 @@ else()
 endif()
 
 # Enable compiler warnings and Ofast opeimization on gcc and g++
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -march=native -Wall -Wno-unknown-pragmas -Wno-deprecated-declarations")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast -flto -march=native -Wall -Wno-unknown-pragmas")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -fopenmp -flto -march=native -Wall -Wno-unknown-pragmas -Wno-deprecated-declarations")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast -fopenmp -flto -march=native -Wall -Wno-unknown-pragmas")

@@ -5,8 +5,8 @@ class ikglobal(object):
     R""" Lennard-Jones pair potential.
 
     """
-    def __init__(self, sysdata,vol):
-        self.irvingkirkwood = _pyglasstools.GlobalCalculator(sysdata._getParticleSystem());
+    def __init__(self, sysdata,potential, vol):
+        self.irvingkirkwood = _pyglasstools.GlobalCalculator(sysdata._getParticleSystem(),potential._getPairPotential());
         self.vol = vol
     def add_observable(self,obs):
         self.irvingkirkwood.addObservable(obs._getObservable());
@@ -18,8 +18,8 @@ class ikglobal(object):
         return self.irvingkirkwood.getGlobalObservable("Kinetic Stress")/self.vol;
 
 class iklocal(object):
-    def __init__(self, sysdata, cgfunc):
-        self.irvingkirkwood = _pyglasstools.LocalCalculator(sysdata._getParticleSystem(),cgfunc._getCGFunc());
+    def __init__(self, sysdata, potential, cgfunc):
+        self.irvingkirkwood = _pyglasstools.LocalCalculator(sysdata._getParticleSystem(),potential._getPairPotential(), cgfunc._getCGFunc());
     def add_observable(self,obs):
         self.irvingkirkwood.addObservable(obs._getObservable());
     def compute(self,gridpoints):

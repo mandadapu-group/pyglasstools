@@ -4,7 +4,6 @@
 #include "extern/pybind11/include/pybind11/pybind11.h"
 #include <omp.h>
 #include "MathAndTypes.h"
-#include <pyglasstools/potential/PairPotential.h>
 #include "SimBox.h"
 
 #include <Aboria.h>
@@ -14,11 +13,11 @@ namespace abr = Aboria;
 class PYBIND11_EXPORT ParticleSystem
 {
     public:
-        ParticleSystem( std::shared_ptr< SimBox > simbox, std::shared_ptr<PairPotential> _potential,
+        ParticleSystem( std::shared_ptr< SimBox > simbox,
                         unsigned int numparticles, std::vector<double> atomdiameter, 
                         std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
                         std::vector< std::vector<double> > atomvelocity)
-                        :   simbox(simbox), potential(_potential), particles(numparticles), 
+                        :   simbox(simbox), particles(numparticles), 
                             m_numparticles(numparticles)  
         {
             abr::get<diameter>(particles) = atomdiameter;
@@ -128,7 +127,6 @@ class PYBIND11_EXPORT ParticleSystem
         };
         
         std::shared_ptr<SimBox> simbox;
-        std::shared_ptr<PairPotential> potential;
         AboriaParticles particles;
     private:
         unsigned int m_numparticles;
@@ -138,7 +136,7 @@ class PYBIND11_EXPORT ParticleSystem
 void export_ParticleSystem(py::module& m)
 {
     py::class_<ParticleSystem, std::shared_ptr<ParticleSystem> >(m,"ParticleSystem")
-    .def(py::init<  std::shared_ptr< SimBox >, std::shared_ptr< PairPotential >,
+    .def(py::init<  std::shared_ptr< SimBox >,
                      unsigned int, std::vector<double>, std::vector<double>, 
                     std::vector< std::vector<double> >, std::vector< std::vector<double> > >())
     .def("getMass", &ParticleSystem::getMass)

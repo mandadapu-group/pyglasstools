@@ -46,7 +46,7 @@ class data(object):
 
     """
     def __init__(   self, diameter, mass, position, velocity, 
-                    simbox, pairpotential):
+                    simbox):
 
         self.diameter = diameter
         self.mass = mass
@@ -55,7 +55,6 @@ class data(object):
         
         # create the c++ mirror class
         self.particledata = _pyglasstools.ParticleSystem(   simbox._getSimBox(), 
-                                                            pairpotential._getPairPotential(),
                                                             len(diameter),
                                                             self.diameter,
                                                             self.mass,

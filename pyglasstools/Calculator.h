@@ -27,10 +27,10 @@ namespace abr = Aboria;
 class PYBIND11_EXPORT GlobalCalculator
 {
     public:
-        GlobalCalculator(std::shared_ptr< ParticleSystem > sysdata)
-            : m_sysdata(sysdata)
+        GlobalCalculator(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
+            : m_sysdata(sysdata), m_potential(potential)
             {
-                double maxforce_rcut = m_sysdata->potential->scaled_rcut;
+                double maxforce_rcut = potential->scaled_rcut;
                 double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
                                                         std::end(abr::get<diameter>(m_sysdata->particles)) );
                 maxforce_rcut *= maxdiameter;
@@ -65,7 +65,7 @@ class PYBIND11_EXPORT GlobalCalculator
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->useforce && !it->second->islocal && !it->second->isfield)
-                        it->second->accumulate(particle_i,particle_j,m_sysdata->potential);
+                        it->second->accumulate(particle_i,particle_j,m_potential);
                     else if (!it->second->useforce && !it->second->islocal && !it->second->isfield)
                         it->second->accumulate(particle_i,particle_j);
                 }
@@ -78,9 +78,11 @@ class PYBIND11_EXPORT GlobalCalculator
                 }
             }
     protected:
-        double max_rcut;
         std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
-        std::map< std::string, std::shared_ptr<Observable> > m_observables; 
+        std::shared_ptr< PairPotential > m_potential;
+        double max_rcut;
+        std::map< std::string, std::shared_ptr<Observable> > m_observables;
+
 };
 
 //Compute a Global Observable
@@ -100,11 +102,11 @@ void GlobalCalculator::compute()
             {
                 //set the distance between particle i and particle j
                 Eigen::Vector3d rij(p_j.dx()[0], p_j.dx()[1], p_j.dx()[2]);
-                m_sysdata->potential->rij = rij;
+                m_potential->rij = rij;
                 
                 //Don't forget to set diameters of the potential
-                m_sysdata->potential->di =  abr::get<diameter>(*p_i);
-                m_sysdata->potential->dj =  abr::get<diameter>(*p_j);
+                m_potential->di =  abr::get<diameter>(*p_i);
+                m_potential->dj =  abr::get<diameter>(*p_j);
                 
                 computePairObs(*p_i,*p_j);
             }
@@ -115,9 +117,10 @@ void GlobalCalculator::compute()
 class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 {
     public:
-        LocalCalculator(    std::shared_ptr< ParticleSystem > sysdata, 
+        LocalCalculator(    std::shared_ptr< ParticleSystem > sysdata,
+                            std::shared_ptr< PairPotential > potential, 
                             std::shared_ptr< CoarseGrainFunction > cgfunc )
-            : GlobalCalculator(sysdata), m_cgfunc(cgfunc)
+            : GlobalCalculator(sysdata,potential), m_cgfunc(cgfunc)
         {
         }; 
         ~LocalCalculator(){};
@@ -131,7 +134,6 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 
         virtual void computeLocalObsPerGrid(AboriaParticles::value_type particle_i, double cgval, unsigned int grid_id) 
             {
-                #pragma omp critical
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->islocal && it->second->isfield)
@@ -143,11 +145,10 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
         virtual void computePairObsPerGrid( AboriaParticles::value_type particle_i, 
                                             AboriaParticles::value_type particle_j, double bondval, unsigned int grid_id)
             {
-                #pragma omp critical
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->useforce && !it->second->islocal && it->second->isfield)
-                        it->second->accumulate(particle_i,particle_j,m_sysdata->potential, bondval, grid_id);
+                        it->second->accumulate(particle_i,particle_j,m_potential, bondval, grid_id);
                     else if (!it->second->useforce && !it->second->islocal && it->second->isfield)
                         it->second->accumulate(particle_i,particle_j,bondval, grid_id);
                 }
@@ -160,6 +161,7 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoints)
 {
     clearState();
+    #pragma omp parallel for
     for (unsigned int i = 0; i < gridpoints.size(); ++i)
     {
         for( auto p_i = abr::euclidean_search(m_sysdata->particles.get_query(), 
@@ -185,13 +187,13 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
                 {
                     //set the distance between particle i and particle j
                     Eigen::Vector3d _rij(-p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2]);
-                    m_sysdata->potential->rij = _rij;
+                    m_potential->rij = _rij;
                     m_cgfunc->rij = _rij;
                     double bondval = m_cgfunc->getBondFunc();
                     
                     //Don't forget to set diameters of the potential
-                    m_sysdata->potential->di =  abr::get<diameter>(*p_i);
-                    m_sysdata->potential->dj =  abr::get<diameter>(*p_j);
+                    m_potential->di =  abr::get<diameter>(*p_i);
+                    m_potential->dj =  abr::get<diameter>(*p_j);
                     computePairObsPerGrid(*p_i,*p_j,bondval, i);
                 } 
             } 
@@ -202,7 +204,7 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
 void export_GlobalCalculator(py::module& m)
 {
     py::class_<GlobalCalculator, std::shared_ptr<GlobalCalculator> >(m,"GlobalCalculator")
-    .def(py::init< std::shared_ptr< ParticleSystem > >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >  >())
     .def("addObservable", &GlobalCalculator::addObservable)
     .def("getGlobalObservable", &GlobalCalculator::getGlobalObservable)
     .def("compute", &GlobalCalculator::compute)
@@ -212,7 +214,7 @@ void export_GlobalCalculator(py::module& m)
 void export_LocalCalculator(py::module& m)
 {
     py::class_<LocalCalculator, GlobalCalculator, std::shared_ptr<LocalCalculator> >(m,"LocalCalculator")
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< CoarseGrainFunction > >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< CoarseGrainFunction > >())
     .def("getField", &LocalCalculator::getField)
     .def("computelocal", &LocalCalculator::computelocal)
     ;

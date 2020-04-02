@@ -12,6 +12,7 @@
 #include "ParticleSystem.h"
 #include <pyglasstools/observables/Observables.h>
 #include <pyglasstools/cgfunc/CoarseGrainFunction.h>
+#include <omp.h>
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 namespace py = pybind11;
@@ -29,7 +30,7 @@ class PYBIND11_EXPORT GlobalCalculator
         GlobalCalculator(std::shared_ptr< ParticleSystem > sysdata)
             : m_sysdata(sysdata)
             {
-                double maxforce_rcut = m_sysdata->potential->getScaledRcut();
+                double maxforce_rcut = m_sysdata->potential->scaled_rcut;
                 double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
                                                         std::end(abr::get<diameter>(m_sysdata->particles)) );
                 maxforce_rcut *= maxdiameter;
@@ -99,11 +100,12 @@ void GlobalCalculator::compute()
             {
                 //set the distance between particle i and particle j
                 Eigen::Vector3d rij(p_j.dx()[0], p_j.dx()[1], p_j.dx()[2]);
-                m_sysdata->potential->setRij(rij);
+                m_sysdata->potential->rij = rij;
                 
                 //Don't forget to set diameters of the potential
-                m_sysdata->potential->setDiameters( abr::get<diameter>(*p_i),
-                                         abr::get<diameter>(*p_j));
+                m_sysdata->potential->di =  abr::get<diameter>(*p_i);
+                m_sysdata->potential->dj =  abr::get<diameter>(*p_j);
+                
                 computePairObs(*p_i,*p_j);
             }
         }
@@ -129,6 +131,7 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 
         virtual void computeLocalObsPerGrid(AboriaParticles::value_type particle_i, double cgval, unsigned int grid_id) 
             {
+                #pragma omp critical
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->islocal && it->second->isfield)
@@ -140,6 +143,7 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
         virtual void computePairObsPerGrid( AboriaParticles::value_type particle_i, 
                                             AboriaParticles::value_type particle_j, double bondval, unsigned int grid_id)
             {
+                #pragma omp critical
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->useforce && !it->second->islocal && it->second->isfield)
@@ -159,15 +163,16 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
     for (unsigned int i = 0; i < gridpoints.size(); ++i)
     {
         for( auto p_i = abr::euclidean_search(m_sysdata->particles.get_query(), 
-                        abr::vdouble3(gridpoints[i][0],gridpoints[i][1],gridpoints[i][2]), m_cgfunc->getRcut()); 
+                        abr::vdouble3(gridpoints[i][0],gridpoints[i][1],gridpoints[i][2]), m_cgfunc->cg_rcut); 
                         p_i != false; ++p_i)
         {
             
             //Set grid point X and position of particle Ri
-            m_cgfunc->setX(gridpoints[i]);
+            m_cgfunc->x = gridpoints[i];
             Vector3d dr(p_i.dx()[0], p_i.dx()[1],p_i.dx()[2]);
-            m_cgfunc->setRi(gridpoints[i]-dr);
+            m_cgfunc->ri = gridpoints[i]-dr;
             double cgval = m_cgfunc->getDeltaFunc();
+            computeLocalObsPerGrid(*p_i,cgval, i);
             
             //Compute a list of local obsercavles 
             //Next we loop through the j-th particles for the virial stress
@@ -179,14 +184,14 @@ void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoi
                 if (abr::get<abr::id>(*p_i) != abr::get<abr::id>(*p_j))
                 {
                     //set the distance between particle i and particle j
-                    Eigen::Vector3d rij(-p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2]);
-                    m_sysdata->potential->setRij(rij);
-                    m_cgfunc->setRij(rij);
+                    Eigen::Vector3d _rij(-p_j.dx()[0], -p_j.dx()[1], -p_j.dx()[2]);
+                    m_sysdata->potential->rij = _rij;
+                    m_cgfunc->rij = _rij;
                     double bondval = m_cgfunc->getBondFunc();
                     
                     //Don't forget to set diameters of the potential
-                    m_sysdata->potential->setDiameters( abr::get<diameter>(*p_i),
-                                                        abr::get<diameter>(*p_j));
+                    m_sysdata->potential->di =  abr::get<diameter>(*p_i);
+                    m_sysdata->potential->dj =  abr::get<diameter>(*p_j);
                     computePairObsPerGrid(*p_i,*p_j,bondval, i);
                 } 
             } 

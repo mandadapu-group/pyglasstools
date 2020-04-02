@@ -7,6 +7,7 @@ namespace abr = Aboria;
 
 #include "../extern/pybind11/include/pybind11/pybind11.h"
 namespace py = pybind11;
+
 class PYBIND11_EXPORT Observable
 {
     public:
@@ -49,19 +50,20 @@ class PYBIND11_EXPORT Observable
                 throw std::runtime_error("[error] observable is not a field");
             }
         virtual void clear()
-        {
-        }
+            {
+            }
         virtual Eigen::MatrixXd getGlobalValue()
-        {
-            throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
-            return Eigen::MatrixXd::Zero(1,1);
-        }
+            {
+                throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
+                return Eigen::MatrixXd::Zero(1,1);
+            }
         virtual std::vector< Eigen::MatrixXd > getField()
-        {
-            throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
-            std::vector< Eigen::MatrixXd > temp(1,Eigen::MatrixXd::Zero(1,1));
-            return temp;
-        }
+            {
+                throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
+                std::vector< Eigen::MatrixXd > temp(1,Eigen::MatrixXd::Zero(1,1));
+                return temp;
+            }
+
         std::string name;
         std::string type;
         bool islocal;

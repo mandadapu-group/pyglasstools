@@ -74,6 +74,19 @@ class PYBIND11_EXPORT ParticleSystem
                 }
             }
         };
+        std::vector< std::vector<double> > getAtomPosition()
+        {
+            std::vector< std::vector<double> > atomposition(m_numparticles, std::vector<double>(3,0));
+            #pragma omp parallel for
+            for(unsigned int i=0; i < m_numparticles; i++)
+            {
+                atomposition[i][0] = abr::get<position>(particles[i])[0];
+                atomposition[i][1] = abr::get<position>(particles[i])[1];
+                atomposition[i][2] = abr::get<position>(particles[i])[2];
+            }
+            return atomposition;
+        };
+        
         void setAtomVelocity(std::vector< std::vector<double> > atomvelocity)
         {
             if (m_numparticles != atomvelocity.size() )
@@ -89,20 +102,19 @@ class PYBIND11_EXPORT ParticleSystem
             }
         };
         
-        bool haveVelocities()
+        std::vector< std::vector<double> > getAtomVelocity()
         {
-            return true; 
-        };
-        double getScaledRcut()
-        {
-            //py::print("Rcut from system data", potential->getScaledRcut());
-            return potential->getScaledRcut(); 
+            std::vector< std::vector<double> > atomvelocity(m_numparticles, std::vector<double>(3,0));
+            #pragma omp parallel for
+            for(unsigned int i=0; i < m_numparticles; i++)
+            {
+                atomvelocity[i][0] = abr::get<velocity>(particles[i])[0];
+                atomvelocity[i][1] = abr::get<velocity>(particles[i])[1];
+                atomvelocity[i][2] = abr::get<velocity>(particles[i])[2];
+            }
+            return atomvelocity;
         };
         
-        unsigned int getN()
-        {
-            return m_numparticles; 
-        };
         std::vector<unsigned int> getNeighbors(std::vector<double> point, double radius)
         {
 
@@ -118,8 +130,7 @@ class PYBIND11_EXPORT ParticleSystem
         std::shared_ptr<SimBox> simbox;
         std::shared_ptr<PairPotential> potential;
         AboriaParticles particles;
-    
-    private: 
+    private:
         unsigned int m_numparticles;
 };
 
@@ -136,8 +147,9 @@ void export_ParticleSystem(py::module& m)
     .def("setDiameter", &ParticleSystem::setDiameter)
     .def("setAtomPosition", &ParticleSystem::setAtomPosition)
     .def("setAtomVelocity", &ParticleSystem::setAtomVelocity)
+    .def("getAtomPosition", &ParticleSystem::getAtomPosition)
+    .def("getAtomVelocity", &ParticleSystem::getAtomVelocity)
     .def("getNeighbors", &ParticleSystem::getNeighbors)
-    .def("getScaledRcut", &ParticleSystem::getScaledRcut)
     ;
 };
 #endif //__SYSTEM_DATA_H__

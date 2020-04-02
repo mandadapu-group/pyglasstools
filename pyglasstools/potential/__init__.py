@@ -1,101 +1,91 @@
 R""" Pair potentials.
 """
 from pyglasstools.potential import _potential
-import pyglasstools
 import numpy as np
 
 class lj(object):
     R""" Lennard-Jones pair potential.
 
     """
-    def __init__(self, eps, rcut, mode=None):
-
-        self.rcut = rcut
-        self.params = [];
-        self.params.append(eps)
-        self.params = np.array(self.params).astype('float64')
+    def __init__(self, eps, rcut, name="lennard-jones",mode=None):
         
+        self.name = "{}+{}".format(name,mode)
         # create the c++ mirror class
         if (mode == "truncated"):
-            self.pairpotential = _potential.PairPotentialLJ(self.rcut,self.params);
+            self.lennardjones = _potential.PairPotentialLJ(rcut,[eps]);
         elif (mode == "force-shifted"):
-            self.pairpotential = _potential.PairPotentialForceShiftedLJ(self.rcut,self.params);
+            self.lennardjones = _potential.PairPotentialForceShiftedLJ(rcut,[eps]);
         elif (mode == None):
             raise NameError('Please select a Lennard-Jones potential available modes: truncated and force-shifted are available')
         else:
             raise NameError('Lennard jones potential mode not recognized. Only: truncated and force-shifted are available')
+    
     def _getPairPotential(self):
-        return self.pairpotential
-    def get_potentialname(seld):
+        return self.lennardjones
+    def get_potentialname(self):
         return "lennard-jones"
+    
     def set_diameters(self,diameter_i, diameter_j):
-        self.pairpotential.setDiameters(diameter_i,diameter_j)
+        self.lennardjones.di = diameter_i
+        self.lennardjones.dj = diameter_j
     
     def get_diameters(self):
-        return self.pairpotential.getDiameters()
+        return [self.lennardjones.di, self.lennardjones.dj]
     
     def set_rij(self,r_ij):
-        self.pairpotential.setRij(r_ij.astype('float64'))
+        self.lennardjones.rij = r_ij.astype('float64')
     
     def get_rij(self):
-        return self.pairpotential.getRij()
+        return self.lennardjones.rij
     
-    def set_rcut(self, rcut):
-        self.rcut = rcut
-        self.pairpotential.setScaledRcut(rcut)
-    def get_rcut(self):
-        return self.pairpotential.getScaledRcut()
-    
+    def set_scaledrcut(self, rcut):
+        self.lennardjones.scaled_rcut = rcut
+    def get_scaledrcut(self):
+        return self.lennardjones.scaled_rcut
+
     def set_eps(self, eps):
-        self.params[0] = eps
-        self.pairpotential.setParams(self.params)
+        self.lennardjones.params = [eps]
     def get_eps(self):
-        return self.pairpotential.getParams()
+        return self.lennardjones.params[0]
     
     def get_pairforce(self):
-        return self.pairpotential.getPairForce()
+        return self.lennardjones.getPairForce()
 
-class polydisperse(object):
-    R""" Lennard-Jones pair potential.
-
-    """
-    def __init__(self, v0 =1.0, eps=0.2, rcut=1.25, mode=None):
-
-        self.rcut = rcut
-        self.params = [];
-        self.params.append(v0)
-        self.params.append(eps)
-        self.params = np.array(self.params).astype('float64')
-        
-        # create the c++ mirror class
-        self.pairpotential = _potential.PairPotentialPoly12(self.rcut,self.params);
+class polydisperse12(object):
+    def __init__(self, v0 =1.0, eps=0.2, rcut=1.25, name="polydisperse-12"):
+        self.name = name
+        self.polydisperse = _potential.PairPotentialPoly12(rcut,[v0,eps])
+    
     def _getPairPotential(self):
-        return self.pairpotential
-    def get_potentialname(seld):
-        return "polydisperse16"
+        return self.polydisperse
+    def get_potentialname(self):
+        return self.name
     def set_diameters(self,diameter_i, diameter_j):
-        self.pairpotential.setDiameters(diameter_i,diameter_j)
+        self.polydisperse.di = diameter_i
+        self.polydisperse.di = diameter_j
     
     def get_diameters(self):
-        return self.pairpotential.getDiameters()
+        return [self.polydisperse.di, self.polydisperse.dj]
     
     def set_rij(self,r_ij):
-        self.pairpotential.setRij(r_ij.astype('float64'))
+        self.polydisperse.rij = r_ij.astype('float64')
     
     def get_rij(self):
-        return self.pairpotential.getRij()
+        return self.polydisperse.rij
+    def set_scaledrcut(self, rcut):
+        self.polydisperse.scaledrcut = rcut
+    def get_scaledrcut(self):
+        return self.polydisperse.scaledrcut
     
-    def set_rcut(self, rcut):
-        self.rcut = rcut
-        self.pairpotential.setScaledRcut(rcut)
-    def get_rcut(self):
-        return self.pairpotential.getScaledRcut()
+    def set_v0(self, v0):
+        self.polydisperse.params = [v0,self.polydisperse.param[1]]
+    def get_v0(self):
+        return self.polydisperse.params[0]
     
     def set_eps(self, eps):
-        self.params[0] = eps
-        self.pairpotential.setParams(self.params)
+        self.polydisperse.params = [self.polydisperse.param[0],eps]
     def get_eps(self):
-        return self.pairpotential.getParams()
+        return self.polydisperse.params[1]
     
     def get_pairforce(self):
-        return self.pairpotential.getPairForce()
+        return self.polydisperse.getPairForce()

@@ -1,6 +1,6 @@
 #include "SimBox.h"
 #include "ParticleSystem.h"
-#include "GlobalCalculator.h"
+#include "Calculator.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 

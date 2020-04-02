@@ -10,32 +10,31 @@ class octic(object):
     """
     def __init__(self, rcut, mode=None):
 
-        self.rcut = rcut
         # create the c++ mirror class
-        self.cgfunc = _cgfunc.CGFuncOctic(self.rcut);
+        self.cgfunc = _cgfunc.CGFuncOctic(rcut);
+    
     def _getCGFunc(self):
         return self.cgfunc
 
     def set_rcut(self, rcut):
-        self.rcut = rcut
-        self.cgfunc.setRcut(rcut)
+        self.cgfunc.cg_rcut = rcut
     def get_rcut(self):
-        return self.cgfunc.getRcut()
-    
+        return self.cgfunc.cg_rcut
+
     def set_x(self,x):
-        self.cgfunc.setX(x.astype('float64'))
+        self.cgfunc.x = x.astype('float64')
     def get_x(self):
-        return self.cgfunc.getX()
+        return self.cgfunc.x
     
     def set_ri(self,ri):
-        self.cgfunc.setRi(ri.astype('float64'))
+        self.cgfunc.ri = ri
     def get_ri(self):
-        return self.cgfunc.getRi()
-    
-    def set_dr(self,dr):
-        self.cgfunc.setRij(dr.astype('float64'))
-    def get_dr(self):
-        return self.cgfunc.getRij()
+        return self.cgfunc.ri
+
+    def set_rij(self,rij):
+        self.cgfunc.rij = rij.astype('float64')
+    def get_rij(self):
+        return self.cgfunc.rij
     
     def get_deltafunc(self):
         return self.cgfunc.getDeltaFunc()

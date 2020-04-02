@@ -35,14 +35,15 @@ Files that come with this module:
 
 (03/28/2020): Changed module design and structure and included Observable class for general computations. 
 
+(04/01/2020): Added bond stiffness calculation and local Irving Kirkwood calculation.
+
 ## **To-Do List**
-1. Local calculator and stress field calculation
-2. Elasticity tensor calculation
-3. Eigenvalue solvers for many tasks:
+1. Elasticity tensor calculation
+2. Eigenvalue solvers for many tasks:
    * Computing pseudo-inverse of the Hessian matrix
    * Computing the soft-modes of the glass
-4. (*Optional*) Implement stress and density auto-correlatoin functions
-5. (*Optional*) Interface for 'quick' plotting and movie generation. 
+3. (*Optional*) Implement stress and density auto-correlatoin functions
+4. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
 Note that for the eigensolver, this will require choosing an external library. Multiple options to use different external library would be highly desirable. Example: [Spectra](https://spectralib.org/), [SLEPc](https://slepc.upv.es/), and [FEAST](http://www.ecs.umass.edu/~polizzi/feast/). 
 

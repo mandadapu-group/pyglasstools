@@ -8,10 +8,10 @@ class octic(object):
     R""" A truncated 8-th order polynomial coarse grain function.
 
     """
-    def __init__(self, rcut, mode=None):
+    def __init__(self, rcut, order=5,mode=None):
 
         # create the c++ mirror class
-        self.cgfunc = _cgfunc.CGFuncOctic(5,rcut);
+        self.cgfunc = _cgfunc.CGFuncOctic(order,rcut);
     
     def _getCGFunc(self):
         return self.cgfunc

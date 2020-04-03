@@ -54,7 +54,10 @@ class lj(object):
 class polydisperse12(object):
     def __init__(self, v0 =1.0, eps=0.2, rcut=1.25, name="polydisperse-12"):
         self.name = name
-        self.polydisperse = _potential.PairPotentialPoly12(rcut,[v0,eps])
+        c0 =  -28.0*v0/rcut**12;
+        c1 =  48.0*v0/rcut**14;
+        c2 =  -21.0*v0/rcut**16;
+        self.polydisperse = _potential.PairPotentialPoly12(rcut,[v0,eps,c0,c1,c2])
     
     def _getPairPotential(self):
         return self.polydisperse

@@ -20,13 +20,13 @@ class PYBIND11_EXPORT PairPotential
         {
         };
         //If parameter is given
-        PairPotential(std::vector<double> _params)
+        PairPotential(const std::vector<double>& _params)
             : scaled_rcut(0), di(0), dj(0), rij(Vector3d::Zero()), params(_params)
         {
         };
         
         //If parameter and dimensionless cut-off radius is given
-        PairPotential(double _scaled_rcut, std::vector<double> _params)
+        PairPotential(const double& _scaled_rcut, const std::vector<double>& _params)
             : scaled_rcut(_scaled_rcut), di(0), dj(0), rij(Vector3d::Zero()), params(_params)
         {
         };
@@ -58,17 +58,16 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
         //Zero initialize everything
-        ShortRangePairPotential(std::vector<double> _params)
+        ShortRangePairPotential(const std::vector<double>& _params)
             : PairPotential(_params)
         {
         };
         
         //Zero initialize everything
-        ShortRangePairPotential(double _scaled_rcut, std::vector<double> _params)
+        ShortRangePairPotential(const double& _scaled_rcut, const std::vector<double>& _params)
             : PairPotential(_scaled_rcut, _params)
         {
         };
-
         ~ShortRangePairPotential(){};
 
         double getRcut()

@@ -12,7 +12,6 @@
 #include "ParticleSystem.h"
 #include <pyglasstools/observables/Observables.h>
 #include <pyglasstools/cgfunc/CoarseGrainFunction.h>
-#include <omp.h>
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 namespace py = pybind11;
@@ -161,7 +160,6 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
 void LocalCalculator::computelocal(const std::vector< Eigen::Vector3d >& gridpoints)
 {
     clearState();
-    #pragma omp parallel for
     for (unsigned int i = 0; i < gridpoints.size(); ++i)
     {
         for( auto p_i = abr::euclidean_search(m_sysdata->particles.get_query(), 

@@ -37,6 +37,8 @@ Files that come with this module:
 
 (04/01/2020): Added bond stiffness calculation and local Irving Kirkwood calculation.
 
+(04/02/2020): Improved speed on local Irving Kirkwood calculation and added small OpenMP features.
+
 ## **To-Do List**
 1. Elasticity tensor calculation
 2. Eigenvalue solvers for many tasks:

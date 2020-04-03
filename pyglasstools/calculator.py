@@ -1,5 +1,5 @@
 from pyglasstools import _pyglasstools
-import pyglasstools
+import numpy as np
 
 class ikglobal(object):
     R""" Lennard-Jones pair potential.
@@ -24,4 +24,9 @@ class iklocal(object):
         self.irvingkirkwood.addObservable(obs._getObservable());
     def compute(self,gridpoints):
         self.irvingkirkwood.computelocal(gridpoints);
-        return self.irvingkirkwood.getField("Virial Stress Field")
+    def get_virialstress(self):
+        return np.array(self.irvingkirkwood.getField("Virial Stress Field")).astype('float64')
+    def get_kineticstress(self):
+        return np.array(self.irvingkirkwood.getField("Kinetic Stress Field")).astype('float64')
+    def get_density(self):
+        return np.array(self.irvingkirkwood.getField("Density Field")).astype('float64')

@@ -42,7 +42,7 @@ ENDMACRO(copy_file)
 
 set(files   __init__.py
             utils.py
-            coarsegrain.py
+            calculator.py
     )
 
 install(FILES ${files}

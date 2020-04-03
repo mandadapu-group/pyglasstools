@@ -33,6 +33,26 @@ class Polydisperse12
             else
                 return 0.0;
         }
+        
+        //! Evaluate the force and energy
+        virtual double computeStiffness(const double& d_i, const double& d_j) const
+        {
+            double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
+            double actualrcutsq = rcutsq*sigma*sigma;
+            
+            // compute the secon derivative of pair potential
+            if (rsq < actualrcutsq)
+                {
+                    double r2inv = 1.0/rsq;
+                    r2inv *= sigma*sigma;
+                    double _rsq = rsq/(sigma*sigma);
+                    double r6inv = r2inv * r2inv * r2inv;
+                    return 156.0*v0*r2inv*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq;
+                }
+            else
+                return 0.0;
+        }
+        
         virtual double computeRcut(const double& d_i, const double& d_j) const
         {
             double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));

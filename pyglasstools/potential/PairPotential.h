@@ -43,6 +43,12 @@ class PYBIND11_EXPORT PairPotential
             return 0.0;
         };
         
+        //! Evaluate the force and energy
+        virtual double getBondStiffness()
+        {
+            return 0.0;
+        };
+        
         double scaled_rcut;
         double di;
         double dj;
@@ -84,6 +90,15 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
             double rsq_cut = scaled_rcut*scaled_rcut;
             ShortRangeModel model(rsq_ij, rsq_cut, params);
             return model.computeForce(di,dj);
+        };
+        
+        //! Evaluate the force and energy
+        double getBondStiffness()
+        {
+            double rsq_ij = rij.dot(rij);
+            double rsq_cut = scaled_rcut*scaled_rcut;
+            ShortRangeModel model(rsq_ij, rsq_cut, params);
+            return model.computeStiffness(di,dj);
         };
 };
 

@@ -17,7 +17,7 @@ class LennardJones
             }
         ~LennardJones(){}; 
         //! Evaluate the force and energy
-        virtual double computeForce(double d_i, double d_j)
+        virtual double computeForce(double d_i, double d_j) const
         {
             double sigma = 0.5*(d_i+d_j);
             double actualrcutsq = rcutsq*sigma*sigma;
@@ -28,15 +28,14 @@ class LennardJones
                 double r2inv = 1.0/rsq;
                 r2inv *= sigma*sigma;
                 double r6inv = r2inv * r2inv * r2inv;
-                double force_divr = 4*eps*r2inv * r6inv * (12.0*r6inv - 6.0);
-                return force_divr;
+                return 4*eps*r2inv * r6inv * (12.0*r6inv - 6.0);
                 }
             else
                 return 0.0;
         }
         
         //! Evaluate the force and energy
-        virtual double computeStiffness(double d_i, double d_j)
+        virtual double computeStiffness(double d_i, double d_j) const
         {
             double sigma = 0.5*(d_i+d_j);
             double actualrcutsq = rcutsq*sigma*sigma;
@@ -47,14 +46,13 @@ class LennardJones
                 double r2inv = 1.0/rsq;
                 r2inv *= sigma*sigma;
                 double r6inv = r2inv * r2inv * r2inv;
-                double phi_rr = 4*eps*r2inv * r6inv * (13.0*12.0*r6inv - 6.0*7.0);
-                return phi_rr;
+                return 4*eps*r2inv * r6inv * (13.0*12.0*r6inv - 6.0*7.0);
                 }
             else
                 return 0.0;
         }
 
-        virtual double computeRcut(double d_i, double d_j)
+        virtual double computeRcut(double d_i, double d_j) const
         {
             double sigma = 0.5*(d_i+d_j);
             return rcutsq*sigma*sigma;

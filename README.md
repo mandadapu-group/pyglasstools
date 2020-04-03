@@ -39,13 +39,14 @@ Files that come with this module:
 
 (04/02/2020): Improved speed on local Irving Kirkwood calculation and added small OpenMP features.
 
+(04/02/2020): Added Born elasticity tensor calculation.
+
 ## **To-Do List**
-1. Elasticity tensor calculation
-2. Eigenvalue solvers for many tasks:
+1. Eigensolvers and Singular-Value-Decomposition (SVD) calculations for many tasks:
    * Computing pseudo-inverse of the Hessian matrix
    * Computing the soft-modes of the glass
-3. (*Optional*) Implement stress and density auto-correlatoin functions
-4. (*Optional*) Interface for 'quick' plotting and movie generation. 
+2. (*Optional*) Implement stress and density auto-correlatoin functions
+3. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
 Note that for the eigensolver, this will require choosing an external library. Multiple options to use different external library would be highly desirable. Example: [Spectra](https://spectralib.org/), [SLEPc](https://slepc.upv.es/), and [FEAST](http://www.ecs.umass.edu/~polizzi/feast/). 
 

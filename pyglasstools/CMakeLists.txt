@@ -23,9 +23,9 @@ include_directories(${EIGEN3_INCLUDE_DIRS} ${ABORIA_INCLUDE_DIRS})
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 
 # install the library
-install(TARGETS _${COMPONENT_NAME} 
-        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-        )
+#install(TARGETS _${COMPONENT_NAME} 
+#        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
+#        )
     #target_link_libraries(_${COMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
 ################ Python only modules
@@ -45,9 +45,9 @@ set(files   __init__.py
             calculator.py
     )
 
-install(FILES ${files}
-        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-       )
+#install(FILES ${files}
+#        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
+#       )
 
 foreach(file ${files})
     copy_file(${file})

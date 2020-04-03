@@ -10,9 +10,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
 
 # install the library
-install(TARGETS _${SUBCOMPONENT_NAME} 
-        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}/${SUBCOMPONENT_NAME}
-        )
+#install(TARGETS _${SUBCOMPONENT_NAME} 
+#        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}/${SUBCOMPONENT_NAME}
+#        )
 target_link_libraries(_${SUBCOMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
 ################ Python only modules
@@ -30,9 +30,9 @@ ENDMACRO(copy_file)
 set(files   __init__.py
     )
 
-install(FILES ${files}
-        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}/${SUBCOMPONENT_NAME}
-       )
+#install(FILES ${files}
+#        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}/${SUBCOMPONENT_NAME}
+#       )
 
 foreach(file ${files})
     copy_file(${file})

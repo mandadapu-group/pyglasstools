@@ -25,3 +25,6 @@ message(STATUS "Install module to: " ${PYTHON_MODULE_BASE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # add subdirectories
 add_subdirectory(${PROJECT_NAME})
+
+#copy setup.py
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${CMAKE_CURRENT_BINARY_DIR}/setup.py COPYONLY)

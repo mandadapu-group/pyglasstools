@@ -1,6 +1,7 @@
 #ifndef __COARSE_GRAIN_FUNC_H__
 #define __COARSE_GRAIN_FUNC_H__
 
+#include "FixedPointQuadrature.h"
 #include "Quadrature.h"
 
 #include "../extern/pybind11/include/pybind11/pybind11.h"
@@ -44,7 +45,7 @@ class PYBIND11_EXPORT CoarseGrainFunction
         {
             return 0.0;
         };
-        
+        int quadorder;
         double cg_rcut;
         Eigen::Vector3d x;
         Eigen::Vector3d ri;
@@ -52,20 +53,20 @@ class PYBIND11_EXPORT CoarseGrainFunction
 };
 
 template<class Distribution>
-class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
+class PYBIND11_EXPORT PolynomialCGFunc : public CoarseGrainFunction
 {
     public:
         //Zero initialize 
-        ShortRangeCGFunc(){};
+        PolynomialCGFunc(): quadorder(1) {};
 
         //Parametrize initialization
-        ShortRangeCGFunc(double cg_rcut)  
-            : CoarseGrainFunction(cg_rcut)
+        PolynomialCGFunc(int order, double cg_rcut)  
+            : CoarseGrainFunction(cg_rcut), quadorder(order)
         {
         };
         //Parametrize initialization
-        ShortRangeCGFunc(double cg_rcut, Eigen::Vector3d x, Eigen::Vector3d ri, Eigen::Vector3d rij)  
-            : CoarseGrainFunction(cg_rcut, x,ri,rij)
+        PolynomialCGFunc(int order, double cg_rcut, Eigen::Vector3d x, Eigen::Vector3d ri, Eigen::Vector3d rij)  
+            : CoarseGrainFunction(cg_rcut, x,ri,rij), quadorder(order)
         {
         };
         double getDeltaFunc()
@@ -86,8 +87,55 @@ class PYBIND11_EXPORT ShortRangeCGFunc : public CoarseGrainFunction
 
         double getBondFunc()
         {
-            return GSLQuadrature([&](double s) { return getObjFunc(s); }, {0,1});
+            return GSLFixedPointQuadrature([&](double s) { return getObjFunc(s); }, {0,1}, quadorder);
         };
+    private:
+        unsigned int quadorder;
+};
+
+template<class Distribution>
+class PYBIND11_EXPORT GeneralCGFunc : public CoarseGrainFunction
+{
+    public:
+        //Zero initialize 
+        GeneralCGFunc(): neval(1), epsrelerr(1e-9), epsabserr(1e-9) {};
+
+        //Parametrize initialization
+        GeneralCGFunc(int neval, double epsrelerr, double epsabserr, double cg_rcut)  
+            : CoarseGrainFunction(cg_rcut), neval(neval), epsrelerr(epsrelerr), epsabserr(epsabserr)
+        {
+        };
+        //Parametrize initialization
+        GeneralCGFunc(  int neval, double epsrelerr, double epsabserr, double cg_rcut, 
+                        Eigen::Vector3d x, Eigen::Vector3d ri, Eigen::Vector3d rij)  
+            : CoarseGrainFunction(cg_rcut, x,ri,rij), neval(neval), epsrelerr(epsrelerr), epsabserr(epsabserr)
+        {
+        };
+        
+        double getDeltaFunc()
+        {
+            Eigen::Vector3d dr = x-ri;
+            double dr_sq = dr.dot(dr);
+            Distribution func(dr_sq, cg_rcut);
+            return func.compute();
+        };
+        
+        double getObjFunc(double s)
+        {
+            Eigen::Vector3d dr = x-(ri+s*rij);
+            double dr_sq = dr.dot(dr);
+            Distribution func(dr_sq, cg_rcut);
+            return func.compute();
+        };
+
+        double getBondFunc()
+        {
+            return GSLQuadrature([&](double s) { return getObjFunc(s); }, {0,1}, epsabserr, epsrelerr, neval);
+        };
+    private:
+        unsigned int neval;
+        double epsrelerr; 
+        double epsabserr; 
 };
 
 void export_CoarseGrainFunction(py::module& m)
@@ -106,11 +154,20 @@ void export_CoarseGrainFunction(py::module& m)
 };
 
 template < class T > 
-void export_ShortRangeCGFunc(py::module& m, const std::string& name)
+void export_PolynomialCGFunc(py::module& m, const std::string& name)
 {
     py::class_<T, CoarseGrainFunction, std::shared_ptr<T> >(m, name.c_str())
-    .def(py::init<double>())
-    .def(py::init<double, Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>())
+    .def(py::init<int, double>())
+    .def(py::init<int, double, Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>())
+    ;
+};
+
+template < class T > 
+void export_GeneralCGFunc(py::module& m, const std::string& name)
+{
+    py::class_<T, CoarseGrainFunction, std::shared_ptr<T> >(m, name.c_str())
+    .def(py::init<int, double, double, double>())
+    .def(py::init<int, double, double, double, Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>())
     ;
 };
 #endif //__COARSE_GRAIN_FUNC_H__

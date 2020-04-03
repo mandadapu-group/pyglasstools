@@ -39,7 +39,7 @@ Files that come with this module:
 
 (04/02/2020): Improved speed on local Irving Kirkwood calculation and added small OpenMP features.
 
-(04/02/2020): Added Born elasticity tensor calculation.
+(04/03/2020): Added Born elasticity tensor calculation.
 
 ## **To-Do List**
 1. Eigensolvers and Singular-Value-Decomposition (SVD) calculations for many tasks:

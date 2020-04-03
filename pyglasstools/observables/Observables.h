@@ -85,8 +85,10 @@ class PYBIND11_EXPORT GlobalObservable : public Observable
                     val = Eigen::MatrixXd::Zero(1,1);
                 else if (type == "VECTOR")
                     val = Eigen::MatrixXd::Zero(dim,1);
-                else if (type == "TENSOR")
+                else if (type == "2-TENSOR")
                     val = Eigen::MatrixXd::Zero(dim,dim);
+                else if (type == "4-TENSOR")
+                    val = Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1));
                 else
                     throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
             };
@@ -134,8 +136,10 @@ class PYBIND11_EXPORT LocalObservable : public Observable
                     std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(1,1));
                 else if (type == "VECTOR")
                     std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
-                else if (type == "TENSOR")
+                else if (type == "2-TENSOR")
                     std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
+                else if (type == "4-TENSOR")
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1)));
                 else
                     throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
             };
@@ -172,10 +176,12 @@ class PYBIND11_EXPORT LocalObservable : public Observable
                 std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(1,1));
             else if (type == "VECTOR")
                 std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
-            else if (type == "TENSOR")
+            else if (type == "2-TENSOR")
                 std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
+            else if (type == "4-TENSOR")
+                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1)));
             else
-                throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
+                throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, 2-TENSOR");
         } 
         AtomicObs obs;
         std::vector< Eigen::MatrixXd > val;

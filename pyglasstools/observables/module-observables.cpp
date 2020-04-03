@@ -1,11 +1,15 @@
 #include "Observables.h"
 #include "IrvingKirkwood.h"
+#include "BornStiffnessTensor.h"
 
 #include "../extern/pybind11/include/pybind11/pybind11.h"
 
 //Typedefs several observables here
 typedef GlobalObservable<VirialStress> GlobalVirialStress;
 typedef GlobalObservable<KineticStress> GlobalKineticStress;
+typedef GlobalObservable<Density> GlobalDensity;
+typedef GlobalObservable<BornStiffnessTensor> GlobalBornTensor;
+
 typedef LocalObservable<VirialStress> VirialStressField;
 typedef LocalObservable<KineticStress> KineticStressField;
 typedef LocalObservable<Density> DensityField;
@@ -19,6 +23,8 @@ PYBIND11_MODULE(_observables, m)
     export_Observable(m);
     export_GlobalObservable<GlobalVirialStress>(m, "GlobalVirialStress");
     export_GlobalObservable<GlobalKineticStress>(m, "GlobalKineticStress");
+    export_GlobalObservable<GlobalBornTensor>(m, "GlobalBornTensor");
+    export_GlobalObservable<GlobalDensity>(m, "GlobalDensity");
     
     export_LocalObservable<VirialStressField>(m, "VirialStressField");
     export_LocalObservable<KineticStressField>(m, "KineticStressField");

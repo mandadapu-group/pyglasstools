@@ -35,7 +35,7 @@ class BornStiffnessTensor
                 Eigen::Vector3d nij = potential->rij.normalized();
 
                 //Compute virial stress
-                if (dim > 2)
+                if (dim < 3)
                 {
                     //First row determines T_00 stress response
                     val(0,0) += (stiffnessval*(potential->rij[0]) + F[0])*potential->rij[0]*nij[0]*nij[0];

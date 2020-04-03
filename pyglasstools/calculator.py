@@ -12,10 +12,8 @@ class ikglobal(object):
         self.irvingkirkwood.addObservable(obs._getObservable());
     def compute(self):
         self.irvingkirkwood.compute();
-    def get_virialstressvalue(self):
-        return self.irvingkirkwood.getGlobalObservable("Virial Stress")/self.vol;
-    def get_kineticstressvalue(self):
-        return self.irvingkirkwood.getGlobalObservable("Kinetic Stress")/self.vol;
+    def get_observable(self,name):
+        return np.array(self.irvingkirkwood.getGlobalObservable(name))/self.vol
 
 class iklocal(object):
     def __init__(self, sysdata, potential, cgfunc):
@@ -24,9 +22,5 @@ class iklocal(object):
         self.irvingkirkwood.addObservable(obs._getObservable());
     def compute(self,gridpoints):
         self.irvingkirkwood.computelocal(gridpoints);
-    def get_virialstress(self):
-        return np.array(self.irvingkirkwood.getField("Virial Stress Field")).astype('float64')
-    def get_kineticstress(self):
-        return np.array(self.irvingkirkwood.getField("Kinetic Stress Field")).astype('float64')
-    def get_density(self):
-        return np.array(self.irvingkirkwood.getField("Density Field")).astype('float64')
+    def get_observable(self,name):
+        return np.array(self.irvingkirkwood.getField(name)).astype('float64')

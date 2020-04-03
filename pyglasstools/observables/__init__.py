@@ -62,7 +62,7 @@ class bornstiffness(object):
 
     """
     def __init__(self, dim):
-        self.Tk = _observables.GlobalKineticStress("Born Stiffness Tensor", "4-TENSOR", False, True, dim)#rcut
+        self.Tk = _observables.GlobalBornTensor("Born Stiffness Tensor", "4-TENSOR", False, True, dim)#rcut
     
     #Redefine attributes so that it directly access SimBox C++ class 
     #attributes

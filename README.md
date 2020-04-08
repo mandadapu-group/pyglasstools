@@ -41,13 +41,11 @@ Files that come with this module:
 
 (04/03/2020): Added Born elasticity tensor calculation.
 
+(04/06/2020): Added Hessian class and eigendecomposition analysis.
+
 ## **To-Do List**
-1. Eigensolvers and Singular-Value-Decomposition (SVD) calculations for many tasks:
-   * Computing pseudo-inverse of the Hessian matrix
-   * Computing the soft-modes of the glass
+1. Eigensolvers calculation for computing pseudo-inverse of the Hessian matrix
 2. (*Optional*) Implement stress and density auto-correlatoin functions
 3. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
-Note that for the eigensolver, this will require choosing an external library. Multiple options to use different external library would be highly desirable. Example: [Spectra](https://spectralib.org/), [SLEPc](https://slepc.upv.es/), and [FEAST](http://www.ecs.umass.edu/~polizzi/feast/). 
-
-For the pseudoinverse problem, libraries specializing on (truncated) SVD would be extremely useful.
+Current eigensolver uses [Spectra](https://spectralib.org/) although ongoing work is being done to integrate [SLEPc](https://slepc.upv.es/) into this module, either with our own Python binding or their default Python binding slepc4py. 

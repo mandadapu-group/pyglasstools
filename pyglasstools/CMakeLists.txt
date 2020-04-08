@@ -26,7 +26,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 #Add header files from the header-Only Libraries
-include_directories(${EIGEN3_INCLUDE_DIRS} ${ABORIA_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIRS} ${ABORIA_INCLUDE_DIRS} extern/spectra/include)
 
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 
@@ -45,3 +45,4 @@ add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 add_subdirectory(cgfunc)
 add_subdirectory(potential)
 add_subdirectory(observables)
+add_subdirectory(elasticity)

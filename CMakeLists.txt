@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 include(SetupPybind11.cmake)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/pyglasstools/extern/pybind11/include)
 include(CompilerFlagsSetup.cmake)
 
 

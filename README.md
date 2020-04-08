@@ -41,11 +41,11 @@ Files that come with this module:
 
 (04/03/2020): Added Born elasticity tensor calculation.
 
-(04/06/2020): Added Hessian class and eigendecomposition analysis.
+(04/06/2020): Added Hessian class and eigendecomposition analysis, using Spectra and SLEPc (through slepc4py).
 
 ## **To-Do List**
-1. Eigensolvers calculation for computing pseudo-inverse of the Hessian matrix
+1. Computing pseudo-inverse of the Hessian matrix by eigendecomposition.
 2. (*Optional*) Implement stress and density auto-correlatoin functions
 3. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
-Current eigensolver uses [Spectra](https://spectralib.org/) although ongoing work is being done to integrate [SLEPc](https://slepc.upv.es/) into this module, either with our own Python binding or their default Python binding slepc4py. 
+Current eigensolver uses [Spectra](https://spectralib.org/) and or [SLEPc](https://slepc.upv.es/), through its own Python binding, slepc4py. 

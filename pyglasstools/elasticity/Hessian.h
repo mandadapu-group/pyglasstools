@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <memory>
 #include <chrono>
+#include <omp.h>
 
 #include <pyglasstools/MathAndTypes.h>
 #include <pyglasstools/ParticleSystem.h>
@@ -40,9 +41,10 @@ class PYBIND11_EXPORT Hessian
 {
     public:
         SparseMatd hessian;
-        Eigen::VectorXcd eigenvals;
-        Eigen::MatrixXcd eigenvecs;
-
+        Eigen::MatrixXd pseudoinverse;
+        Eigen::VectorXd eigenvals;
+        Eigen::MatrixXd eigenvecs;
+        #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
         Hessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
             : m_sysdata(sysdata), m_potential(potential)
             {
@@ -52,11 +54,12 @@ class PYBIND11_EXPORT Hessian
                 maxforce_rcut *= maxdiameter;
                 max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
                 std::vector< Tripletd > hessian_triplet;
-                unsigned int hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
+                hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
                 unsigned int estimate_nonzero_entries = (unsigned int)m_sysdata->simbox->dim*hessian_length*6;
                 hessian_triplet.reserve(estimate_nonzero_entries);
                 
                 hessian.resize(hessian_length,hessian_length);
+                pseudoinverse = Eigen::MatrixXd::Zero(hessian_length,hessian_length);
                 for( auto p_i = m_sysdata->particles.begin(); p_i != m_sysdata->particles.end(); ++p_i)
                 {
                     
@@ -99,7 +102,35 @@ class PYBIND11_EXPORT Hessian
                 hessian.setFromTriplets(hessian_triplet.begin(), hessian_triplet.end());
             };
         virtual ~Hessian(){};
-        
+
+        void getPseudoInverse(int maxiter, double tol)
+        {
+            // Construct matrix operation object using the wrapper class SparseGenMatProd
+            spc::SparseSymShiftSolve<double> op(hessian);
+            spc::SymEigsShiftSolver< double, spc::LARGEST_MAGN, spc::SparseSymShiftSolve<double> > eigs(&op, hessian_length-2, hessian_length, tol);
+            eigs.init();
+            py::print("Performing Full Eigendecomposition");
+            unsigned int nconv = eigs.compute(maxiter, tol,spc::SMALLEST_MAGN);
+            py::print("Finished! Number of converged eigenpairs is: ",nconv);
+            int info = eigs.info();
+            
+            if (nconv > 0)
+            {
+                py::print("Assembling pseudoinverse . . .");
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
+                double cond = hessian_length*eigenvals[nconv-1]*tol;
+                
+                #pragma omp parallel for reduction(+:pseudoinverse) 
+                for (unsigned int i = 0; i < nconv; ++i)
+                {
+                    if (eigenvals[i] > cond)
+                    {
+                        pseudoinverse.noalias() += eigenvecs.col(i)*eigenvecs.col(i).transpose()/eigenvals[i];
+                    }
+                }
+            }
+        }        
         void getEigenDecomposition(std::string selrule, int nev, int ncv, int maxiter, double tol)
         {
             // Construct matrix operation object using the wrapper class SparseGenMatProd
@@ -112,8 +143,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute(maxiter, tol);
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else if (selrule == "LR")
             {
@@ -122,8 +153,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute(maxiter, tol);
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else if (selrule == "LA")
             {
@@ -132,8 +163,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute(maxiter, tol);
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else if (selrule == "SM")
             {
@@ -142,8 +173,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute(maxiter, tol);
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else if (selrule == "SR")
             {
@@ -152,8 +183,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute(maxiter, tol);
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else if (selrule == "SA")
             {
@@ -162,8 +193,8 @@ class PYBIND11_EXPORT Hessian
                 eigs.init();
                 nconv = eigs.compute();
                 info = eigs.info();
-                eigenvals = eigs.eigenvalues();
-                eigenvecs = eigs.eigenvectors();
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
             }    
             else 
             {
@@ -183,6 +214,7 @@ class PYBIND11_EXPORT Hessian
         std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
         std::shared_ptr< PairPotential > m_potential;
         double max_rcut;
+        unsigned int hessian_length;
 };
 
 void export_Hessian(py::module& m)
@@ -190,9 +222,11 @@ void export_Hessian(py::module& m)
     py::class_<Hessian, std::shared_ptr<Hessian> >(m,"Hessian")
     .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >  >())
     .def_readwrite("hessian", &Hessian::hessian)
+    .def_readwrite("pseudoinverse", &Hessian::pseudoinverse)
     .def_readwrite("eigenvals", &Hessian::eigenvals)
     .def_readwrite("eigenvecs", &Hessian::eigenvecs)
     .def("getEigenDecomposition", &Hessian::getEigenDecomposition)
+    .def("getPseudoInverse", &Hessian::getPseudoInverse)
     ;
 };
 

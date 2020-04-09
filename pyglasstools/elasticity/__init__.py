@@ -41,6 +41,8 @@ class hessian(object):
     
     def eigs(self, selrule = 'LM', nev = 1, ncv = 5, maxiter=1000, tol=1e-10):
         self.H.getEigenDecomposition(selrule,nev,ncv,maxiter,tol);
+    def pinv(self, maxiter=10000, tol=1e-8):
+        self.H.getPseudoInverse(maxiter,tol);
     
     def eigs_slepc(self, maxiter=1000, tol=1e-10):
         if (isslepc == True and ispetsc ==True):

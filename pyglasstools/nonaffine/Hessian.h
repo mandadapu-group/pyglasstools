@@ -44,7 +44,10 @@ class PYBIND11_EXPORT Hessian
         Eigen::MatrixXd pseudoinverse;
         Eigen::VectorXd eigenvals;
         Eigen::MatrixXd eigenvecs;
+        unsigned int nconv; 
+        double frobeniuserror;    
         #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
+        
         Hessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
             : m_sysdata(sysdata), m_potential(potential)
             {
@@ -100,27 +103,40 @@ class PYBIND11_EXPORT Hessian
                     }
                 }
                 hessian.setFromTriplets(hessian_triplet.begin(), hessian_triplet.end());
+                nconv = 0;
+                frobeniuserror = 0;
             };
         virtual ~Hessian(){};
 
-        void getPseudoInverse(int maxiter, double tol)
+        void getFullEigenDecomposition(int maxiter, double tol)
         {
             // Construct matrix operation object using the wrapper class SparseGenMatProd
             spc::SparseSymShiftSolve<double> op(hessian);
             spc::SymEigsShiftSolver< double, spc::LARGEST_MAGN, spc::SparseSymShiftSolve<double> > eigs(&op, hessian_length-2, hessian_length, tol);
             eigs.init();
             py::print("Performing Full Eigendecomposition");
-            unsigned int nconv = eigs.compute(maxiter, tol,spc::SMALLEST_MAGN);
-            py::print("Finished! Number of converged eigenpairs is: ",nconv);
+            nconv = eigs.compute(maxiter, tol,spc::SMALLEST_MAGN);
             int info = eigs.info();
-            
+            if(info == spc::SUCCESSFUL)
+            {
+                py::print("Eigenvalues and Eigenvectors computed successfully.");
+                py::print("Number of converged eigenpairs is: ",nconv);
+                py::print("Theoretical number of eigenpairs with non-zero eigenvalues is:",hessian_length-m_sysdata->simbox->dim);
+                eigenvals = eigs.eigenvalues().real();
+                eigenvecs = eigs.eigenvectors().real();
+            }
+        }   
+        void buildPseudoInverse(double tol)
+        {
             if (nconv > 0)
             {
                 py::print("Assembling pseudoinverse . . .");
-                eigenvals = eigs.eigenvalues().real();
-                eigenvecs = eigs.eigenvectors().real();
+                if (nconv != hessian_length-m_sysdata->simbox->dim)
+                {
+                    py::print("[WARNING]! You are missing ",nconv-(hessian_length-m_sysdata->simbox->dim)," more converged eigenpairs");
+                    py::print("[WARNING]! Check the norm errors at the end.");
+                }
                 double cond = hessian_length*eigenvals[nconv-1]*tol;
-                
                 #pragma omp parallel for reduction(+:pseudoinverse) 
                 for (unsigned int i = 0; i < nconv; ++i)
                 {
@@ -129,12 +145,13 @@ class PYBIND11_EXPORT Hessian
                         pseudoinverse.noalias() += eigenvecs.col(i)*eigenvecs.col(i).transpose()/eigenvals[i];
                     }
                 }
+                py::print("Computing Error from ||AA^+A-A||");
+                frobeniuserror = ((hessian*pseudoinverse-Eigen::MatrixXd::Identity(hessian_length,hessian_length))*hessian).norm();
             }
-        }        
+        } 
         void getEigenDecomposition(std::string selrule, int nev, int ncv, int maxiter, double tol)
         {
             // Construct matrix operation object using the wrapper class SparseGenMatProd
-            int nconv = 0;
             int info = spc::NOT_COMPUTED;
             if (selrule == "LM")
             {
@@ -225,8 +242,11 @@ void export_Hessian(py::module& m)
     .def_readwrite("pseudoinverse", &Hessian::pseudoinverse)
     .def_readwrite("eigenvals", &Hessian::eigenvals)
     .def_readwrite("eigenvecs", &Hessian::eigenvecs)
+    .def_readwrite("nconv", &Hessian::nconv)
+    .def_readwrite("frobeniuserror", &Hessian::frobeniuserror)
     .def("getEigenDecomposition", &Hessian::getEigenDecomposition)
-    .def("getPseudoInverse", &Hessian::getPseudoInverse)
+    .def("getFullEigenDecomposition", &Hessian::getFullEigenDecomposition)
+    .def("buildPseudoInverse", &Hessian::buildPseudoInverse)
     ;
 };
 

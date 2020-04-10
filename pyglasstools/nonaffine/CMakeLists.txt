@@ -1,7 +1,7 @@
-set(SUBCOMPONENT_NAME elasticity)
+set(SUBCOMPONENT_NAME nonaffine)
 
 set(_${SUBCOMPONENT_NAME}_sources
-    module-elasticity.cpp
+    module-nonaffine.cpp
     )
 
 pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)

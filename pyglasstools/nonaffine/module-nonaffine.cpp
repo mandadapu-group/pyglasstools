@@ -7,7 +7,7 @@
  create the observables python module and define the exports here.
  */
 
-PYBIND11_MODULE(_elasticity, m)
+PYBIND11_MODULE(_nonaffine, m)
 {
     export_Hessian(m);
     export_SelectionRule(m);

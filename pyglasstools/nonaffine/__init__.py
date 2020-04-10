@@ -1,6 +1,7 @@
-from pyglasstools.elasticity import _elasticity
+from pyglasstools.nonaffine import _nonaffine
 import numpy as np
 from mpi4py import MPI
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
@@ -10,7 +11,8 @@ try:
     import sys, slepc4py
     slepc4py.init(sys.argv)
 except ImportError:
-    print("[WARNING] No slepc4py installation found. eigs_slepc will be unusable")
+    if rank == 0:
+        print("[WARNING] No slepc4py installation found. eigs_slepc will be unusable")
     isslepc = False;
 
 ispetsc = True;
@@ -18,8 +20,52 @@ try:
     from petsc4py import PETSc
     Print = PETSc.Sys.Print
 except ImportError:
-    print("[WARNING] No petsc4py installation found. eigs_slepc will be unusable")
+    if rank == 0:
+        print("[WARNING] No petsc4py installation found. eigs_slepc will be unusable")
     ispetsc = False;
+
+class hessian(object):
+    def __init__(self, sysdata,potential):
+        if rank > 0:
+            print("[WARNING] Performing MPI run. The hessian class supports no MPI parallelization.")
+            print("[WARNING] MPI parallelization only exists in hessian_slepc class.")
+            if (ispetsc == False or isslepc == False):
+                print("[WARNING] Is petsc4py installed? {} Is slepc4py installed? {}".format(ispetsc,isslepc))
+            elif (ispetsc == True and isslepc == True):
+                print("[WARNING] petsc4py and slepc4py are installed. Consider using hessian_slepc class instead".format(ispetsc,isslepc))
+        self.H = _nonaffine.Hessian(sysdata._getParticleSystem(),potential._getPairPotential())
+     
+    #Redefine attributes so that it directly access Hessian C++ class 
+    def __getattr__(self,attr):
+            orig_attr = self.H.__getattribute__(attr)
+            if callable(orig_attr):
+                def hooked(*args, **kwargs):
+                    self.pre()
+                    result = orig_attr(*args, **kwargs)
+                    # prevent H from becoming unwrapped
+                    if result == self.H:
+                        return self
+                    self.post()
+                    return result
+                return hooked
+            else:
+                return orig_attr
+    
+    ## Our Implementation of eigendecomposition and pseudoinverse
+    def eigs(self, selrule = 'LM', nev = 1, ncv = 5, maxiter=1000, tol=1e-10):
+        if rank == 0:
+            self.H.getEigenDecomposition(selrule,nev,ncv,maxiter,tol);
+    def alleigs(self, maxiter=10000, tol=1e-8):
+        if rank == 0:
+            self.H.getFullEigenDecomposition(maxiter,tol);
+    ## Building pseudoinverse
+    def build_pinv(self,tol):
+        if rank == 0:
+            #Check the number of eigenpairs, and compute the Frobenius norm error
+            self.H.buildPseudoInverse(tol)
+    def _getObservable(self):
+        return self.H
+
 
 ##Helper function to convert scipy sparse matrix into a PETSc matrix
 def csrmatrix2PETScMat(L):
@@ -119,9 +165,9 @@ def csrmatrix2PETScMat(L):
     return B
 
 
-class hessian(object):
+class hessian_slepc(object):
     def __init__(self, sysdata,potential):
-        self.H = _elasticity.Hessian(sysdata._getParticleSystem(),potential._getPairPotential())
+        self.H = _nonaffine.Hessian(sysdata._getParticleSystem(),potential._getPairPotential())
     
     #Redefine attributes so that it directly access Hessian C++ class 
     #attributes
@@ -141,21 +187,13 @@ class hessian(object):
                 return orig_attr
     
     ## Building pseudoinverse
-    def build_pinv(self):
+    def build_pinv(self,tol):
         if rank == 0:
             #Check the number of eigenpairs, and compute the Frobenius norm error
-            self.H.buildPseudoInverse()
-
-    ## Our Implementation of eigendecomposition and pseudoinverse
-    
-    def eigs(self, selrule = 'LM', nev = 1, ncv = 5, maxiter=1000, tol=1e-10):
-        self.H.getEigenDecomposition(selrule,nev,ncv,maxiter,tol);
-    def alleigs(self, maxiter=10000, tol=1e-8):
-        self.H.getFullEigenDecomposition(maxiter,tol);
+            self.H.buildPseudoInverse(tol)
     
     ## Implementation of eigendecomposition using SLEPc and PETSc
-    
-    def eigs_slepc(self, maxiter=1000, tol=1e-10):
+    def eigs(self, maxiter=1000, tol=1e-10):
         if (isslepc == True and ispetsc ==True):
             SLEPc = slepc4py.SLEPc
             
@@ -189,7 +227,6 @@ class hessian(object):
             
             Print("Solve!")
             E.solve()
-
             Print()
             Print("******************************")
             Print("*** SLEPc Solution Results ***")
@@ -254,9 +291,9 @@ class hessian(object):
         else:
             Print("[WARNING] petsc4py and slepc4py are not installed. eigs_slepc will do nothing.")
     
-    def alleigs_slepc(self, maxiter=10000, tol=1e-8):
+    def alleigs(self, maxiter=10000, tol=1e-8):
+        
         #Let's obtain the largest eigenvalue first
-
         Print("Obtain Largest Eigenvalue")
         self.H.getEigenDecomposition('LM',1,4, maxiter,tol);
         maxeig = self.H.eigenvals[0];
@@ -273,12 +310,12 @@ class hessian(object):
             P = PETSc.PC()
             P.create();
             P.setType('cholesky');
-
+            
             Ksp = PETSc.KSP()
             Ksp.create();
             Ksp.setType('preonly');
             Ksp.setPC(P)
-
+            
             S = SLEPc.ST();
             S.create();
             S.setType('sinvert')
@@ -292,13 +329,32 @@ class hessian(object):
             # Just like Scipy's ARPACK solver, we set the min threhold to be:
             # Largest_eigenvalue*length_of_hessian*tolerance
             # Just to be safe, the upper bound is incremented upwards by the tolerance
-            E.setInterval(maxeig*tol*self.H.hessian.shape[0],maxeig+2*tol)
+            #E.setInterval(maxeig*tol*self.H.hessian.shape[0]+10,maxeig+2*tol)
+            
             E.setProblemType(SLEPc.EPS.ProblemType.HEP)
             E.setOperators(A)
 
             #Setting to '10' forces it to look for all eigenvalues
-            E.setWhichEigenpairs(10)
+            E.setTarget(0)
+            E.setWhichEigenpairs(1)
+            E.setDimensions(self.H.hessian.shape[0])
             E.setTolerances(tol,maxiter) 
+            xdir, ydir = A.getVecs()
+            istart, iend = xdir.getOwnershipRange() 
+            Print("Deflate Null Space")
+            for i in range(istart,iend):
+                if (i % 2):
+                    xdir[i] = 1
+                    ydir[i] = 0
+                else:
+                    xdir[i] = 0
+                    ydir[i] = 1
+            xdir.assemble()
+            ydir.assemble()
+            E.setDeflationSpace([xdir,ydir])
+            #if any("eps_interval" in s for s in sys.argv):
+            #    Print("Peforming spectrum slicing. No deflation of null space is needed")
+            #else: 
             E.setUp()
             
             Print("Solve!")
@@ -364,7 +420,6 @@ class hessian(object):
                     self.H.eigenvals = np.array(tempeigvals)
                     del tempeigvecs[:] 
                     del tempeigvals[:]
-
                 print("Eigenvectors of Process {}".format(rank),np.shape(self.H.eigenvecs))
         else:
             print("[WARNING] petsc4py and slepc4py are not installed. This function won't do anything")

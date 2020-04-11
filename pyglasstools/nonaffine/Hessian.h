@@ -8,10 +8,10 @@
 #include <cmath>
 #include <string>
 #include <map>
-
 #include <algorithm>
 #include <memory>
 #include <chrono>
+
 #include <omp.h>
 
 #include <pyglasstools/MathAndTypes.h>
@@ -46,6 +46,7 @@ class PYBIND11_EXPORT Hessian
         Eigen::MatrixXd eigenvecs;
         unsigned int nconv; 
         double frobeniuserror;    
+        double maxeigval;
         #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
         
         Hessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
@@ -105,6 +106,7 @@ class PYBIND11_EXPORT Hessian
                 hessian.setFromTriplets(hessian_triplet.begin(), hessian_triplet.end());
                 nconv = 0;
                 frobeniuserror = 0;
+                maxeigval = 0;
             };
         virtual ~Hessian(){};
 
@@ -113,28 +115,22 @@ class PYBIND11_EXPORT Hessian
             if (nconv > 0)
             {
                 py::print("Assembling pseudoinverse . . .");
-                if (nconv < hessian_length-m_sysdata->simbox->dim)
-                {
-                    py::print("[WARNING]! You are missing ",(hessian_length-m_sysdata->simbox->dim)-nconv," more converged eigenpairs");
-                    py::print("[WARNING]! Check the norm errors at the end.");
-                }
-                
-                double cond = hessian_length*eigenvals[nconv-1]*tol;
-                //#pragma omp parallel for reduction(+:pseudoinverse) 
+                double cond = hessian_length*maxeigval*tol;
+                #pragma omp parallel for reduction(+:pseudoinverse) 
                 for (unsigned int i = 0; i < nconv; ++i)
                 {
                     if (eigenvals[i] > cond)
                     {
                         pseudoinverse.noalias() += eigenvecs.col(i)*eigenvecs.col(i).transpose()/eigenvals[i];
                     }
-                    else
-                        py::print(eigenvals[i]);
                 }
-                py::print("Computing Error from ||AA^+A-A||");
-                frobeniuserror = ((hessian*pseudoinverse-Eigen::MatrixXd::Identity(hessian_length,hessian_length))*hessian).norm();
             }
         } 
-        
+        void checkPinvError()
+        {
+            py::print("Computing Error from ||AA^+A-A||");
+            frobeniuserror = ((hessian*pseudoinverse-Eigen::MatrixXd::Identity(hessian_length,hessian_length))*hessian).norm();
+        } 
         void checkFullDecompError()
         {   
                 frobeniuserror = (eigenvecs*eigenvals.asDiagonal()*eigenvecs.transpose()-hessian).norm();
@@ -214,6 +210,7 @@ class PYBIND11_EXPORT Hessian
                 py::print("Eigenvalues and Eigenvectors computed successfully.");
                 py::print("Number of requested eigenpairs: ",nev);
                 py::print("Number of converges eigenpairs: ",nconv);
+                maxeigval = eigenvals.maxCoeff();
             }
         }
 
@@ -233,11 +230,13 @@ void export_Hessian(py::module& m)
     .def_readwrite("pseudoinverse", &Hessian::pseudoinverse)
     .def_readwrite("eigenvals", &Hessian::eigenvals)
     .def_readwrite("eigenvecs", &Hessian::eigenvecs)
+    .def_readwrite("maxeigval", &Hessian::maxeigval)
     .def_readwrite("nconv", &Hessian::nconv)
     .def_readwrite("frobeniuserror", &Hessian::frobeniuserror)
     .def("getEigenDecomposition", &Hessian::getEigenDecomposition)
     .def("buildPseudoInverse", &Hessian::buildPseudoInverse)
     .def("checkFullDecompError", &Hessian::checkFullDecompError)
+    .def("checkPinvError", &Hessian::checkPinvError)
     ;
 };
 

@@ -43,9 +43,10 @@ Files that come with this module:
 
 (04/06/2020): Added Hessian class and eigendecomposition analysis, using Spectra and SLEPc (through slepc4py).
 
+(04/11/2020): Added pseudoinverse calculation, using Spectra and SLEPc (through slepc4py).
+
 ## **To-Do List**
-1. Computing pseudo-inverse of the Hessian matrix by eigendecomposition.
-2. (*Optional*) Implement stress and density auto-correlatoin functions
-3. (*Optional*) Interface for 'quick' plotting and movie generation. 
+1. (*Optional*) Implement stress and density auto-correlation functions
+2. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
 Current eigensolver uses [Spectra](https://spectralib.org/) and or [SLEPc](https://slepc.upv.es/), through its own Python binding, slepc4py. 

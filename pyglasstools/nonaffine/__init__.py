@@ -55,14 +55,23 @@ class hessian(object):
     def eigs(self, selrule = 'LM', nev = 1, ncv = 5, maxiter=1000, tol=1e-10):
         if rank == 0:
             self.H.getEigenDecomposition(selrule,nev,ncv,maxiter,tol);
-    def alleigs(self, maxiter=10000, tol=1e-8):
+    
+    ## Shortcut Function to Compute All Eigenpairs
+    def alleigs(self,dim,maxiter=10000, tol=1e-8):
         if rank == 0:
-            self.H.getFullEigenDecomposition(maxiter,tol);
+            self.H.getEigenDecomposition('LM',self.H.hessian.shape[0]-dim,self.H.hessian.shape[0],maxiter,tol);
+    
     ## Building pseudoinverse
     def build_pinv(self,tol):
         if rank == 0:
             #Check the number of eigenpairs, and compute the Frobenius norm error
             self.H.buildPseudoInverse(tol)
+    
+    ## Check if system full eigendecomposition reproduces the Hessian
+    def check_alleigs(self):
+        if rank == 0:
+            self.H.checkFullDecompError()
+
     def _getObservable(self):
         return self.H
 
@@ -191,7 +200,6 @@ class hessian_slepc(object):
         if rank == 0:
             #Check the number of eigenpairs, and compute the Frobenius norm error
             self.H.buildPseudoInverse(tol)
-    
     ## Implementation of eigendecomposition using SLEPc and PETSc
     def eigs(self, maxiter=1000, tol=1e-10):
         if (isslepc == True and ispetsc ==True):
@@ -246,15 +254,16 @@ class hessian_slepc(object):
             Print("Stopping condition: tol=%.4g, maxit=%d" % (tol, maxit))
 
             nconv = E.getConverged()
+            self.H.nconv = nconv
             Print("Number of converged eigenpairs %d" % nconv)
             if nconv > 0:
                 # Create the results vectors
                 vr, wr = A.getVecs()
                 vi, wi = A.getVecs()
                 #
-                Print()
-                Print("        k          ||Ax-kx||/||kx|| ")
-                Print("----------------- ------------------")
+                #Print()
+                #Print("        k          ||Ax-kx||/||kx|| ")
+                #Print("----------------- ------------------")
                 
                 istart, iend = vr.getOwnershipRange()
                 if rank == 0:
@@ -267,10 +276,10 @@ class hessian_slepc(object):
                 for i in range(nconv):
                     k = E.getEigenpair(i, vr, vi)
                     error = E.computeError(i)
-                    if k.imag != 0.0:
-                        Print(" %9f%+9f j %12g" % (k.real, k.imag, error))
-                    else:
-                        Print(" %12f      %12g" % (k.real, error))
+                  #  if k.imag != 0.0:
+                  #      Print(" %9f%+9f j %12g" % (k.real, k.imag, error))
+                  #  else:
+                  #      Print(" %12f      %12g" % (k.real, error))
                     Vr = comm.gather(vr[istart:iend],root = 0)
                     if rank == 0:
                         Vr = np.concatenate(Vr)
@@ -291,138 +300,8 @@ class hessian_slepc(object):
         else:
             Print("[WARNING] petsc4py and slepc4py are not installed. eigs_slepc will do nothing.")
     
-    def alleigs(self, maxiter=10000, tol=1e-8):
-        
-        #Let's obtain the largest eigenvalue first
-        Print("Obtain Largest Eigenvalue")
-        self.H.getEigenDecomposition('LM',1,4, maxiter,tol);
-        maxeig = self.H.eigenvals[0];
-        
-        if (isslepc == True and ispetsc ==True):
-            SLEPc = slepc4py.SLEPc
-            
-            #Form PETSc Matrix
-            Print("Build PETSc Sparse matrix")
-            A = csrmatrix2PETScMat(self.H.hessian)#PETSc.Mat()
-            
-            Print("Build SLEPc Eigensolver")
-            
-            P = PETSc.PC()
-            P.create();
-            P.setType('cholesky');
-            
-            Ksp = PETSc.KSP()
-            Ksp.create();
-            Ksp.setType('preonly');
-            Ksp.setPC(P)
-            
-            S = SLEPc.ST();
-            S.create();
-            S.setType('sinvert')
-            S.setKSP(Ksp)
-
-            E = SLEPc.EPS(); E.create()
-            #Set the spectral transformation
-            E.setST(S);
-            
-            # Set the interval manually
-            # Just like Scipy's ARPACK solver, we set the min threhold to be:
-            # Largest_eigenvalue*length_of_hessian*tolerance
-            # Just to be safe, the upper bound is incremented upwards by the tolerance
-            #E.setInterval(maxeig*tol*self.H.hessian.shape[0]+10,maxeig+2*tol)
-            
-            E.setProblemType(SLEPc.EPS.ProblemType.HEP)
-            E.setOperators(A)
-
-            #Setting to '10' forces it to look for all eigenvalues
-            E.setTarget(0)
-            E.setWhichEigenpairs(1)
-            E.setDimensions(self.H.hessian.shape[0])
-            E.setTolerances(tol,maxiter) 
-            xdir, ydir = A.getVecs()
-            istart, iend = xdir.getOwnershipRange() 
-            Print("Deflate Null Space")
-            for i in range(istart,iend):
-                if (i % 2):
-                    xdir[i] = 1
-                    ydir[i] = 0
-                else:
-                    xdir[i] = 0
-                    ydir[i] = 1
-            xdir.assemble()
-            ydir.assemble()
-            E.setDeflationSpace([xdir,ydir])
-            #if any("eps_interval" in s for s in sys.argv):
-            #    Print("Peforming spectrum slicing. No deflation of null space is needed")
-            #else: 
-            E.setUp()
-            
-            Print("Solve!")
-            E.solve()
-
-            Print()
-            Print("******************************")
-            Print("*** SLEPc Solution Results ***")
-            Print("******************************")
-            Print()
-
-            its = E.getIterationNumber()
-            Print("Number of iterations of the method: %d" % its)
-
-            eps_type = E.getType()
-            Print("Solution method: %s" % eps_type)
-
-            nev, ncv, mpd = E.getDimensions()
-            Print("Number of requested eigenvalues: %d" % nev)
-
-            tol, maxit = E.getTolerances()
-            Print("Stopping condition: tol=%.4g, maxit=%d" % (tol, maxit))
-
-            nconv = E.getConverged()
-            Print("Number of converged eigenpairs %d" % nconv)
-            if nconv > 0:
-                # Create the results vectors
-                vr, wr = A.getVecs()
-                vi, wi = A.getVecs()
-                #
-                Print()
-                Print("        k          ||Ax-kx||/||kx|| ")
-                Print("----------------- ------------------")
-                
-                istart, iend = vr.getOwnershipRange()
-                if rank == 0:
-                    tempeigvecs = []
-                    tempeigvals = []
-                else:
-                    tempeigvecs = None
-                    tempeigvals = None
-
-                for i in range(nconv):
-                    k = E.getEigenpair(i, vr, vi)
-                    error = E.computeError(i)
-                    if k.imag != 0.0:
-                        Print(" %9f%+9f j %12g" % (k.real, k.imag, error))
-                    else:
-                        Print(" %12f      %12g" % (k.real, error))
-                    Vr = comm.gather(vr[istart:iend],root = 0)
-                    if rank == 0:
-                        Vr = np.concatenate(Vr)
-                        tempeigvecs.append(Vr[:])
-                        tempeigvals.append(np.real(k))
-                
-                #Destroy Eigensolver and Matrix object because data is already stored onto Root Process
-                E.destroy()
-                A.destroy()
-
-                #I can then handle I/O here. Perhaps there is a better way . . . .                 
-                if rank == 0:
-                    self.H.eigenvecs = np.array(tempeigvecs).T
-                    self.H.eigenvals = np.array(tempeigvals)
-                    del tempeigvecs[:] 
-                    del tempeigvals[:]
-                print("Eigenvectors of Process {}".format(rank),np.shape(self.H.eigenvecs))
-        else:
-            print("[WARNING] petsc4py and slepc4py are not installed. This function won't do anything")
-    
+    def check_alleigs(self):
+        if rank == 0:
+            self.H.checkFullDecompError()
     def _getObservable(self):
         return self.H

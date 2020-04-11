@@ -108,47 +108,38 @@ class PYBIND11_EXPORT Hessian
             };
         virtual ~Hessian(){};
 
-        void getFullEigenDecomposition(int maxiter, double tol)
-        {
-            // Construct matrix operation object using the wrapper class SparseGenMatProd
-            spc::SparseSymShiftSolve<double> op(hessian);
-            spc::SymEigsShiftSolver< double, spc::LARGEST_MAGN, spc::SparseSymShiftSolve<double> > eigs(&op, hessian_length-2, hessian_length, tol);
-            eigs.init();
-            py::print("Performing Full Eigendecomposition");
-            nconv = eigs.compute(maxiter, tol,spc::SMALLEST_MAGN);
-            int info = eigs.info();
-            if(info == spc::SUCCESSFUL)
-            {
-                py::print("Eigenvalues and Eigenvectors computed successfully.");
-                py::print("Number of converged eigenpairs is: ",nconv);
-                py::print("Theoretical number of eigenpairs with non-zero eigenvalues is:",hessian_length-m_sysdata->simbox->dim);
-                eigenvals = eigs.eigenvalues().real();
-                eigenvecs = eigs.eigenvectors().real();
-            }
-        }   
         void buildPseudoInverse(double tol)
         {
             if (nconv > 0)
             {
                 py::print("Assembling pseudoinverse . . .");
-                if (nconv != hessian_length-m_sysdata->simbox->dim)
+                if (nconv < hessian_length-m_sysdata->simbox->dim)
                 {
-                    py::print("[WARNING]! You are missing ",nconv-(hessian_length-m_sysdata->simbox->dim)," more converged eigenpairs");
+                    py::print("[WARNING]! You are missing ",(hessian_length-m_sysdata->simbox->dim)-nconv," more converged eigenpairs");
                     py::print("[WARNING]! Check the norm errors at the end.");
                 }
+                
                 double cond = hessian_length*eigenvals[nconv-1]*tol;
-                #pragma omp parallel for reduction(+:pseudoinverse) 
+                //#pragma omp parallel for reduction(+:pseudoinverse) 
                 for (unsigned int i = 0; i < nconv; ++i)
                 {
                     if (eigenvals[i] > cond)
                     {
                         pseudoinverse.noalias() += eigenvecs.col(i)*eigenvecs.col(i).transpose()/eigenvals[i];
                     }
+                    else
+                        py::print(eigenvals[i]);
                 }
                 py::print("Computing Error from ||AA^+A-A||");
                 frobeniuserror = ((hessian*pseudoinverse-Eigen::MatrixXd::Identity(hessian_length,hessian_length))*hessian).norm();
             }
         } 
+        
+        void checkFullDecompError()
+        {   
+                frobeniuserror = (eigenvecs*eigenvals.asDiagonal()*eigenvecs.transpose()-hessian).norm();
+        }
+        
         void getEigenDecomposition(std::string selrule, int nev, int ncv, int maxiter, double tol)
         {
             // Construct matrix operation object using the wrapper class SparseGenMatProd
@@ -245,8 +236,8 @@ void export_Hessian(py::module& m)
     .def_readwrite("nconv", &Hessian::nconv)
     .def_readwrite("frobeniuserror", &Hessian::frobeniuserror)
     .def("getEigenDecomposition", &Hessian::getEigenDecomposition)
-    .def("getFullEigenDecomposition", &Hessian::getFullEigenDecomposition)
     .def("buildPseudoInverse", &Hessian::buildPseudoInverse)
+    .def("checkFullDecompError", &Hessian::checkFullDecompError)
     ;
 };
 

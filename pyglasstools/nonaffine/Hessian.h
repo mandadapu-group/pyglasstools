@@ -129,7 +129,7 @@ class PYBIND11_EXPORT Hessian
         void checkPinvError()
         {
             py::print("Computing Error from ||AA^+A-A||");
-            frobeniuserror = ((hessian*pseudoinverse-Eigen::MatrixXd::Identity(hessian_length,hessian_length))*hessian).norm();
+            frobeniuserror = (hessian*pseudoinverse*hessian-hessian).norm();
         } 
         void checkFullDecompError()
         {   
@@ -229,7 +229,7 @@ void export_Hessian(py::module& m)
     .def_readwrite("hessian", &Hessian::hessian)
     .def_readwrite("pseudoinverse", &Hessian::pseudoinverse)
     .def_readwrite("eigenvals", &Hessian::eigenvals)
-    .def_readwrite("eigenvecs", &Hessian::eigenvecs)
+    .def_readwrite("eigenvecs", &Hessian::eigenvecs,py::return_value_policy::automatic)
     .def_readwrite("maxeigval", &Hessian::maxeigval)
     .def_readwrite("nconv", &Hessian::nconv)
     .def_readwrite("frobeniuserror", &Hessian::frobeniuserror)

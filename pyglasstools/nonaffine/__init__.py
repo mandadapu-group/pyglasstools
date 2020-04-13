@@ -69,9 +69,8 @@ class hessian(object):
         if nprocs == 1:
             self.H.buildPseudoInverse(tol)
             self.H.checkPinvError()
-            np.savetxt("pinv-serial.txt",self.H.pseudoinverse)
-            print(self.H.frobeniuserror)
         else:
+            #Break up the array in preparation for scattering
             if rank == 0:
                 tempeigenvecs = np.zeros_like(self.H.eigenvecs)
                 tempeigenvals = np.zeros_like(self.H.eigenvals)
@@ -105,9 +104,45 @@ class hessian(object):
             if rank == 0:
                 self.H.pseudoinverse = np.copy(temppinv); del temppinv;
                 self.H.checkPinvError()
-                np.savetxt("pinv-parallel.txt",self.H.pseudoinverse)
-                print(self.H.frobeniuserror)
+    ## Building pseudoinverse
+    def compute_nonaffine(self,tol):
+        if nprocs == 1:
+            self.H.calculateNonAffine(tol)
+        else:
+            #Break up the array in preparation for scattering
+            if rank == 0:
+                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
+                tempeigenvals = np.zeros_like(self.H.eigenvals)
+                # determine the size of each sub-task
+                ave, res = divmod(len(self.H.eigenvals), nprocs)
+                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+                # determine the starting and ending indices of each sub-task
+                starts = [sum(counts[:p]) for p in range(nprocs)]
+                ends = [sum(counts[:p+1]) for p in range(nprocs)]
+
+                # converts gridpoints into a list of arrays 
+                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
+                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
+            else:
+                tempeigenvecs = None
+                tempeigenvals = None
             
+            #Scatter eigenvectors and eigenvalues
+            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
+            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
+            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
+            comm.Barrier()
+            
+            #Update number of converged eigenpairs
+            self.H.nconv = len(self.H.eigenvals) 
+            self.H.calculateNonAffine(tol)
+            
+            #Merge the computed pseudoinverses from each process
+            tempnonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
+            if rank == 0:
+                self.H.nonaffinetensor = np.copy(tempnonaffine); del tempnonaffine;
+            else:
+                del tempnonaffine;
         #iAfterwards, we reduce sum the pseudoinverse 
     ## Check if system full eigendecomposition reproduces the Hessian
     def check_alleigs(self):
@@ -240,44 +275,83 @@ class hessian_slepc(object):
     
     ## Building pseudoinverse
     def build_pinv(self,tol):
-        tempeigenvecs = np.zeros_like(self.H.eigenvecs)
-        tempeigenvals = np.zeros_like(self.H.eigenvals)
-        if rank == 0:
-            # determine the size of each sub-task
-            ave, res = divmod(len(self.H.eigenvals), nprocs)
-            counts = [ave + 1 if p < res else ave for p in range(nprocs)]
-            
-            # determine the starting and ending indices of each sub-task
-            starts = [sum(counts[:p]) for p in range(nprocs)]
-            ends = [sum(counts[:p+1]) for p in range(nprocs)]
-
-            # converts gridpoints into a list of arrays 
-            tempeigenvecs = [self.H.eigenvecs[:,starts[p]:ends[p]] for p in range(nprocs)]
-            tempeigenvals = [self.H.eigenvals[starts[p]:ends[p]] for p in range(nprocs)]
-        comm.Barrier() 
-        
-        #Scatter eigenvectors and eigenvalues
-        self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
-        self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
-        self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
-        
-        #Update number of converged eigenpairs
-        self.H.nconv = len(self.H.eigenvals) 
-        comm.Barrier()
-        
-        self.H.buildPseudoInverse(tol)
-        temppinv = comm.gather(self.H.pseudoinverse,root=0)
-        
-        if rank == 0:
-            temppinv2 = np.zeros_like(self.H.pseudoinverse)
-            for i in range(nprocs):
-                temppinv2 += temppinv[i]
-            del temppinv
-            
-            self.H.pseudoinverse = np.copy(temppinv2); del temppinv2;
-            
+        if nprocs == 1:
+            self.H.buildPseudoInverse(tol)
             self.H.checkPinvError()
-            print(self.H.frobeniuserror)
+        else:
+            #Break up the array in preparation for scattering
+            if rank == 0:
+                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
+                tempeigenvals = np.zeros_like(self.H.eigenvals)
+                # determine the size of each sub-task
+                ave, res = divmod(len(self.H.eigenvals), nprocs)
+                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+                # determine the starting and ending indices of each sub-task
+                starts = [sum(counts[:p]) for p in range(nprocs)]
+                ends = [sum(counts[:p+1]) for p in range(nprocs)]
+
+                # converts gridpoints into a list of arrays 
+                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
+                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
+            else:
+                tempeigenvecs = None
+                tempeigenvals = None
+            
+            #Scatter eigenvectors and eigenvalues
+            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
+            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
+            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
+            comm.Barrier()
+            
+            #Update number of converged eigenpairs
+            self.H.nconv = len(self.H.eigenvals) 
+            self.H.buildPseudoInverse(tol)
+            
+            #Merge the computed pseudoinverses from each process
+            temppinv = comm.reduce(self.H.pseudoinverse,MPI.SUM,root=0)
+            
+            if rank == 0:
+                self.H.pseudoinverse = np.copy(temppinv); del temppinv;
+                self.H.checkPinvError()
+    ## Building pseudoinverse
+    def compute_nonaffine(self,tol):
+        if nprocs == 1:
+            self.H.calculateNonAffine(tol)
+        else:
+            #Break up the array in preparation for scattering
+            if rank == 0:
+                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
+                tempeigenvals = np.zeros_like(self.H.eigenvals)
+                # determine the size of each sub-task
+                ave, res = divmod(len(self.H.eigenvals), nprocs)
+                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+                # determine the starting and ending indices of each sub-task
+                starts = [sum(counts[:p]) for p in range(nprocs)]
+                ends = [sum(counts[:p+1]) for p in range(nprocs)]
+
+                # converts gridpoints into a list of arrays 
+                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
+                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
+            else:
+                tempeigenvecs = None
+                tempeigenvals = None
+            
+            #Scatter eigenvectors and eigenvalues
+            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
+            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
+            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
+            comm.Barrier()
+            
+            #Update number of converged eigenpairs
+            self.H.nconv = len(self.H.eigenvals) 
+            self.H.calculateNonAffine(tol)
+            
+            #Merge the computed pseudoinverses from each process
+            tempnonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
+            if rank == 0:
+                self.H.nonaffinetensor = np.copy(tempnonaffine); del tempnonaffine;
+            else:
+                del tempnonaffine;
     
     ## Implementation of eigendecomposition using SLEPc and PETSc
     def eigs(self, maxiter=1000, tol=1e-10):

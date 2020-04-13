@@ -9,8 +9,12 @@ set(_${COMPONENT_NAME}_sources
 
 #Find EIGEN
 #find_package( PkgConfig )
-pkg_check_modules( EIGEN3 REQUIRED eigen3 )
-include_directories( ${EIGEN3_INCLUDE_DIRS})
+find_package (Eigen3 REQUIRED eigen3)
+
+#Find Boost
+find_package(Boost 1.50.0 REQUIRED serialization)
+list(APPEND LIBRARIES ${Boost_LIBRARIES})
+list(APPEND INCLUDES ${Boost_INCLUDE_DIRS})
 
 #Find GSL
 find_package(GSL REQUIRED)   
@@ -26,10 +30,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 #Add header files from the header-Only Libraries
-include_directories(${EIGEN3_INCLUDE_DIRS} ${ABORIA_INCLUDE_DIRS} extern/spectra/include)
+include_directories(${EIGEN3_INCLUDE_DIR} ${ABORIA_INCLUDE_DIRS} extern/spectra/include ${INCLUDES})
 
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
-
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
@@ -38,6 +41,7 @@ set(files   __init__.py
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
 endforeach()
+target_link_libraries(_${COMPONENT_NAME} ${LIBRARIES})
 
 add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 

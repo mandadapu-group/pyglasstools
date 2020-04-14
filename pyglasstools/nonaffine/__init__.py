@@ -330,9 +330,12 @@ class hessian_slepc(object):
             E.setTolerances(tol,maxiter) 
             
             xdir, ydir = A.getVecs()
+            vr, vi = A.getVecs()
             istart, iend = xdir.getOwnershipRange() 
             if any("eps_interval" in s for s in sys.argv):
                 Print("Peforming spectrum slicing. No deflation of null space is needed")
+                xdir.destroy()
+                ydir.destroy()
             else: 
                 Print("Deflate Null Space")
                 for i in range(istart,iend):
@@ -345,7 +348,10 @@ class hessian_slepc(object):
                 xdir.assemble()
                 ydir.assemble()
                 E.setDeflationSpace([xdir,ydir])
-            
+                xdir.destroy()
+                ydir.destroy()
+            A.destroy()
+
             Print("Solve!")
             E.solve()
             Print()
@@ -372,8 +378,6 @@ class hessian_slepc(object):
             
             if nconv > 0:
                 # Create the results vectors
-                vr, wr = A.getVecs()
-                vi, wi = A.getVecs()
                 
                 istart, iend = vr.getOwnershipRange()
                 
@@ -409,12 +413,16 @@ class hessian_slepc(object):
                 
                 #Destroy Eigensolver and Matrix object because data is already stored onto Root Process
                 E.destroy()
-                A.destroy()
                 
                 Print("Copy SLEPc Eigenpairs to Hessian Class . . .")
+                #Memory-Bound process! This work around is absolutely necessarry to get anything going
+                comm.Barrier()
+                import time 
+                time.sleep(rank/nprocs*2)
                 self.H.eigenvecs = np.array(tempeigvecs).T; del tempeigvecs[:] 
                 self.H.eigenvals = np.array(tempeigvals); del tempeigvals[:]
                 self.H.nconv = len(self.H.eigenvals) 
+                comm.Barrier()
         else:
             Print("[WARNING] petsc4py and slepc4py are not installed. eigs_slepc will do nothing.")
     

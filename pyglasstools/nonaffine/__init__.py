@@ -57,12 +57,73 @@ class hessian(object):
         if rank == 0:
             self.H.getEigenDecomposition(selrule,nev,ncv,maxiter,tol);
         comm.Barrier() 
-    
+        nconv = comm.bcast(self.H.nconv,root = 0)
+        # Alright, now let's create our 
+        ave, res = divmod(nconv, nprocs)
+        counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+        
+        # determine the starting and ending indices of each sub-task
+        starts = [sum(counts[:p]) for p in range(nprocs)]
+        ends = [sum(counts[:p+1]) for p in range(nprocs)]
+        
+        #Make an empty list storing 
+        tempeigvecs = []
+        tempeigvals = []
+
+        if rank == 0:
+            print("Distribute eigenpairs to all processes . . .")
+        
+        for i in range(nconv):
+            #Gather and concatenate the eigenvectors to parent root and broadcast the data to all processes 
+            Vr = comm.gather(self.H.eigenvecs[:,i], root = 0)
+            Vr = comm.bcast(Vr,root = 0)
+            #However, only store this data when necessarry 
+            if i in np.arange(starts[rank],ends[rank]):
+                tempeigvecs.append(Vr[:])
+                tempeigvals.append(np.real(k))
+            else:
+                del Vr;
+            comm.Barrier()
+        
+        self.H.eigenvecs = np.array(tempeigvecs).T; del tempeigvecs[:] 
+        self.H.eigenvals = np.array(tempeigvals); del tempeigvals[:]
+        self.H.nconv = len(self.H.eigenvals) 
     ## Shortcut Function to Compute All Eigenpairs
     def alleigs(self,dim,maxiter=10000, tol=1e-8):
         if rank == 0:
             self.H.getEigenDecomposition('LM',self.H.hessian.shape[0]-dim,self.H.hessian.shape[0],maxiter,tol);
         comm.Barrier() 
+        nconv = comm.bcast(self.H.nconv,root = 0)
+        
+        # Alright, now let's create our 
+        ave, res = divmod(nconv, nprocs)
+        counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+        
+        # determine the starting and ending indices of each sub-task
+        starts = [sum(counts[:p]) for p in range(nprocs)]
+        ends = [sum(counts[:p+1]) for p in range(nprocs)]
+        
+        #Make an empty list storing 
+        tempeigvecs = []
+        tempeigvals = []
+
+        if rank == 0:
+            print("Distribute eigenpairs to all processes . . .")
+        
+        for i in range(nconv):
+            #Gather and concatenate the eigenvectors to parent root and broadcast the data to all processes 
+            #if rank == 0:
+            Vr = comm.bcast(self.H.eigenvecs[:,i], root = 0)
+            k = comm.bcast(self.H.eigenvals[i], root = 0)
+            #However, only store this data when necessarry 
+            if i in np.arange(starts[rank],ends[rank]):
+                tempeigvecs.append(Vr[:])
+                tempeigvals.append(np.real(k))
+            comm.Barrier()
+        
+        self.H.eigenvecs = np.array(tempeigvecs).T; del tempeigvecs[:] 
+        self.H.eigenvals = np.array(tempeigvals); del tempeigvals[:]
+        self.H.nconv = len(self.H.eigenvals) 
     
     ## Building pseudoinverse
     def build_pinv(self,tol):
@@ -71,79 +132,29 @@ class hessian(object):
             self.H.checkPinvError()
         else:
             #Break up the array in preparation for scattering
-            if rank == 0:
-                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
-                tempeigenvals = np.zeros_like(self.H.eigenvals)
-                # determine the size of each sub-task
-                ave, res = divmod(len(self.H.eigenvals), nprocs)
-                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
-                # determine the starting and ending indices of each sub-task
-                starts = [sum(counts[:p]) for p in range(nprocs)]
-                ends = [sum(counts[:p+1]) for p in range(nprocs)]
-
-                # converts gridpoints into a list of arrays 
-                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
-                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
-            else:
-                tempeigenvecs = None
-                tempeigenvals = None
-            
-            #Scatter eigenvectors and eigenvalues
-            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
-            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
-            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
-            comm.Barrier()
-            
-            #Update number of converged eigenpairs
-            self.H.nconv = len(self.H.eigenvals) 
             self.H.buildPseudoInverse(tol)
-            
             #Merge the computed pseudoinverses from each process
             temppinv = comm.reduce(self.H.pseudoinverse,MPI.SUM,root=0)
-            
             if rank == 0:
                 self.H.pseudoinverse = np.copy(temppinv); del temppinv;
-                self.H.checkPinvError()
-    ## Building pseudoinverse
+            else:
+                self.H.pseudoinverse = np.zeros_like(self.H.pseudoinverse);
+    
+    ## Building nonaffine elasticity tensor
     def compute_nonaffine(self,tol):
         if nprocs == 1:
             self.H.calculateNonAffine(tol)
         else:
-            #Break up the array in preparation for scattering
-            if rank == 0:
-                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
-                tempeigenvals = np.zeros_like(self.H.eigenvals)
-                # determine the size of each sub-task
-                ave, res = divmod(len(self.H.eigenvals), nprocs)
-                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
-                # determine the starting and ending indices of each sub-task
-                starts = [sum(counts[:p]) for p in range(nprocs)]
-                ends = [sum(counts[:p+1]) for p in range(nprocs)]
-
-                # converts gridpoints into a list of arrays 
-                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
-                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
-            else:
-                tempeigenvecs = None
-                tempeigenvals = None
-            
-            #Scatter eigenvectors and eigenvalues
-            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
-            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
-            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
-            comm.Barrier()
-            
-            #Update number of converged eigenpairs
-            self.H.nconv = len(self.H.eigenvals) 
             self.H.calculateNonAffine(tol)
-            
             #Merge the computed pseudoinverses from each process
+            #And store to Root Process
             tempnonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
             if rank == 0:
                 self.H.nonaffinetensor = np.copy(tempnonaffine); del tempnonaffine;
             else:
-                del tempnonaffine;
-        #iAfterwards, we reduce sum the pseudoinverse 
+                self.H.nonaffinetensor = np.zeros_like(self.H.nonaffinetensor);
+    
+    #iAfterwards, we reduce sum the pseudoinverse 
     ## Check if system full eigendecomposition reproduces the Hessian
     def check_alleigs(self):
         if rank == 0:
@@ -280,78 +291,27 @@ class hessian_slepc(object):
             self.H.checkPinvError()
         else:
             #Break up the array in preparation for scattering
-            if rank == 0:
-                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
-                tempeigenvals = np.zeros_like(self.H.eigenvals)
-                # determine the size of each sub-task
-                ave, res = divmod(len(self.H.eigenvals), nprocs)
-                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
-                # determine the starting and ending indices of each sub-task
-                starts = [sum(counts[:p]) for p in range(nprocs)]
-                ends = [sum(counts[:p+1]) for p in range(nprocs)]
-
-                # converts gridpoints into a list of arrays 
-                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
-                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
-            else:
-                tempeigenvecs = None
-                tempeigenvals = None
-            
-            #Scatter eigenvectors and eigenvalues
-            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
-            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
-            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
-            comm.Barrier()
-            
-            #Update number of converged eigenpairs
-            self.H.nconv = len(self.H.eigenvals) 
             self.H.buildPseudoInverse(tol)
-            
             #Merge the computed pseudoinverses from each process
             temppinv = comm.reduce(self.H.pseudoinverse,MPI.SUM,root=0)
-            
             if rank == 0:
                 self.H.pseudoinverse = np.copy(temppinv); del temppinv;
-                self.H.checkPinvError()
-    ## Building pseudoinverse
+            else:
+                self.H.pseudoinverse = np.zeros_like(self.H.pseudoinverse);
+    
+    ## Building nonaffine elasticity tensor
     def compute_nonaffine(self,tol):
         if nprocs == 1:
             self.H.calculateNonAffine(tol)
         else:
-            #Break up the array in preparation for scattering
-            if rank == 0:
-                tempeigenvecs = np.zeros_like(self.H.eigenvecs)
-                tempeigenvals = np.zeros_like(self.H.eigenvals)
-                # determine the size of each sub-task
-                ave, res = divmod(len(self.H.eigenvals), nprocs)
-                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
-                # determine the starting and ending indices of each sub-task
-                starts = [sum(counts[:p]) for p in range(nprocs)]
-                ends = [sum(counts[:p+1]) for p in range(nprocs)]
-
-                # converts gridpoints into a list of arrays 
-                tempeigenvecs = [np.float64(self.H.eigenvecs[:,starts[p]:ends[p]]) for p in range(nprocs)]
-                tempeigenvals = [np.float64(self.H.eigenvals[starts[p]:ends[p]]) for p in range(nprocs)]
-            else:
-                tempeigenvecs = None
-                tempeigenvals = None
-            
-            #Scatter eigenvectors and eigenvalues
-            self.H.maxeigval = comm.bcast(self.H.maxeigval, root=0)
-            self.H.eigenvecs = comm.scatter(tempeigenvecs, root=0); del tempeigenvecs;
-            self.H.eigenvals = comm.scatter(tempeigenvals, root=0); del tempeigenvals;
-            comm.Barrier()
-            
-            #Update number of converged eigenpairs
-            self.H.nconv = len(self.H.eigenvals) 
             self.H.calculateNonAffine(tol)
-            
             #Merge the computed pseudoinverses from each process
+            #And store to Root Process
             tempnonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
             if rank == 0:
                 self.H.nonaffinetensor = np.copy(tempnonaffine); del tempnonaffine;
             else:
-                del tempnonaffine;
+                self.H.nonaffinetensor = np.zeros_like(self.H.nonaffinetensor);
     
     ## Implementation of eigendecomposition using SLEPc and PETSc
     def eigs(self, maxiter=1000, tol=1e-10):
@@ -409,52 +369,58 @@ class hessian_slepc(object):
             nconv = E.getConverged()
             self.H.nconv = nconv
             Print("Number of converged eigenpairs %d" % nconv)
+            
             if nconv > 0:
                 # Create the results vectors
                 vr, wr = A.getVecs()
                 vi, wi = A.getVecs()
-                #
-                #Print()
-                #Print("        k          ||Ax-kx||/||kx|| ")
-                #Print("----------------- ------------------")
                 
                 istart, iend = vr.getOwnershipRange()
-                if rank == 0:
-                    tempeigvecs = []
-                    tempeigvals = []
-                else:
-                    tempeigvecs = None
-                    tempeigvals = None
+                
+                # Alright, now let's create our 
+                ave, res = divmod(nconv, nprocs)
+                counts = [ave + 1 if p < res else ave for p in range(nprocs)]
+                
+                # determine the starting and ending indices of each sub-task
+                starts = [sum(counts[:p]) for p in range(nprocs)]
+                ends = [sum(counts[:p+1]) for p in range(nprocs)]
+                
+                #Make an empty list storing 
+                #if rank == 0:
+                tempeigvecs = []
+                tempeigvals = []
 
                 for i in range(nconv):
                     k = E.getEigenpair(i, vr, vi)
-                    error = E.computeError(i)
-                  #  if k.imag != 0.0:
-                  #      Print(" %9f%+9f j %12g" % (k.real, k.imag, error))
-                  #  else:
-                  #      Print(" %12f      %12g" % (k.real, error))
-                    Vr = comm.gather(vr[istart:iend],root = 0)
+                    #Gather and concatenate the eigenvectors to parent root and broadcast the data to all processes 
+                    Vr = comm.gather(vr[istart:iend], root = 0)
                     if rank == 0:
-                        Vr = np.concatenate(Vr)
+                        Vr = np.concatenate(Vr)[:]
+                    Vr = comm.bcast(Vr,root = 0)
+                    
+                    #However, only store this data when necessarry 
+                    if i in np.arange(starts[rank],ends[rank]):
                         tempeigvecs.append(Vr[:])
                         tempeigvals.append(np.real(k))
+                    else:
+                        del Vr;
+                    
+                    comm.Barrier()
                 
                 #Destroy Eigensolver and Matrix object because data is already stored onto Root Process
                 E.destroy()
                 A.destroy()
-
-                #I can then handle I/O here. Perhaps there is a better way . . . .                 
-                Print("Copying Eigenvectors and Eigenvalues to Root Process")
-                if rank == 0:
-                    self.H.eigenvecs = np.array(tempeigvecs).T
-                    self.H.eigenvals = np.array(tempeigvals)
-                    del tempeigvecs[:] 
-                    del tempeigvals[:]
+                
+                Print("Copy SLEPc Eigenpairs to Hessian Class . . .")
+                self.H.eigenvecs = np.array(tempeigvecs).T; del tempeigvecs[:] 
+                self.H.eigenvals = np.array(tempeigvals); del tempeigvals[:]
+                self.H.nconv = len(self.H.eigenvals) 
         else:
             Print("[WARNING] petsc4py and slepc4py are not installed. eigs_slepc will do nothing.")
     
     def check_alleigs(self):
         if rank == 0:
             self.H.checkFullDecompError()
+    
     def _getObservable(self):
         return self.H

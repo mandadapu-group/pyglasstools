@@ -72,6 +72,12 @@ class PYBIND11_EXPORT Hessian
                 misforce.resize(hessian_length, (unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);
                 misforce.setZero();
                 
+                //Set size for eigenvectors and eigenvalues
+                eigenvecs.resize(hessian_length, hessian_length);
+                eigenvecs.setZero();
+                //Set size for eigenvectors and eigenvalues
+                eigenvals.resize(hessian_length);
+                eigenvals.setZero();
                 //Construct pseudoinverse
                 pseudoinverse = Eigen::MatrixXd::Zero(hessian_length,hessian_length);
                 

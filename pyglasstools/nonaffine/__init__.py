@@ -262,11 +262,10 @@ def csrmatrix2PETScMat(L):
 
     return B
 
-
+import sys
 class hessian_slepc(object):
     def __init__(self, sysdata,potential):
         self.H = _nonaffine.Hessian(sysdata._getParticleSystem(),potential._getPairPotential())
-    
     #Redefine attributes so that it directly access Hessian C++ class 
     #attributes
     def __getattr__(self,attr):
@@ -329,29 +328,25 @@ class hessian_slepc(object):
             E.setFromOptions()
             E.setTolerances(tol,maxiter) 
             
-            xdir, ydir = A.getVecs()
             vr, vi = A.getVecs()
-            istart, iend = xdir.getOwnershipRange() 
+            istart, iend = vr.getOwnershipRange() 
             if any("eps_interval" in s for s in sys.argv):
                 Print("Peforming spectrum slicing. No deflation of null space is needed")
-                xdir.destroy()
-                ydir.destroy()
             else: 
                 Print("Deflate Null Space")
                 for i in range(istart,iend):
                     if (i % 2):
-                        xdir[i] = 1
-                        ydir[i] = 0
+                        vr[i] = 1
+                        vi[i] = 0
                     else:
-                        xdir[i] = 0
-                        ydir[i] = 1
-                xdir.assemble()
-                ydir.assemble()
-                E.setDeflationSpace([xdir,ydir])
-                xdir.destroy()
-                ydir.destroy()
-            A.destroy()
-
+                        vr[i] = 0
+                        vi[i] = 1
+                vr.assemble()
+                vi.assemble()
+                E.setDeflationSpace([vr,vi])
+            E.setKrylovSchurDetectZeros(True)
+            #A.destroy()
+            
             Print("Solve!")
             E.solve()
             Print()
@@ -373,12 +368,10 @@ class hessian_slepc(object):
             Print("Stopping condition: tol=%.4g, maxit=%d" % (tol, maxit))
 
             nconv = E.getConverged()
-            self.H.nconv = nconv
             Print("Number of converged eigenpairs %d" % nconv)
             
             if nconv > 0:
                 # Create the results vectors
-                
                 istart, iend = vr.getOwnershipRange()
                 
                 # Alright, now let's create our 

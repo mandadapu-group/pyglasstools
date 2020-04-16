@@ -137,15 +137,6 @@ class PYBIND11_EXPORT SLEPcHessian
                 nconv = 0;
                 maxeigval = 0;
                 
-                //Compute upper bound here
-                Vec vtemp;
-                MatCreateVecs(hessian,NULL,&vtemp);
-                MatGetRowMaxAbs(hessian,vtemp,NULL);
-                VecMax(vtemp,NULL,&upperbound);
-                upperbound *= hessian_length;
-                upperbound = abs(upperbound);
-                VecDestroy(&vtemp);
-                
                 //MatView(misforce, PETSC_VIEWER_STDOUT_WORLD);
                 //Construct for loop here:
                 //Construct SLEPcHessian
@@ -196,6 +187,7 @@ class PYBIND11_EXPORT SLEPcHessian
 
         void getAllEigenPairs_Mumps()
         {
+            getMaxEigenvalue();
             //This should only be done when computing a small amount of eigenvalues
             //and setting the which to anything other than EPS_ALL
             EPSType type;
@@ -245,10 +237,9 @@ class PYBIND11_EXPORT SLEPcHessian
             /*
                 Set interval for spectrum slicing
             */
-            //getMaxEigenvalue();
             
             inta = 1e-8;
-            intb = upperbound;//maxeigval;//PETSC_MAX_REAL;
+            intb = maxeigval+1;//PETSC_MAX_REAL;
             ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             /*
              Set solver parameters at runtime
@@ -302,6 +293,10 @@ class PYBIND11_EXPORT SLEPcHessian
                 ierr = PetscFree(shifts);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscFree(inertias);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             }
+            ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
              
         };
         
@@ -339,7 +334,7 @@ class PYBIND11_EXPORT SLEPcHessian
             {
                 ierr = PetscPrintf(PETSC_COMM_WORLD,"[WARNING] You're trying to compute eigenvalues in an interval (or the entirety of the spectrum)! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscPrintf(PETSC_COMM_WORLD,"[WARNING] Please switch to eigsall instead of eigs function method! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                return;
+                //return;
             }
             EPSSolve(eps);
             /*
@@ -365,48 +360,13 @@ class PYBIND11_EXPORT SLEPcHessian
             */
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-            if (nconv > 0) 
-            {
-                /*
-                Display eigenvalues and relative errors
-                */
-                ierr = PetscPrintf(PETSC_COMM_WORLD,
-                    "           k          ||Ax-kx||/||kx||\n"
-                    "   ----------------- ------------------\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-                for (PetscInt i = 0; i < nconv; ++i) 
-                {
-                    /*
-                    Get converged eigenpairs: i-th eigenvalue is stored in kr (real part) and
-                    ki (imaginary part)
-                    */
-                    ierr = EPSGetEigenpair(eps,i,&kr,&ki,xr,xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                    /*
-                     Compute the relative error associated to each eigenpair
-                    */
-                    ierr = EPSComputeError(eps,i,EPS_ERROR_RELATIVE,&error);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-                    #if defined(PETSC_USE_COMPLEX)
-                        re = PetscRealPart(kr);
-                        im = PetscImaginaryPart(kr);
-                    #else
-                        re = kr;
-                        im = ki;
-                    #endif
-                    if (im!=0.0) 
-                    {
-                        ierr = PetscPrintf(PETSC_COMM_WORLD," %9f%+9fi %12g\n",(double)re,(double)im,(double)error);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                    } 
-                    else 
-                    {
-                        ierr = PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)re,(double)error);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                    }
-                }
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = VecDestroy(&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = VecDestroy(&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            }
+            ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = VecDestroy(&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = VecDestroy(&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         };
 
     protected:

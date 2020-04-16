@@ -6,6 +6,39 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nprocs = comm.Get_size()
 
+class testhessian(object):
+    def __init__(self, sysdata,potential):
+        self.H = _nonaffine.SLEPcHessian(sysdata._getParticleSystem(),potential._getPairPotential())
+        self.assembled_nonaffine = np.zeros((3,3)) 
+    #Redefine attributes so that it directly access Hessian C++ class 
+    def __getattr__(self,attr):
+            orig_attr = self.H.__getattribute__(attr)
+            if callable(orig_attr):
+                def hooked(*args, **kwargs):
+                    self.pre()
+                    result = orig_attr(*args, **kwargs)
+                    # prevent H from becoming unwrapped
+                    if result == self.H:
+                        return self
+                    self.post()
+                    return result
+                return hooked
+            else:
+                return orig_attr
+    def eigs(self):
+        self.H.getEigenPairs()
+    def eigs_all(self):
+        self.H.getAllEigenPairs_Mumps()
+    ## Building nonaffine elasticity tensor
+    def compute_nonaffine(self,tol):
+        if nprocs == 1:
+            self.H.calculateNonAffine(tol)
+        else:
+            self.H.calculateNonAffine(tol)
+            #Merge the computed pseudoinverses from each process
+            #And store to Root Process
+            #self.assembled_nonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
+
 ### Try to import petsc4py and slepc4py
 isslepc = True;
 try:
@@ -344,7 +377,6 @@ class hessian_slepc(object):
                 vr.assemble()
                 vi.assemble()
                 E.setDeflationSpace([vr,vi])
-            E.setKrylovSchurDetectZeros(True)
             #A.destroy()
             
             Print("Solve!")

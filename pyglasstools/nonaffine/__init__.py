@@ -35,35 +35,11 @@ class testhessian(object):
             #And store to Root Process
             #self.assembled_nonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
 
-### Try to import petsc4py and slepc4py
-"""
-isslepc = True;
-try:
-    import sys, slepc4py
-    slepc4py.init(sys.argv)
-except ImportError:
-    if rank == 0:
-        print("[WARNING] No slepc4py installation found. eigs_slepc will be unusable")
-    isslepc = False;
-
-ispetsc = True;
-try:
-    from petsc4py import PETSc
-    Print = PETSc.Sys.Print
-except ImportError:
-    if rank == 0:
-        print("[WARNING] No petsc4py installation found. eigs_slepc will be unusable")
-    ispetsc = False;
-
 class hessian(object):
     def __init__(self, sysdata,potential):
         if nprocs > 1 and rank == 0:
             print("[WARNING] Performing MPI run. The hessian class supports no MPI parallelization on its eigendecomposition.")
             print("[WARNING] MPI parallelization of eigendecomposition only exists in hessian_slepc class.")
-            if (ispetsc == False or isslepc == False):
-                print("[WARNING] Is petsc4py installed? {} Is slepc4py installed? {}".format(ispetsc,isslepc))
-            elif (ispetsc == True and isslepc == True):
-                print("[WARNING] petsc4py and slepc4py are installed. Consider using hessian_slepc class instead".format(ispetsc,isslepc))
         self.H = _nonaffine.Hessian(sysdata._getParticleSystem(),potential._getPairPotential())
      
     #Redefine attributes so that it directly access Hessian C++ class 
@@ -193,6 +169,26 @@ class hessian(object):
 
     def _getObservable(self):
         return self.H
+### Try to import petsc4py and slepc4py
+"""
+isslepc = True;
+try:
+    import sys, slepc4py
+    slepc4py.init(sys.argv)
+except ImportError:
+    if rank == 0:
+        print("[WARNING] No slepc4py installation found. eigs_slepc will be unusable")
+    isslepc = False;
+
+ispetsc = True;
+try:
+    from petsc4py import PETSc
+    Print = PETSc.Sys.Print
+except ImportError:
+    if rank == 0:
+        print("[WARNING] No petsc4py installation found. eigs_slepc will be unusable")
+    ispetsc = False;
+
 
 
 ##Helper function to convert scipy sparse matrix into a PETSc matrix

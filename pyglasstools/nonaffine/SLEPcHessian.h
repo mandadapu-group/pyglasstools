@@ -1,6 +1,7 @@
 #ifndef __SLEPCHESSIAN_H__
 #define __SLEPCHESSIAN_H__
 
+//#include <float.h>
 #include <vector>
 #include <cmath>
 #include <string>
@@ -20,6 +21,7 @@ namespace py = pybind11;
 namespace abr = Aboria;
 
 #include <slepceps.h>
+
 static char help[] = "A Hessian class object for eigendecomposition and non-affine elasticity tensor calculation. Requires SLEPc/PETSc library!\n\n";
 
 class PYBIND11_EXPORT SLEPcHessian
@@ -145,7 +147,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 EPSSetOperators(eps,hessian,NULL);
                 nconv = 0;
                 maxeigval = 0;
-                nonaffinetensor.setZero();                
+                nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);//setZero();                
                 //MatView(misforce, PETSC_VIEWER_STDOUT_WORLD);
                 //Construct for loop here:
             };
@@ -193,21 +195,30 @@ class PYBIND11_EXPORT SLEPcHessian
                     {
                         double laminv = 1/re;
                         ierr = MatMultTranspose(misforce,xr,mult); CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                        
                         VecScatterBegin(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
                         VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
-                        if (i == 0 )
+                        /*if (i < 3)
                         {
                             VecView(mult, PETSC_VIEWER_STDOUT_WORLD);
                             VecView(seqmult, PETSC_VIEWER_STDOUT_WORLD);
                             for(PetscInt idx =0; idx < 3; ++idx)
                             {
-                                ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"Process %D owns %.6g\n",world_rank,tempvec.data()[idx]);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                                ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"Process %D owns %.*f\n",world_rank,DBL_DIG-1,tempvecp[idx]);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                                 PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);
                             }
-                            nonaffinetensor(0,0) += xx*xx*laminv; nonaffinetensor(0,1) += xx*yy*laminv; nonaffinetensor(0,2) += xx*xy*laminv;
-                            nonaffinetensor(1,0) += yy*xx*laminv; nonaffinetensor(1,1) += yy*yy*laminv; nonaffinetensor(1,2) += yy*xy*laminv;
-                            nonaffinetensor(2,0) += xy*xx*laminv; nonaffinetensor(2,1) += xy*yy*laminv; nonaffinetensor(2,2) += xy*xy*laminv;
-                        }
+                        }*/
+                        nonaffinetensor(0,0) += tempvecp[0]*tempvecp[0]*laminv; 
+                        nonaffinetensor(0,1) += tempvecp[0]*tempvecp[1]*laminv; 
+                        nonaffinetensor(0,2) += tempvecp[0]*tempvecp[2]*laminv;
+
+                        nonaffinetensor(1,0) += tempvecp[1]*tempvecp[0]*laminv; 
+                        nonaffinetensor(1,1) += tempvecp[1]*tempvecp[1]*laminv; 
+                        nonaffinetensor(1,2) += tempvecp[1]*tempvecp[2]*laminv;
+                        
+                        nonaffinetensor(2,0) += tempvecp[2]*tempvecp[0]*laminv; 
+                        nonaffinetensor(2,1) += tempvecp[2]*tempvecp[1]*laminv; 
+                        nonaffinetensor(2,2) += tempvecp[2]*tempvecp[2]*laminv;
                     }
                 }
                 VecRestoreArray(seqmult,&tempvecp);
@@ -215,7 +226,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 VecScatterDestroy(&ctx);
                 VecDestroy(&seqmult);
                 VecDestroy(&mult);
-                //nonaffinetensor /= m_sysdata->simbox->vol;
+                nonaffinetensor /= m_sysdata->simbox->vol;
             }
         }
 

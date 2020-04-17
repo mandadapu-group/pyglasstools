@@ -20,7 +20,7 @@ namespace py = pybind11;
 namespace abr = Aboria;
 
 #include <slepceps.h>
-static char help[] = "Standard symmetric eigenproblem corresponding to the Laplacian operator in 2 dimensions.\n\n";
+static char help[] = "A Hessian class object for eigendecomposition and non-affine elasticity tensor calculation. Requires SLEPc/PETSc library!\n\n";
 
 class PYBIND11_EXPORT SLEPcHessian
 {
@@ -28,7 +28,6 @@ class PYBIND11_EXPORT SLEPcHessian
         Eigen::MatrixXd nonaffinetensor;
         int nconv; 
         double maxeigval;
-        PetscReal upperbound;
         #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
 
         SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
@@ -36,16 +35,25 @@ class PYBIND11_EXPORT SLEPcHessian
             {
                 auto argv = py::module::import("sys").attr("argv");
                 int argc = 0;
-                std::vector<const char*> cstrings;
+                std::string options_list;
                 for( auto test = argv.begin(); test != argv.end(); ++test)
                 {
-                    std::string hey = py::str(*test);
-                    cstrings.push_back(hey.data());
-                    ++argc;
+                    if (argc == 0)
+                    {
+                        ++argc;
+                    }
+                    else
+                    {
+                        options_list += py::str(*test);
+                        options_list += " ";
+                        argc += 1;
+                    }
                 }
+                
+                SlepcInitialize(NULL,NULL,(char*)0,help);
+                ierr = PetscOptionsInsertString(NULL,options_list.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscPrintf(PETSC_COMM_WORLD,"Initialize SLEPc Object \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                SlepcInitialize(&argc,(char***)cstrings.data(),(char*)0,help);
-
+                
                 //py::module::import("sys").attr("argv");
                 double maxforce_rcut = potential->scaled_rcut;
                 double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
@@ -139,7 +147,6 @@ class PYBIND11_EXPORT SLEPcHessian
                 
                 //MatView(misforce, PETSC_VIEWER_STDOUT_WORLD);
                 //Construct for loop here:
-                //Construct SLEPcHessian
             };
         virtual ~SLEPcHessian()
         {
@@ -188,30 +195,42 @@ class PYBIND11_EXPORT SLEPcHessian
         void getAllEigenPairs_Mumps()
         {
             getMaxEigenvalue();
-            //This should only be done when computing a small amount of eigenvalues
-            //and setting the which to anything other than EPS_ALL
+            /*
+             Set solver parameters at runtime
+            */
+            ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            
             EPSType type;
             ST             st;          /* spectral transformation context */
             KSP            ksp;
             PC             pc;
-            PetscInt       nev,i,*inertias,ns,maxit;
-            PetscReal      inta,intb,*shifts,tol;
-            PetscBool      show=PETSC_FALSE;//,terse;
+            PetscInt       maxit;
+            PetscReal      inta,intb,tol;
             
-            //ierr = EPSSetTolerances(eps,_tol,_maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = EPSSetWhichEigenpairs(eps,EPS_ALL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
+            
             /*
                 Spectrum slicing requires Krylov-Schur
             */
             ierr = EPSSetType(eps,EPSKRYLOVSCHUR);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
+            ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"Solution method: %s\n",type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            
+            ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"Stopping condition: tol=%.4g, maxit=%D\n",(double)tol,maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            /*
+                Set interval for spectrum slicing
+            */
+            inta = tol;
+            intb = maxeigval+1;//PETSC_MAX_REAL;
+            ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"Interval is  [%g, %g]\n",(double)inta,(double)intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            
             /*
                  Set shift-and-invert with Cholesky; select MUMPS if available
             */
             ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = STSetType(st,STSINVERT);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
             ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = KSPSetType(ksp,KSPPREONLY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -231,68 +250,24 @@ class PYBIND11_EXPORT SLEPcHessian
                 Note: depending on the interval, it may be necessary also to increase the workspace:
                 '-mat_mumps_icntl_14 <percentage>': increase workspace with a percentage (50, 100 or more)
                 */
-                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1 -mat_mumps_icntl_24 1 -mat_mumps_cntl_3 1e-50 -mat_mumps_icntl_14 100");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                std::string cntl_3 = "-mat_mumps_cntl_3 ";
+                cntl_3 +=  std::to_string(std::numeric_limits<double>::epsilon()*tol);
+                ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
 
-            /*
-                Set interval for spectrum slicing
-            */
-            
-            inta = 1e-8;
-            intb = maxeigval+1;//PETSC_MAX_REAL;
-            ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            /*
-             Set solver parameters at runtime
-            */
-            ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Solution method: %s\n",type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Stopping condition: tol=%.4g, maxit=%D\n",(double)tol,maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetInterval(eps,&inta,&intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Interval is  [%g, %g]\n",(double)inta,(double)intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             //                  Solve the eigensystem
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
             ierr = EPSSetUp(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            if (show) 
-            {
-                ierr = EPSKrylovSchurGetInertias(eps,&ns,&shifts,&inertias);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"Subintervals (after setup):\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                for (i=0;i<ns;i++) 
-                { 
-                    ierr = PetscPrintf(PETSC_COMM_WORLD,"Shift %g  Inertia %D \n",(double)shifts[i],inertias[i]);CHKERRABORT(PETSC_COMM_WORLD,ierr); 
-                }
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscFree(shifts);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscFree(inertias);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            }
             ierr = PetscPrintf(PETSC_COMM_WORLD,"Start Solving! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = EPSSolve(eps); CHKERRABORT(PETSC_COMM_WORLD,ierr);
             
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            if (show) 
-            {
-            /*
-             Show eigenvalues in interval and print solution
-            */
-            ierr = EPSGetDimensions(eps,&nev,NULL,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetInterval(eps,&inta,&intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"%D eigenvalues found in [%g, %g]\n",nev,(double)inta,(double)intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = EPSKrylovSchurGetInertias(eps,&ns,&shifts,&inertias);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"All shifts (after solve):\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                for (i=0;i<ns;i++) 
-                { 
-                    ierr = PetscPrintf(PETSC_COMM_WORLD,"Shift %g  Inertia %D \n",(double)shifts[i],inertias[i]);CHKERRABORT(PETSC_COMM_WORLD,ierr); 
-                }
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscFree(shifts);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscFree(inertias);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            }
+
             ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -321,21 +296,21 @@ class PYBIND11_EXPORT SLEPcHessian
             //This should only be done when computing a small amount of eigenvalues
             //and setting the which to anything other than EPS_ALL
             EPSType type;
-            PetscReal      error,tol,re,im;
-            PetscScalar    kr,ki;
+            PetscReal      tol;
             Vec            xr,xi;
             PetscInt       nev,maxit,its;
+            EPSWhich whicheig;
             
             EPSSetFromOptions(eps);
-            EPSSetUp(eps);
-            EPSWhich whicheig;
             EPSGetWhichEigenpairs(eps, &whicheig);
             if (whicheig == EPS_ALL)
             {
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"[WARNING] You're trying to compute eigenvalues in an interval (or the entirety of the spectrum)! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"[WARNING] Please switch to eigsall instead of eigs function method! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                //return;
+                int world_rank;
+                MPI_Comm_rank(PETSC_COMM_WORLD, &world_rank);
+                ierr = PetscPrintf(PETSC_COMM_WORLD,"[%D]PyGlassTools WARNING: Performing spectrum slicing! Make sure all options are configured correctly \n",world_rank);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             }
+            
+            EPSSetUp(eps);
             EPSSolve(eps);
             /*
             Optional: Get some information from the solver and display it

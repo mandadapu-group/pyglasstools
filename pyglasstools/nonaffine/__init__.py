@@ -40,6 +40,7 @@ class testhessian(object):
             #self.assembled_nonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)
 
 ### Try to import petsc4py and slepc4py
+"""
 isslepc = True;
 try:
     import sys, slepc4py
@@ -200,12 +201,10 @@ class hessian(object):
 
 ##Helper function to convert scipy sparse matrix into a PETSc matrix
 def csrmatrix2PETScMat(L):
-    """
     Converts a sequential scipy sparse matrix (on process 0) to a PETSc
     Mat ('aij') matrix distributed on all processes
     input : L, scipy sparse matrix on proc 0
     output: PETSc matrix distributed on all procs
-    """
 
     # Get the data from the sequential scipy matrix
     if rank == 0:
@@ -457,3 +456,4 @@ class hessian_slepc(object):
     
     def _getObservable(self):
         return self.H
+    """

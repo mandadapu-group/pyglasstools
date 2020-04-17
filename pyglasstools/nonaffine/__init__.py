@@ -9,7 +9,6 @@ nprocs = comm.Get_size()
 class testhessian(object):
     def __init__(self, sysdata,potential):
         self.H = _nonaffine.SLEPcHessian(sysdata._getParticleSystem(),potential._getPairPotential())
-        self.assembled_nonaffine = np.zeros((3,3)) 
     #Redefine attributes so that it directly access Hessian C++ class 
     def __getattr__(self,attr):
             orig_attr = self.H.__getattribute__(attr)
@@ -30,11 +29,8 @@ class testhessian(object):
     def eigs_all(self):
         self.H.getAllEigenPairs_Mumps()
     ## Building nonaffine elasticity tensor
-    def compute_nonaffine(self,tol):
-        if nprocs == 1:
-            self.H.calculateNonAffine(tol)
-        else:
-            self.H.calculateNonAffine(tol)
+    def compute_nonaffine(self):
+        self.H.calculateNonAffine()
             #Merge the computed pseudoinverses from each process
             #And store to Root Process
             #self.assembled_nonaffine = comm.reduce(self.H.nonaffinetensor,MPI.SUM,root=0)

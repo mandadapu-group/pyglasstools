@@ -28,6 +28,7 @@ class PYBIND11_EXPORT SLEPcHessian
         Eigen::MatrixXd nonaffinetensor;
         int nconv; 
         double maxeigval;
+        double tol;
         #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
 
         SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
@@ -144,7 +145,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 EPSSetOperators(eps,hessian,NULL);
                 nconv = 0;
                 maxeigval = 0;
-                
+                nonaffinetensor.setZero();                
                 //MatView(misforce, PETSC_VIEWER_STDOUT_WORLD);
                 //Construct for loop here:
             };
@@ -156,38 +157,64 @@ class PYBIND11_EXPORT SLEPcHessian
             SlepcFinalize();
         };
         
-        void calculateNonAffine(double tol) 
+        void calculateNonAffine() 
         {
             //nconv-1
             if (nconv > 0)
             {
                 ierr = EPSGetEigenvalue(eps,nconv-1,&maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                //double cond = hessian_length*maxeigval*tol;
+                ierr = EPSGetTolerances(eps,&tol,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                double cond = hessian_length*maxeigval*tol;
 
-                /*#pragma omp parallel
-                { 
-                    Vec xr,mult;
-                    PetscReal kr,re;
-                    MatCreateVecs(hessian,NULL,&xr);
-                    MatCreateVecs(misforce,&mult,NULL);
-                    
-                    #pragma for reduction(+:nonaffinetensor) 
-                    for (int i = 0; i < nconv; ++i)
-                    {   
-                        ierr = EPSGetEigenpair(eps,i,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                        #if defined(PETSC_USE_COMPLEX)
-                            re = PetscRealPart(kr);
-                        #else
-                            re = kr;
-                        #endif
-                        //Get the info here
-                        if (re > cond)
+                Vec xr,mult,seqmult;
+                VecScatter ctx;
+                
+                PetscReal kr,re;
+                MatCreateVecs(hessian,NULL,&xr);
+                MatCreateVecs(misforce,&mult,NULL);
+                //Create A Scatterrer and the resulting sequential vector holding temporary values 
+                VecScatterCreateToAll(mult,&ctx,&seqmult);
+                
+                int world_rank;
+                MPI_Comm_rank(PETSC_COMM_WORLD, &world_rank);
+                double *tempvecp = new double[nonaffinetensor.rows()];//tempvec.data();
+                VecGetArray(seqmult,&tempvecp);
+
+                for (int i = 0; i < nconv; ++i)
+                {   
+                    ierr = EPSGetEigenpair(eps,i,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                    #if defined(PETSC_USE_COMPLEX)
+                        re = PetscRealPart(kr);
+                    #else
+                        re = kr;
+                    #endif
+                    //Get the info here
+                    if (re > cond)
+                    {
+                        double laminv = 1/re;
+                        ierr = MatMultTranspose(misforce,xr,mult); CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                        VecScatterBegin(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
+                        VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
+                        if (i == 0 )
                         {
-                            double laminv = 1/re;
-                            MatMultTranspose(misforce,xr,mult);
+                            VecView(mult, PETSC_VIEWER_STDOUT_WORLD);
+                            VecView(seqmult, PETSC_VIEWER_STDOUT_WORLD);
+                            for(PetscInt idx =0; idx < 3; ++idx)
+                            {
+                                ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"Process %D owns %.6g\n",world_rank,tempvec.data()[idx]);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                                PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);
+                            }
+                            nonaffinetensor(0,0) += xx*xx*laminv; nonaffinetensor(0,1) += xx*yy*laminv; nonaffinetensor(0,2) += xx*xy*laminv;
+                            nonaffinetensor(1,0) += yy*xx*laminv; nonaffinetensor(1,1) += yy*yy*laminv; nonaffinetensor(1,2) += yy*xy*laminv;
+                            nonaffinetensor(2,0) += xy*xx*laminv; nonaffinetensor(2,1) += xy*yy*laminv; nonaffinetensor(2,2) += xy*xy*laminv;
                         }
                     }
-                }*/
+                }
+                VecRestoreArray(seqmult,&tempvecp);
+                delete [] tempvecp;
+                VecScatterDestroy(&ctx);
+                VecDestroy(&seqmult);
+                VecDestroy(&mult);
                 //nonaffinetensor /= m_sysdata->simbox->vol;
             }
         }
@@ -205,7 +232,7 @@ class PYBIND11_EXPORT SLEPcHessian
             KSP            ksp;
             PC             pc;
             PetscInt       maxit;
-            PetscReal      inta,intb,tol;
+            PetscReal      inta,intb;
             
             ierr = EPSSetWhichEigenpairs(eps,EPS_ALL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             
@@ -255,6 +282,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 std::string cntl_3 = "-mat_mumps_cntl_3 ";
                 cntl_3 +=  std::to_string(std::numeric_limits<double>::epsilon()*tol);
                 ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_14 100");CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
 
             
@@ -296,7 +324,6 @@ class PYBIND11_EXPORT SLEPcHessian
             //This should only be done when computing a small amount of eigenvalues
             //and setting the which to anything other than EPS_ALL
             EPSType type;
-            PetscReal      tol;
             Vec            xr,xi;
             PetscInt       nev,maxit,its;
             EPSWhich whicheig;
@@ -362,7 +389,8 @@ void export_SLEPcHessian(py::module& m)
     .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >  >())
     .def("getEigenPairs", &SLEPcHessian::getEigenPairs)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
-    //.def_readwrite("hessian", &SLEPcHessian::hessian)
+    .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
+    .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
     ;
 };
 #endif //__SLEPCHESSIAN_H__

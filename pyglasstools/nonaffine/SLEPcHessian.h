@@ -1,7 +1,6 @@
 #ifndef __SLEPCHESSIAN_H__
 #define __SLEPCHESSIAN_H__
 
-//#include <float.h>
 #include <vector>
 #include <cmath>
 #include <string>
@@ -12,6 +11,8 @@
 #include <pyglasstools/MathAndTypes.h>
 #include <pyglasstools/ParticleSystem.h>
 #include <pyglasstools/potential/PairPotential.h>
+#include <pyglasstools/Manager.h>
+#include "PETScManager.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -31,33 +32,14 @@ class PYBIND11_EXPORT SLEPcHessian
         int nconv; 
         double maxeigval;
         double tol;
-        #pragma omp declare reduction( + : Eigen::MatrixXd : omp_out += omp_in ) initializer( omp_priv = Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()) )
 
         SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
-            : m_sysdata(sysdata), m_potential(potential)
+            : m_sysdata(sysdata), m_potential(potential), m_manager( std::make_shared<PETScManager>(PETScManager()) )
             {
-                auto argv = py::module::import("sys").attr("argv");
-                int argc = 0;
-                std::string options_list;
-                for( auto test = argv.begin(); test != argv.end(); ++test)
-                {
-                    if (argc == 0)
-                    {
-                        ++argc;
-                    }
-                    else
-                    {
-                        options_list += py::str(*test);
-                        options_list += " ";
-                        argc += 1;
-                    }
-                }
-                
                 SlepcInitialize(NULL,NULL,(char*)0,help);
-                ierr = PetscOptionsInsertString(NULL,options_list.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"Initialize SLEPc Object \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                m_manager->printPetscNotice(5,"Constructing SLEPc Hessian Object \n");
                 
-                //py::module::import("sys").attr("argv");
                 double maxforce_rcut = potential->scaled_rcut;
                 double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
                                                         std::end(abr::get<diameter>(m_sysdata->particles)) );
@@ -65,7 +47,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
                 
                 //Construct Hessian
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"Assemble PETSc Sparse Matrix \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
                 hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
                 
                 //MatCreate(PETSC_COMM_WORLD,&hessian);
@@ -145,10 +127,11 @@ class PYBIND11_EXPORT SLEPcHessian
                 EPSCreate(PETSC_COMM_WORLD,&eps);
                 ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 EPSSetOperators(eps,hessian,NULL);
+                
+
                 nconv = 0;
                 maxeigval = 0;
-                nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);//setZero();                
-                //MatView(misforce, PETSC_VIEWER_STDOUT_WORLD);
+                nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
                 //Construct for loop here:
             };
         virtual ~SLEPcHessian()
@@ -161,13 +144,11 @@ class PYBIND11_EXPORT SLEPcHessian
         
         void calculateNonAffine() 
         {
-            //nconv-1
             if (nconv > 0)
             {
                 ierr = EPSGetEigenvalue(eps,nconv-1,&maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = EPSGetTolerances(eps,&tol,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                double cond = hessian_length*maxeigval*tol;
-
+                double cond = hessian_length*maxeigval*m_manager->pinv_tol;//*tol;
                 Vec xr,mult,seqmult;
                 VecScatter ctx;
                 
@@ -177,8 +158,6 @@ class PYBIND11_EXPORT SLEPcHessian
                 //Create A Scatterrer and the resulting sequential vector holding temporary values 
                 VecScatterCreateToAll(mult,&ctx,&seqmult);
                 
-                int world_rank;
-                MPI_Comm_rank(PETSC_COMM_WORLD, &world_rank);
                 double *tempvecp = new double[nonaffinetensor.rows()];//tempvec.data();
                 VecGetArray(seqmult,&tempvecp);
 
@@ -198,16 +177,7 @@ class PYBIND11_EXPORT SLEPcHessian
                         
                         VecScatterBegin(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
                         VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
-                        /*if (i < 3)
-                        {
-                            VecView(mult, PETSC_VIEWER_STDOUT_WORLD);
-                            VecView(seqmult, PETSC_VIEWER_STDOUT_WORLD);
-                            for(PetscInt idx =0; idx < 3; ++idx)
-                            {
-                                ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"Process %D owns %.*f\n",world_rank,DBL_DIG-1,tempvecp[idx]);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                                PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);
-                            }
-                        }*/
+                        
                         nonaffinetensor(0,0) += tempvecp[0]*tempvecp[0]*laminv; 
                         nonaffinetensor(0,1) += tempvecp[0]*tempvecp[1]*laminv; 
                         nonaffinetensor(0,2) += tempvecp[0]*tempvecp[2]*laminv;
@@ -233,6 +203,9 @@ class PYBIND11_EXPORT SLEPcHessian
         void getAllEigenPairs_Mumps()
         {
             getMaxEigenvalue();
+
+            //Set value MUMPS work-space
+            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_14 200");CHKERRABORT(PETSC_COMM_WORLD,ierr);
             /*
              Set solver parameters at runtime
             */
@@ -252,17 +225,17 @@ class PYBIND11_EXPORT SLEPcHessian
             */
             ierr = EPSSetType(eps,EPSKRYLOVSCHUR);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Solution method: %s\n",type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
             
             ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Stopping condition: tol=%.4g, maxit=%D\n",(double)tol,maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Stopping condition: tol="+to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
             /*
                 Set interval for spectrum slicing
             */
-            inta = tol;
-            intb = maxeigval+1;//PETSC_MAX_REAL;
+            inta = hessian_length*maxeigval*m_manager->pinv_tol;//*tol;
+            intb = maxeigval*(1+inta);//PETSC_MAX_REAL;
             ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Interval is  [%g, %g]\n",(double)inta,(double)intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Search interval is: ["+to_string_sci(inta)+", "+ to_string_sci(intb)+"]\n");
             
             /*
                  Set shift-and-invert with Cholesky; select MUMPS if available
@@ -291,9 +264,8 @@ class PYBIND11_EXPORT SLEPcHessian
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 std::string cntl_3 = "-mat_mumps_cntl_3 ";
-                cntl_3 +=  std::to_string(std::numeric_limits<double>::epsilon()*tol);
+                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon());
                 ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_14 100");CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
 
             
@@ -301,22 +273,33 @@ class PYBIND11_EXPORT SLEPcHessian
             //                  Solve the eigensystem
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
             ierr = EPSSetUp(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Start Solving! \n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Solving for Eigenpairs . . . \n");
             ierr = EPSSolve(eps); CHKERRABORT(PETSC_COMM_WORLD,ierr);
             
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-            ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-             
+            /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                            Display solution and clean up
+             - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+            /*
+             Get number of converged approximate eigenpairs
+            */
+            ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Number of converged egenpairs: "+std::to_string(nconv)+"\n");
+            if (m_manager->getNoticeLevel() >= 6)
+            {
+                m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
+                ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            }
         };
         
         void getMaxEigenvalue()
         {
             //This should only be done when computing a small amount of eigenvalues
+            m_manager->printPetscNotice(5,"Computing Maximum Eigenvalue \n");
             //and setting the which to anything other than EPS_ALL
             EPSSetDimensions(eps,1,4,4);
             EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
@@ -325,9 +308,8 @@ class PYBIND11_EXPORT SLEPcHessian
             EPSSolve(eps);
             
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of converged eigenpairs: %D\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
             ierr = EPSGetEigenvalue(eps,0,&maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Maximum Eigenvalue: "+to_string_sci(maxeigval)+"\n");
         };
 
         void getEigenPairs()
@@ -343,9 +325,7 @@ class PYBIND11_EXPORT SLEPcHessian
             EPSGetWhichEigenpairs(eps, &whicheig);
             if (whicheig == EPS_ALL)
             {
-                int world_rank;
-                MPI_Comm_rank(PETSC_COMM_WORLD, &world_rank);
-                ierr = PetscPrintf(PETSC_COMM_WORLD,"[%D]PyGlassTools WARNING: Performing spectrum slicing! Make sure all options are configured correctly \n",world_rank);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                m_manager->printPetscNotice(5,"Performing spectrum slicing! Make sure all options are configured correctly \n");
             }
             
             EPSSetUp(eps);
@@ -354,13 +334,13 @@ class PYBIND11_EXPORT SLEPcHessian
             Optional: Get some information from the solver and display it
             */
             ierr = EPSGetIterationNumber(eps,&its);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Number of iterations of the method: %D\n",its);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Number of iterations of the method: "+std::to_string(its)+"\n");
             ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n\n",type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
             ierr = EPSGetDimensions(eps,&nev,NULL,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Number of requested eigenvalues: %D\n",nev);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Number of requested eigenvalues: "+std::to_string(nev)+"\n");
             ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Stopping condition: tol=%.4g, maxit=%D\n",(double)tol,maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Stopping condition: tol="+to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
             
             ierr = MatCreateVecs(hessian,NULL,&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = MatCreateVecs(hessian,NULL,&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -372,12 +352,16 @@ class PYBIND11_EXPORT SLEPcHessian
              Get number of converged approximate eigenpairs
             */
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Number of converged egenpairs: "+std::to_string(nconv)+"\n");
+            if (m_manager->getNoticeLevel() >= 6)
+            {
+                m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
+                ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            }
             ierr = VecDestroy(&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = VecDestroy(&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         };
@@ -385,6 +369,7 @@ class PYBIND11_EXPORT SLEPcHessian
     protected:
         std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
         std::shared_ptr< PairPotential > m_potential;
+        std::shared_ptr< PETScManager > m_manager;
         double max_rcut;
         unsigned int hessian_length;
         

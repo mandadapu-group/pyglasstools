@@ -1,6 +1,7 @@
 R""" Pair potentials.
 """
 from pyglasstools.potential import _potential
+import pyglasstools
 import numpy as np
 
 class lj(object):
@@ -19,7 +20,6 @@ class lj(object):
             raise NameError('Please select a Lennard-Jones potential available modes: truncated and force-shifted are available')
         else:
             raise NameError('Lennard jones potential mode not recognized. Only: truncated and force-shifted are available')
-    
     def _getPairPotential(self):
         return self.lennardjones
     def get_potentialname(self):
@@ -58,7 +58,7 @@ class polydisperse12(object):
         c1 =  48.0*v0/rcut**14;
         c2 =  -21.0*v0/rcut**16;
         self.polydisperse = _potential.PairPotentialPoly12(rcut,[v0,eps,c0,c1,c2])
-    
+        
     def _getPairPotential(self):
         return self.polydisperse
     def get_potentialname(self):

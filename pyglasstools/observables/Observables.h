@@ -16,50 +16,30 @@ class PYBIND11_EXPORT Observable
             : name(_name), type(_type), islocal(_islocal), isfield(_isfield), useforce(_useforce), dim(_dim)
             {
             };
-        virtual void accumulate(const AboriaParticles::value_type& particle_i)
-            {
-                throw std::runtime_error("[ERROR] Observable does not require i-th particle data");
-            }
-        virtual void accumulate(const AboriaParticles::value_type& particle_i, 
-                                const AboriaParticles::value_type& particle_j)
-            {
-                throw std::runtime_error("[ERROR] Observable does not require i-th particle and/or j-th particle data");
-            }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential)
             {
-                throw std::runtime_error("[ERROR] Observable does not require i-th particle, j-th particle, and/or potential force data");
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 double cgval, unsigned int grid_id)
             {
-                throw std::runtime_error("[error] observable is not a field");
-            }
-        virtual void accumulate(const AboriaParticles::value_type& particle_i, 
-                                const AboriaParticles::value_type& particle_j,
-                                double bondval, unsigned int grid_id)
-            {
-                throw std::runtime_error("[error] observable is not a field");
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential,
                                 double bondval, unsigned int grid_id)
             {
-                throw std::runtime_error("[error] observable is not a field");
             }
         virtual void clear()
             {
             }
         virtual Eigen::MatrixXd getGlobalValue()
             {
-                throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
                 return Eigen::MatrixXd::Zero(1,1);
             }
         virtual std::vector< Eigen::MatrixXd > getField()
             {
-                throw std::runtime_error("[ERROR] Observable Type Not Yet Specified");
                 std::vector< Eigen::MatrixXd > temp(1,Eigen::MatrixXd::Zero(1,1));
                 return temp;
             }
@@ -90,17 +70,8 @@ class PYBIND11_EXPORT GlobalObservable : public Observable
                 else if (type == "4-TENSOR")
                     val = Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1));
                 else
-                    throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, and TENSOR");
+                    throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, 2-TENSOR, and 4-TENSOR");
             };
-        virtual void accumulate(const AboriaParticles::value_type& particle_i)
-            {
-                val += obs.compute(particle_i);
-            }
-        virtual void accumulate(const AboriaParticles::value_type& particle_i, 
-                                const AboriaParticles::value_type& particle_j)
-            {
-                val += obs.compute(particle_i, particle_j);
-            }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential)
@@ -108,17 +79,30 @@ class PYBIND11_EXPORT GlobalObservable : public Observable
                 val += obs.compute(particle_i, particle_j, potential);
             }
         virtual Eigen::MatrixXd getGlobalValue()
-        {
-            return val;
-        }
+            {
+                return val;
+            }
         
         virtual std::vector< Eigen::MatrixXd > getField()
-        {
-            throw std::runtime_error("[ERROR] Observable Type is Global not Local");
-            std::vector< Eigen::MatrixXd > temp(1,val);
-            return temp;
-        }
-        
+            {
+                throw std::runtime_error("[ERROR] Observable Type is Global not Local");
+                std::vector< Eigen::MatrixXd > temp(1,val);
+                return temp;
+            }
+        void clear()
+            {
+                if (type == "SCALAR")
+                    val = Eigen::MatrixXd::Zero(1,1);
+                else if (type == "VECTOR")
+                    val = Eigen::MatrixXd::Zero(dim,1);
+                else if (type == "2-TENSOR")
+                    val = Eigen::MatrixXd::Zero(dim,dim);
+                else if (type == "4-TENSOR")
+                    val = Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1));
+                else
+                    throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, 2-TENSOR, and 4-TENSOR");
+            }
+
         AtomicObs obs;
         Eigen::MatrixXd val;
 };
@@ -149,12 +133,6 @@ class PYBIND11_EXPORT LocalObservable : public Observable
                 val[grid_id] += cgval*obs.compute(particle_i);
             }
         virtual void accumulate(const AboriaParticles::value_type& particle_i, 
-                                const AboriaParticles::value_type& particle_j,
-                                double bondval, unsigned int grid_id)
-            {
-                val[grid_id] += 0.5*bondval*obs.compute(particle_i, particle_j);
-            }
-        virtual void accumulate(const AboriaParticles::value_type& particle_i, 
                                 const AboriaParticles::value_type& particle_j, 
                                 const std::shared_ptr<PairPotential>& potential,
                                 double bondval, unsigned int grid_id)
@@ -162,27 +140,27 @@ class PYBIND11_EXPORT LocalObservable : public Observable
                 val[grid_id] += 0.5*bondval*obs.compute(particle_i, particle_j, potential);
             }
         virtual Eigen::MatrixXd getGlobalValue()
-        {
-            throw std::runtime_error("[ERROR] Observable Type is Local not Global");
-            return Eigen::MatrixXd::Zero(1,1);
-        }
+            {
+                throw std::runtime_error("[ERROR] Observable Type is Local not Global");
+                return Eigen::MatrixXd::Zero(1,1);
+            }
         virtual std::vector< Eigen::MatrixXd > getField()
-        {
-            return val;
-        }
+            {
+                return val;
+            }
         void clear()
-        {
-            if (type == "SCALAR")
-                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(1,1));
-            else if (type == "VECTOR")
-                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
-            else if (type == "2-TENSOR")
-                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
-            else if (type == "4-TENSOR")
-                std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1)));
-            else
-                throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, 2-TENSOR");
-        } 
+            {
+                if (type == "SCALAR")
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(1,1));
+                else if (type == "VECTOR")
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,1));
+                else if (type == "2-TENSOR")
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero(dim,dim));
+                else if (type == "4-TENSOR")
+                    std::fill(val.begin(),val.end(),Eigen::MatrixXd::Zero((int)3*(dim-1),(int)3*(dim-1)));
+                else
+                    throw std::runtime_error("[ERROR] Type is unrecognized. Select from: SCALAR, VECTOR, 2-TENSOR");
+            } 
         AtomicObs obs;
         std::vector< Eigen::MatrixXd > val;
 };

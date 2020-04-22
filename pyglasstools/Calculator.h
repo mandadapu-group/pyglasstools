@@ -38,6 +38,7 @@ class PYBIND11_EXPORT GlobalCalculator
         ~GlobalCalculator(){};
 
         virtual void addObservable(const std::shared_ptr<Observable>& obs)
+        //virtual void addObservable(std::shared_ptr<Observable>& obs)
             {
                 m_observables.insert(std::pair<std::string, std::shared_ptr<Observable> >(obs->name, obs));
             }
@@ -53,7 +54,7 @@ class PYBIND11_EXPORT GlobalCalculator
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
                     if (it->second->islocal && !it->second->isfield)
-                        it->second->accumulate(particle_i);
+                        it->second->accumulate(particle_i,particle_i,m_potential);
                     else 
                         continue;
                 }
@@ -63,10 +64,10 @@ class PYBIND11_EXPORT GlobalCalculator
             {
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
-                    if (it->second->useforce && !it->second->islocal && !it->second->isfield)
+                    if (!it->second->islocal && !it->second->isfield)
                         it->second->accumulate(particle_i,particle_j,m_potential);
-                    else if (!it->second->useforce && !it->second->islocal && !it->second->isfield)
-                        it->second->accumulate(particle_i,particle_j);
+                    else
+                        continue;
                 }
             }
         virtual void clearState()
@@ -87,6 +88,7 @@ class PYBIND11_EXPORT GlobalCalculator
 //Compute a Global Observable
 void GlobalCalculator::compute()
 {
+    clearState();
     for( auto p_i = m_sysdata->particles.begin(); p_i != m_sysdata->particles.end(); ++p_i)
     {
         //Compute a list of local obsercavles 
@@ -146,10 +148,10 @@ class PYBIND11_EXPORT LocalCalculator : public GlobalCalculator
             {
                 for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
                 {
-                    if (it->second->useforce && !it->second->islocal && it->second->isfield)
+                    if (!it->second->islocal && it->second->isfield)
                         it->second->accumulate(particle_i,particle_j,m_potential, bondval, grid_id);
-                    else if (!it->second->useforce && !it->second->islocal && it->second->isfield)
-                        it->second->accumulate(particle_i,particle_j,bondval, grid_id);
+                    else
+                        continue;
                 }
             }
     private:

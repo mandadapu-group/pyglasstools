@@ -4,85 +4,37 @@ from pyglasstools.observables import _observables
 import pyglasstools
 import numpy as np
 
+def initialize_global(names = None):
+    list_obs = {}
+    if any("g_virialstress" in s for s in names):
+        list_obs['g_virialstress'] = virialstress(dim=2)
+    elif any("g_kineticstress" in s for s in names):
+        list_obs['g_kineticstress'] = virialstress(dim=2)
+    return list_obs
 class virialstress(object):
-    R""" Lennard-Jones pair potential.
-
-    """
     def __init__(self, dim):
-        self.Tv = _observables.GlobalVirialStress("Virial Stress", "2-TENSOR", False, True, dim)#rcut
-    #Redefine attributes so that it directly access SimBox C++ class 
-    #attributes
-    def __getattr__(self,attr):
-            orig_attr = self.Tv.__getattribute__(attr)
-            if callable(orig_attr):
-                def hooked(*args, **kwargs):
-                    self.pre()
-                    result = orig_attr(*args, **kwargs)
-                    # prevent Tv from becoming unwrapped
-                    if result == self.Tv:
-                        return self
-                    self.post()
-                    return result
-                return hooked
-            else:
-                return orig_attr
-    
+        self.Tv = _observables.GlobalVirialStress("g_virialstress", "2-TENSOR", False, True, dim)#rcut
     def _getObservable(self):
         return self.Tv
-
+    def getVal(self):
+        return self.Tv.val
 class kineticstress(object):
-    R""" Lennard-Jones pair potential.
-
-    """
     def __init__(self, dim):
-        self.Tk = _observables.GlobalKineticStress("Kinetic Stress", "2-TENSOR", True, False, dim)#rcut
-    
-    #Redefine attributes so that it directly access SimBox C++ class 
-    #attributes
-    def __getattr__(self,attr):
-            orig_attr = self.Tk.__getattribute__(attr)
-            if callable(orig_attr):
-                def hooked(*args, **kwargs):
-                    self.pre()
-                    result = orig_attr(*args, **kwargs)
-                    # prevent Tk from becoming unwrapped
-                    if result == self.Tk:
-                        return self
-                    self.post()
-                    return result
-                return hooked
-            else:
-                return orig_attr
+        self.Tk = _observables.GlobalKineticStress("g_kineticstress", "2-TENSOR", True, False, dim)#rcut
     
     def _getObservable(self):
         return self.Tk
+    def getVal(self):
+        return self.Tk.val
 
 class bornstiffness(object):
-    R""" Lennard-Jones pair potential.
-
-    """
     def __init__(self, dim):
-        self.Tk = _observables.GlobalBornTensor("Born Stiffness Tensor", "4-TENSOR", False, True, dim)#rcut
+        self.CB = _observables.GlobalBornTensor("g_borntensor", "4-TENSOR", False, True, dim)#rcut
     
     #Redefine attributes so that it directly access SimBox C++ class 
-    #attributes
-    def __getattr__(self,attr):
-            orig_attr = self.Tk.__getattribute__(attr)
-            if callable(orig_attr):
-                def hooked(*args, **kwargs):
-                    self.pre()
-                    result = orig_attr(*args, **kwargs)
-                    # prevent Tk from becoming unwrapped
-                    if result == self.Tk:
-                        return self
-                    self.post()
-                    return result
-                return hooked
-            else:
-                return orig_attr
     
     def _getObservable(self):
-        return self.Tk
+        return self.CB
 
 class virialstressfield(object):
     R""" Lennard-Jones pair potential.

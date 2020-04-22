@@ -1,5 +1,6 @@
 from pyglasstools import _pyglasstools
 import numpy as np
+import gsd.hoomd
 
 class simbox(object):
     R""" Define box ndim.
@@ -40,26 +41,45 @@ class simbox(object):
     def _getSimBox(self):
         return self.SimBox
 
+def read_gsd(filename,frame_num = 0):
+    traj_gsd = gsd.hoomd.open(name=filename,mode='rb')
+    return data_gsd(traj_gsd,frame_num)
 
-class data(object):
-    R""" Object to store particle data
+class data_gsd(object):
+    R""" Object to store particle data based on GSD format
 
     """
-    def __init__(   self, diameter, mass, position, velocity, 
-                    simbox):
-
-        self.diameter = diameter
-        self.mass = mass
-        self.position = position
-        self.velocity = velocity
+    def __init__(self, traj_gsd,frame_num):
+        #Store trajectory data
+        self.traj = traj_gsd; 
+        #Store simulation box
+        self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
+                                Ly=self.traj[frame_num].configuration.box[1],
+                                Lz=self.traj[frame_num].configuration.box[2],
+                                ndim=2)
         
         # create the c++ mirror class
-        self.particledata = _pyglasstools.ParticleSystem(   simbox._getSimBox(), 
-                                                            len(diameter),
-                                                            self.diameter,
-                                                            self.mass,
-                                                            self.position,
-                                                            self.velocity 
+        self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
+                                                            len(self.traj[frame_num].particles.diameter),
+                                                            self.traj[frame_num].particles.diameter,
+                                                            self.traj[frame_num].particles.mass,
+                                                            self.traj[frame_num].particles.position,
+                                                            self.traj[frame_num].particles.velocity 
+                                                            );
+    def update(self,frame_num):
+        #Store simulation box
+        self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
+                                Ly=self.traj[frame_num].configuration.box[1],
+                                Lz=self.traj[frame_num].configuration.box[2],
+                                ndim=2)
+        
+        # create the c++ mirror class
+        self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
+                                                            len(self.traj[frame_num].particles.diameter),
+                                                            self.traj[frame_num].particles.diameter,
+                                                            self.traj[frame_num].particles.mass,
+                                                            self.traj[frame_num].particles.position,
+                                                            self.traj[frame_num].particles.velocity 
                                                             );
     def _getParticleSystem(self):
         return self.particledata

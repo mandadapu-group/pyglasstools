@@ -2,7 +2,6 @@
 """
 from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
-from pyglasstools import calculator;
 from pyglasstools import observables
 from os import path
 import numpy as np
@@ -114,6 +113,7 @@ class field_logger(object):
                 for j in range(len(points)):
                     x.append(np.array([points[i],points[j],0]).astype(np.float64))
             gridpoints = np.asarray(x,dtype=np.float64)
+            self.gridsize = len(gridpoints) 
             
             # determine the size of each sub-task
             ave, res = divmod(len(gridpoints), nprocs)
@@ -128,8 +128,9 @@ class field_logger(object):
             gridpoints = [gridpoints[starts[p]:ends[p]] for p in range(nprocs)]
         else:
             gridpoints = None
+            self.gridsize = None
         self.gridpoints = comm.scatter(gridpoints, root=0)
-        
+        self.gridsize = comm.bcast(self.gridsize,root=0) 
         #Delete unnecessarry objects
         del gridpoints
         if rank == 0:
@@ -182,6 +183,8 @@ class field_logger(object):
 
             if rank == 0:
                 self.file[name].write("Frame {:d} \n".format(frame_num))
+                self.file[name].write("#{:d} \n".format(self.gridsize))
+                self.file[name].write("Coord_x Coord_y Coord_z {} \n".format(name))
                 for i in range(len(self.gridpoints)):
                     self.file[name].write("{:.12f} {:.12f} {:.12f} {:.12f} \n".format(  self.gridpoints[i][0],
                                                                                         self.gridpoints[i][1], 
@@ -199,12 +202,8 @@ class field_logger(object):
                                                                                         self.gridpoints[i][1], 
                                                                                         self.gridpoints[i][2],
                                                                                         val[i]))
-                
                 if rank < size-1:
                     comm.send(signal, dest = rank+1)
-                else:
-                    self.file[name].write("\n")
-    
     def update(self,frame_num):
         self.sysdata.update(frame_num);
         #Update the field calculator

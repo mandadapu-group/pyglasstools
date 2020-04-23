@@ -36,7 +36,6 @@ pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_E
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
-            calculator.py
     )
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)

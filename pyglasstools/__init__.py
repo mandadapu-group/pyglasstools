@@ -184,12 +184,12 @@ class field_logger(object):
             if rank == 0:
                 self.file[name].write("Frame {:d} \n".format(frame_num))
                 self.file[name].write("#{:d} \n".format(self.gridsize))
-                self.file[name].write("Coord_x Coord_y Coord_z {} \n".format(name))
+                self.file[name].write("{: <15} {: <15} {: <15} {: <15} \n".format("Coord_x","Coord_y","Coord_z",name))
                 for i in range(len(self.gridpoints)):
-                    self.file[name].write("{:.12f} {:.12f} {:.12f} {:.12f} \n".format(  self.gridpoints[i][0],
-                                                                                        self.gridpoints[i][1], 
-                                                                                        self.gridpoints[i][2],
-                                                                                        val[i]))
+                    self.file[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.gridpoints[i][0],
+                                                                                                self.gridpoints[i][1], 
+                                                                                                self.gridpoints[i][2],
+                                                                                                val[i]))
                 signal = True
                 if size > 1:
                     comm.send(signal, dest = rank+1)
@@ -198,10 +198,10 @@ class field_logger(object):
                 while signal == False:
                     signal = comm.recv(source = rank-1)
                 for i in range(len(self.gridpoints)):
-                    self.file[name].write("{:.12f} {:.12f} {:.12f} {:.12f} \n".format(  self.gridpoints[i][0],
-                                                                                        self.gridpoints[i][1], 
-                                                                                        self.gridpoints[i][2],
-                                                                                        val[i]))
+                    self.file[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.gridpoints[i][0],
+                                                                                                self.gridpoints[i][1], 
+                                                                                                self.gridpoints[i][2],
+                                                                                                val[i]))
                 if rank < size-1:
                     comm.send(signal, dest = rank+1)
     def update(self,frame_num):

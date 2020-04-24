@@ -142,6 +142,21 @@ class PYBIND11_EXPORT SLEPcHessian
             SlepcFinalize();
         };
         
+        std::vector<double> printEigenvector(unsigned int index) 
+        {
+                Vec xr;
+                PetscReal kr;
+                MatCreateVecs(hessian,NULL,&xr);
+                //Create A Scatterrer and the resulting sequential vector holding temporary values 
+                double *tempvecp = new double[nonaffinetensor.rows()];//tempvec.data();
+                VecGetArray(xr,&tempvecp);
+                ierr = EPSGetEigenpair(eps,index,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                std::vector<double> eigenvector(tempvecp,tempvecp+nonaffinetensor.rows());
+                VecRestoreArray(xr,&tempvecp);
+                delete [] tempvecp;
+                VecDestroy(&xr);
+                return eigenvector;
+        }
         void calculateNonAffine() 
         {
             if (nconv > 0)
@@ -264,7 +279,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 std::string cntl_3 = "-mat_mumps_cntl_3 ";
-                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon());
+                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*inta);
                 ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
 
@@ -386,6 +401,7 @@ void export_SLEPcHessian(py::module& m)
     .def("getEigenPairs", &SLEPcHessian::getEigenPairs)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
+    .def("printEigenvecor", &SLEPcHessian::printEigenvector)
     .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
     ;
 };

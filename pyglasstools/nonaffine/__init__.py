@@ -1,4 +1,5 @@
 from pyglasstools.nonaffine import _nonaffine
+from pyglasstools import MPILogFile
 import numpy as np
 from mpi4py import MPI
 
@@ -6,23 +7,15 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nprocs = comm.Get_size()
 
-#https://stackoverflow.com/questions/45680050/cannot-write-to-shared-mpi-file-with-mpi4py
-class MPILogFile(object):
-    def __init__(self, comm, filename, mode):
-        self.file_handle = MPI.File.Open(comm, filename, mode)
-        self.file_handle.Set_atomicity(True)
-        self.buffer = bytearray
+nonaffine_loggers = []
 
-    def write(self, msg):
-        b = bytearray()
-        b.extend(map(ord, msg))
-        self.file_handle.Write_shared(b)
+def analyze(frame_list):
+    for frame_num in frame_list:
+        for logger in nonaffine_loggers:
+            logger.update(frame_num);
+            logger.run();
+            logger.save(frame_num);
 
-    def close(self):
-        self.file_handle.Sync()
-        self.file_handle.Close()
-
-loggers = []
 #will automatically create the required calculators . . .
 class nonaffine_logger(object):
     global loggers 
@@ -43,26 +36,30 @@ class nonaffine_logger(object):
         self.sysdata = sysdata;
         self.pair = pair;
 
-        #Initialize the "calculators"
+        #Initialize the "hessian" class
         self.hessian = None;
         
-        if not (not self.__glob_obs_names) and not (not self.__eigenvector_obs_names):
-            #Construct the global calculator
-            self.hessian = testhessian(self.sysdata,self.pair)
-            #Then, add observables
+        if not (not self.__glob_obs_names) or not (not self.__eigenvector_obs_names):
+            #Construct the hessian
+            self.hessian = slepc_hessian(self.sysdata,self.pair)
         
         #Once initialization is done, the logger adds itself to the global list of available loggers 
-        loggers.append(self)
+        nonaffine_loggers.append(self)
+        if not (not self.__glob_obs_names):
+            #Initialize file to save:
+            self.file = MPILogFile(comm, self.filename, MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
-        #Initialize file to save:
-        self.file = MPILogFile(comm, self.filename, MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
-
-        #Create column headers
-        if rank == 0:
-            self.file.write("Frame ")
-            for name in self.__glob_obs_names:
-                self.file.write("{} ".format(name))
-            self.file.write("\n")
+            #Create column headers
+            if rank == 0:
+                self.file.write("{:<20} ".format("Frame"))
+                for name in self.__glob_obs_names:
+                    self.file.write("{:<20} ".format(name))
+                self.file.write("\n")
+        
+        if not (not self.__eigenvector_obs_names):
+            self.file_eigenvector = {}
+            for name in self.__eigenvector_obs_names
+                self.file_eigenvector[name] = MPILogFile(comm, name+".txt", MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
     def run(self): 
         self.hessian.eigs_all()
@@ -70,31 +67,28 @@ class nonaffine_logger(object):
             self.hessian.compute_nonaffine()
 
     def save(self,frame_num):
-        if rank == 0:
-            self.file.write("{:d} ".format(frame_num))
-        for name in self.__glob_obs_names:
-            val = 0
-            if "g_nonaffine" in name:
-                val = self.hessian.nonaffinetensor[int(name[-2]),int(name[-1])]
+        if not (not self.__glob_obs_names):
             if rank == 0:
-                self.file.write("{:.12f} ".format(val/self.sysdata.simbox.vol))
-        if rank == 0:
-            self.file.write("\n")
-    
+                self.file.write("{:<20d} ".format(frame_num))
+            for name in self.__glob_obs_names:
+                val = 0
+                if "g_nonaffine" in name:
+                    val = self.hessian.nonaffinetensor[int(name[-2]),int(name[-1])]
+                if rank == 0:
+                    self.file.write("{:<20.12e} ".format(val/self.sysdata.simbox.vol))
+            if rank == 0:
+                self.file.write("\n")
+        comm.Barrier()
+        if not (not self.__eigenvector_obs_names):
+
     def update(self,frame_num):
         del self.hessian
         self.sysdata.update(frame_num);
         #Update the global calculator
-        self.hessian = testhessian(self.sysdata,self.pair)
+        self.hessian = slepc_hessian(self.sysdata,self.pair)
 
-def analyze(frame_list):
-    for frame_num in frame_list:
-        for logger in loggers:
-            logger.update(frame_num);
-            logger.run();
-            logger.save(frame_num);
 
-class testhessian(object):
+class slepc_hessian(object):
     def __init__(self, sysdata,potential):
         self.H = _nonaffine.SLEPcHessian(sysdata._getParticleSystem(),potential._getPairPotential())
     #Redefine attributes so that it directly access Hessian C++ class 

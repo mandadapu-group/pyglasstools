@@ -142,7 +142,7 @@ class PYBIND11_EXPORT SLEPcHessian
             SlepcFinalize();
         };
         
-        std::vector<double> printEigenvector(unsigned int index) 
+        std::vector<double> getEigenvector(unsigned int index) 
         {
                 Vec xr;
                 PetscReal kr;
@@ -401,7 +401,7 @@ void export_SLEPcHessian(py::module& m)
     .def("getEigenPairs", &SLEPcHessian::getEigenPairs)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
-    .def("printEigenvecor", &SLEPcHessian::printEigenvector)
+    .def("getEigenvector", &SLEPcHessian::getEigenvector)
     .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
     ;
 };

@@ -6,7 +6,7 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nprocs = comm.Get_size()
-
+size = nprocs
 nonaffine_loggers = []
 
 def analyze(frame_list):
@@ -15,6 +15,7 @@ def analyze(frame_list):
             logger.update(frame_num);
             logger.run();
             logger.save(frame_num);
+        comm.Barrier()
 
 #will automatically create the required calculators . . .
 class nonaffine_logger(object):
@@ -58,14 +59,15 @@ class nonaffine_logger(object):
         
         if not (not self.__eigenvector_obs_names):
             self.file_eigenvector = {}
-            for name in self.__eigenvector_obs_names
+            for name in self.__eigenvector_obs_names:
                 self.file_eigenvector[name] = MPILogFile(comm, name+".txt", MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
     def run(self): 
-        self.hessian.eigs_all()
         if not (not self.__glob_obs_names):
+            self.hessian.eigs_all()
             self.hessian.compute_nonaffine()
-
+        else:
+            self.hessian.eigs()
     def save(self,frame_num):
         if not (not self.__glob_obs_names):
             if rank == 0:
@@ -79,7 +81,40 @@ class nonaffine_logger(object):
             if rank == 0:
                 self.file.write("\n")
         comm.Barrier()
+
         if not (not self.__eigenvector_obs_names):
+            for name in self.__eigenvector_obs_names:
+                val = 0
+                signal = False
+                if "eigenvector" in name:
+                    #check the name
+                    val = np.array(self.hessian.get_eigenvector(int(name.replace('eigenvector_',''))))
+                else:
+                    continue
+
+                if rank == 0:
+                    self.file_eigenvector[name].write("Frame {:d} \n".format(frame_num))
+                    self.file_eigenvector[name].write("#{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
+                    self.file_eigenvector[name].write("{: <15} {: <15} {: <15} {: <15} \n".format("Coord_x","Coord_y","Coord_z",name))
+                    for i in range(len(val)):
+                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
+                                                                                                                self.sysdata.traj[frame_num].particles.position[i,1],
+                                                                                                                self.sysdata.traj[frame_num].particles.position[i,2],
+                                                                                                                val[i]))
+                    signal = True
+                    if size > 1:
+                        comm.send(signal, dest = rank+1)
+                else:
+                    
+                    while signal == False:
+                        signal = comm.recv(source = rank-1)
+                    for i in range(len(val)):
+                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
+                                                                                                                self.sysdata.traj[frame_num].particles.position[i,1],
+                                                                                                                self.sysdata.traj[frame_num].particles.position[i,2],
+                                                                                                                val[i]))
+                    if rank < size-1:
+                        comm.send(signal, dest = rank+1)
 
     def update(self,frame_num):
         del self.hessian
@@ -106,6 +141,8 @@ class slepc_hessian(object):
                 return hooked
             else:
                 return orig_attr
+    def get_eigenvector(self,index):
+        return self.H.getEigenvector(index)
     def eigs(self):
         self.H.getEigenPairs()
     def eigs_all(self):

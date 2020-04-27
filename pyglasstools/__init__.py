@@ -11,6 +11,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 nprocs = size
+
 #The module should save more than one logger, which analyzes various observables
 loggers = [];
 

@@ -144,18 +144,36 @@ class PYBIND11_EXPORT SLEPcHessian
         
         std::vector<double> getEigenvector(unsigned int index) 
         {
-                Vec xr;
-                PetscReal kr;
+                int globsize;
+                Vec xr,global_xr;
+                VecScatter ctx;
+
                 MatCreateVecs(hessian,NULL,&xr);
-                //Create A Scatterrer and the resulting sequential vector holding temporary values 
-                double *tempvecp = new double[nonaffinetensor.rows()];//tempvec.data();
-                VecGetArray(xr,&tempvecp);
-                ierr = EPSGetEigenpair(eps,index,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                std::vector<double> eigenvector(tempvecp,tempvecp+nonaffinetensor.rows());
-                VecRestoreArray(xr,&tempvecp);
+                VecGetSize(xr,&globsize);
+                VecScatterCreateToAll(xr,&ctx,&global_xr);
+                
+                double *tempvecp = new double[globsize];//tempvec.data();
+                VecGetArray(global_xr,&tempvecp);
+                ierr = EPSGetEigenvector(eps,index,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                        
+                VecScatterBegin(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
+                VecScatterEnd(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
+                std::vector<double> eigenvector(tempvecp,tempvecp+globsize);
+                VecRestoreArray(global_xr,&tempvecp);
                 delete [] tempvecp;
+                VecScatterDestroy(&ctx);
+                VecDestroy(&global_xr);
                 VecDestroy(&xr);
                 return eigenvector;
+        }
+        std::tuple<int,int> getRange(unsigned int index) 
+        {
+                Vec xr;
+                MatCreateVecs(hessian,NULL,&xr);
+                int Istart,Iend;
+                VecGetOwnershipRange(xr,&Istart, &Iend);
+                VecDestroy(&xr);
+                return std::make_tuple(Istart,Iend);
         }
         void calculateNonAffine() 
         {
@@ -402,6 +420,7 @@ void export_SLEPcHessian(py::module& m)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
     .def("getEigenvector", &SLEPcHessian::getEigenvector)
+    .def("getRange", &SLEPcHessian::getRange)
     .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
     ;
 };

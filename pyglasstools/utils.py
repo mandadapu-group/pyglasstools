@@ -57,7 +57,6 @@ class data_gsd(object):
                                 Ly=self.traj[frame_num].configuration.box[1],
                                 Lz=self.traj[frame_num].configuration.box[2],
                                 ndim=2)
-        
         # create the c++ mirror class
         self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
                                                             len(self.traj[frame_num].particles.diameter),

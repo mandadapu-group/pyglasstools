@@ -9,11 +9,11 @@ nprocs = comm.Get_size()
 size = nprocs
 nonaffine_loggers = []
 
-def analyze(frame_list):
+def analyze(frame_list,mode):
     for frame_num in frame_list:
         for logger in nonaffine_loggers:
             logger.update(frame_num);
-            logger.run();
+            logger.run(mode);
             logger.save(frame_num);
         comm.Barrier()
 
@@ -43,6 +43,7 @@ class nonaffine_logger(object):
         if not (not self.__glob_obs_names) or not (not self.__eigenvector_obs_names):
             #Construct the hessian
             self.hessian = slepc_hessian(self.sysdata,self.pair)
+            #self.hessian = hessian(self.sysdata,self.pair)
         
         #Once initialization is done, the logger adds itself to the global list of available loggers 
         nonaffine_loggers.append(self)
@@ -62,9 +63,14 @@ class nonaffine_logger(object):
             for name in self.__eigenvector_obs_names:
                 self.file_eigenvector[name] = MPILogFile(comm, name+".txt", MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
-    def run(self): 
-        if not (not self.__glob_obs_names):
+    def run(self,mode="manual"):
+        if (mode == "manual"):
+            self.hessian.eigs()
+        elif (mode=="all"):
             self.hessian.eigs_all()
+        else:
+            raise NameError;
+        if not (not self.__glob_obs_names):
             self.hessian.compute_nonaffine()
         else:
             self.hessian.eigs()
@@ -85,36 +91,21 @@ class nonaffine_logger(object):
         if not (not self.__eigenvector_obs_names):
             for name in self.__eigenvector_obs_names:
                 val = 0
-                signal = False
                 if "eigenvector" in name:
                     #check the name
                     val = np.array(self.hessian.get_eigenvector(int(name.replace('eigenvector_',''))))
                 else:
                     continue
-
                 if rank == 0:
                     self.file_eigenvector[name].write("Frame {:d} \n".format(frame_num))
                     self.file_eigenvector[name].write("#{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
                     self.file_eigenvector[name].write("{: <15} {: <15} {: <15} {: <15} \n".format("Coord_x","Coord_y","Coord_z",name))
-                    for i in range(len(val)):
-                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
+                    for i in range(len(self.sysdata.traj[frame_num].particles.position)):
+                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
                                                                                                                 self.sysdata.traj[frame_num].particles.position[i,1],
                                                                                                                 self.sysdata.traj[frame_num].particles.position[i,2],
-                                                                                                                val[i]))
-                    signal = True
-                    if size > 1:
-                        comm.send(signal, dest = rank+1)
-                else:
-                    
-                    while signal == False:
-                        signal = comm.recv(source = rank-1)
-                    for i in range(len(val)):
-                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
-                                                                                                                self.sysdata.traj[frame_num].particles.position[i,1],
-                                                                                                                self.sysdata.traj[frame_num].particles.position[i,2],
-                                                                                                                val[i]))
-                    if rank < size-1:
-                        comm.send(signal, dest = rank+1)
+                                                                                                                val[2*i],val[2*i+1]))
+                comm.Barrier();
 
     def update(self,frame_num):
         del self.hessian
@@ -143,6 +134,8 @@ class slepc_hessian(object):
                 return orig_attr
     def get_eigenvector(self,index):
         return self.H.getEigenvector(index)
+    def get_range(self,index):
+        return self.H.getRange(index)
     def eigs(self):
         self.H.getEigenPairs()
     def eigs_all(self):

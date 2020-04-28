@@ -9,7 +9,9 @@ def initialize_global(names):
     if any("g_virialstress" in s for s in names):
         list_obs['g_virialstress'] = virialstress(dim=2)
     elif any("g_kineticstress" in s for s in names):
-        list_obs['g_kineticstress'] = virialstress(dim=2)
+        list_obs['g_kineticstress'] = kineticstress(dim=2)
+    elif any("g_borntensor" in s for s in names):
+        list_obs['g_borntensor'] = borntensor(dim=2)
     return list_obs
 
 def initialize_field(names,length):
@@ -35,15 +37,14 @@ class kineticstress(object):
         return self.Tk
     def getVal(self):
         return self.Tk.val
-
-class bornstiffness(object):
+class borntensor(object):
     def __init__(self, dim):
         self.CB = _observables.GlobalBornTensor("g_borntensor", "4-TENSOR", False, True, dim)#rcut
-    
     #Redefine attributes so that it directly access SimBox C++ class 
-    
     def _getObservable(self):
         return self.CB
+    def getVal(self):
+        return self.CB.val
 
 class virialstressfield(object):
     R""" Lennard-Jones pair potential.

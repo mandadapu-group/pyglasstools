@@ -82,4 +82,10 @@ class PYBIND11_EXPORT PETScManager : public Manager
         PetscErrorCode ierr; 
 };
 
+void export_PETScManager(py::module& m)
+{
+    py::class_<PETScManager, std::shared_ptr<PETScManager> >(m,"PETScManager")
+    .def(py::init<>())
+    ;
+};
 #endif

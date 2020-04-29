@@ -1,6 +1,7 @@
 #include "SimBox.h"
 #include "ParticleSystem.h"
 #include "Calculator.h"
+#include "Manager.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 
@@ -19,5 +20,7 @@ PYBIND11_MODULE(_pyglasstools, m)
     
     export_GlobalCalculator(m);    
     
-    export_LocalCalculator(m);    
+    export_LocalCalculator(m); 
+    
+    export_Manager(m);   
 }

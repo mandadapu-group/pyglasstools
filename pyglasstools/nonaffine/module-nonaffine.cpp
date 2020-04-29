@@ -12,4 +12,5 @@ PYBIND11_MODULE(_nonaffine, m)
     export_Hessian(m);
     export_SLEPcHessian(m);
     export_SelectionRule(m);
+    export_PETScManager(m);
 }

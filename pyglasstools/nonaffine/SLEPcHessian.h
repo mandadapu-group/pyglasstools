@@ -33,8 +33,8 @@ class PYBIND11_EXPORT SLEPcHessian
         double maxeigval;
         double tol;
 
-        SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential)
-            : m_sysdata(sysdata), m_potential(potential), m_manager( std::make_shared<PETScManager>(PETScManager()) )
+        SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, std::shared_ptr<PETScManager> manager)
+            : m_sysdata(sysdata), m_potential(potential), m_manager(manager)
             {
                 SlepcInitialize(NULL,NULL,(char*)0,help);
                 ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -334,7 +334,7 @@ class PYBIND11_EXPORT SLEPcHessian
             //This should only be done when computing a small amount of eigenvalues
             m_manager->printPetscNotice(5,"Computing Maximum Eigenvalue \n");
             //and setting the which to anything other than EPS_ALL
-            EPSSetDimensions(eps,1,4,4);
+            EPSSetDimensions(eps,1,400,400);
             EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
             EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
             EPSSetUp(eps);
@@ -415,7 +415,7 @@ class PYBIND11_EXPORT SLEPcHessian
 void export_SLEPcHessian(py::module& m)
 {
     py::class_<SLEPcHessian, std::shared_ptr<SLEPcHessian> >(m,"SLEPcHessian")
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >  >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager>  >())
     .def("getEigenPairs", &SLEPcHessian::getEigenPairs)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)

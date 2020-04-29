@@ -118,4 +118,10 @@ class PYBIND11_EXPORT Manager
         unsigned int m_notice_level;
 };
 
+void export_Manager(py::module& m)
+{
+    py::class_<Manager, std::shared_ptr<Manager> >(m,"Manager")
+    .def(py::init<>())
+    ;
+};
 #endif

@@ -36,13 +36,13 @@ class nonaffine_logger(object):
         #Initialize system data and pair potential of the system
         self.sysdata = sysdata;
         self.pair = pair;
-
+        self.manager = _nonaffine.PETScManager();
         #Initialize the "hessian" class
         self.hessian = None;
         
         if not (not self.__glob_obs_names) or not (not self.__eigenvector_obs_names):
             #Construct the hessian
-            self.hessian = slepc_hessian(self.sysdata,self.pair)
+            self.hessian = slepc_hessian(self.sysdata,self.pair,self.manager)
             #self.hessian = hessian(self.sysdata,self.pair)
         
         #Once initialization is done, the logger adds itself to the global list of available loggers 
@@ -83,7 +83,7 @@ class nonaffine_logger(object):
                 if "g_nonaffine" in name:
                     val = self.hessian.nonaffinetensor[int(name[-2]),int(name[-1])]
                 if rank == 0:
-                    self.file.write("{:<20.12e} ".format(val/self.sysdata.simbox.vol))
+                    self.file.write("{:<20.12e} ".format(val))
             if rank == 0:
                 self.file.write("\n")
         comm.Barrier()
@@ -111,12 +111,12 @@ class nonaffine_logger(object):
         del self.hessian
         self.sysdata.update(frame_num);
         #Update the global calculator
-        self.hessian = slepc_hessian(self.sysdata,self.pair)
+        self.hessian = slepc_hessian(self.sysdata,self.pair,self.manager)
 
 
 class slepc_hessian(object):
-    def __init__(self, sysdata,potential):
-        self.H = _nonaffine.SLEPcHessian(sysdata._getParticleSystem(),potential._getPairPotential())
+    def __init__(self, sysdata,potential,manager):
+        self.H = _nonaffine.SLEPcHessian(sysdata._getParticleSystem(),potential._getPairPotential(),manager)
     #Redefine attributes so that it directly access Hessian C++ class 
     def __getattr__(self,attr):
             orig_attr = self.H.__getattribute__(attr)

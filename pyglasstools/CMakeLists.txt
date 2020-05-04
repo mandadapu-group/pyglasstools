@@ -3,13 +3,13 @@ set(COMPONENT_NAME pyglasstools)
 #### Add C++ Source Files
 set(_${COMPONENT_NAME}_sources
     module-pyglasstools.cpp
+    MPIInterface.cpp
     )
 
 #### Finding External Packages
 
 #Find EIGEN
-#find_package( PkgConfig )
-find_package (Eigen3 REQUIRED eigen3)
+list(APPEND INCLUDES extern/eigen/)
 
 #Find Boost
 find_package(Boost 1.50.0 REQUIRED serialization)
@@ -18,21 +18,38 @@ list(APPEND INCLUDES ${Boost_INCLUDE_DIRS})
 
 #Find GSL
 find_package(GSL REQUIRED)   
+
+#Find MPI
 find_package(MPI REQUIRED)
+list(APPEND LIBRARIES ${MPI_CXX_LIBRARIES})
+
 #Find Aboria
 set(Aboria_LOG_LEVEL 1 CACHE STRING "Logging level (1 = least, 3 = most)")
 add_definitions(-DABORIA_LOG_LEVEL=${Aboria_LOG_LEVEL})
-list(APPEND ABORIA_INCLUDE_DIRS extern/Aboria/src)
-list(APPEND ABORIA_INCLUDE_DIRS extern/Aboria/third-party)
+list(APPEND INCLUDES extern/Aboria/src)
+list(APPEND INCLUDES extern/Aboria/third-party)
 
-##
+#Find Spectra
+list(APPEND INCLUDES extern/spectra/include)
+
+#Cereal
+list(APPEND INCLUDES extern/cereal/include)
+
+#Add OpenMP flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 #Add header files from the header-Only Libraries
-include_directories(${EIGEN3_INCLUDE_DIR} ${ABORIA_INCLUDE_DIRS} extern/spectra/include ${INCLUDES} ${MPI_CXX_INCLUDE_DIRS})
+include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS} ${GSL_INCLUDE_DIRS})
 
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
+
+target_link_libraries(_${COMPONENT_NAME} PUBLIC ${LIBRARIES})
+set_target_properties(_${COMPONENT_NAME} PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+set_target_properties(_${COMPONENT_NAME} PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+
+add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
@@ -40,9 +57,7 @@ set(files   __init__.py
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
 endforeach()
-target_link_libraries(_${COMPONENT_NAME} ${LIBRARIES} ${MPI_CXX_LIBRARIES})
 
-add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 
 ####Add our sub-modules
 add_subdirectory(cgfunc)

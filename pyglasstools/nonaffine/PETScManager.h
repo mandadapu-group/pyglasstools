@@ -15,6 +15,7 @@ class PYBIND11_EXPORT PETScManager : public Manager
 {
     public:
         double pinv_tol;       
+        double lowerbound_tol;       
         PETScManager() : Manager(), ierr(0) 
         {
             auto argv = py::module::import("sys").attr("argv");
@@ -28,6 +29,21 @@ class PYBIND11_EXPORT PETScManager : public Manager
                     try
                     {
                         pinv_tol = std::stod(py::str(*test),nullptr);
+                    }
+                    catch(...)
+                    {
+                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
+                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
+                                                std::string(py::str(*test)));
+                    }
+                }
+                else if (std::string(py::str(*test)) == "-lowerbound_tol")
+                {
+                    //Increment manually
+                    ++test;
+                    try
+                    {
+                        lowerbound_tol = std::stod(py::str(*test),nullptr);
                     }
                     catch(...)
                     {

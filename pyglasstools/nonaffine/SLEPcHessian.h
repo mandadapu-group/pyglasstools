@@ -265,7 +265,7 @@ class PYBIND11_EXPORT SLEPcHessian
             /*
                 Set interval for spectrum slicing
             */
-            inta = hessian_length*maxeigval*m_manager->pinv_tol;//*tol;
+            inta = hessian_length*maxeigval*m_manager->lowerbound_tol;//*tol;
             intb = maxeigval*(1+inta);//PETSC_MAX_REAL;
             ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             m_manager->printPetscNotice(5,"Search interval is: ["+to_string_sci(inta)+", "+ to_string_sci(intb)+"]\n");

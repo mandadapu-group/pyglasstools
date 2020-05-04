@@ -13,3 +13,9 @@
 [submodule "pyglasstools/extern/spectra"]
 	path = pyglasstools/extern/spectra
 	url = https://github.com/yixuan/spectra/
+[submodule "pyglasstools/extern/cereal"]
+	path = pyglasstools/extern/cereal
+	url = https://github.com/USCiLab/cereal.git
+[submodule "pyglasstools/extern/eigen"]
+	path = pyglasstools/extern/eigen
+	url = https://gitlab.com/libeigen/eigen.git

@@ -92,3 +92,45 @@ class polydisperse12(object):
     
     def get_pairforce(self):
         return self.polydisperse.getPairForce()
+
+class polydisperse18(object):
+    def __init__(self, v0 =1.0, eps=0.0, rcut=1.25, name="polydisperse-18"):
+        self.name = name
+        c0 =  -55.0*v0/rcut**18;
+        c1 =  99.0*v0/rcut**20;
+        c2 =  -45.0*v0/rcut**22;
+        self.polydisperse = _potential.PairPotentialPoly12(rcut,[v0,eps,c0,c1,c2])
+        
+    def _getPairPotential(self):
+        return self.polydisperse
+    def get_potentialname(self):
+        return self.name
+    def set_diameters(self,diameter_i, diameter_j):
+        self.polydisperse.di = diameter_i
+        self.polydisperse.di = diameter_j
+    
+    def get_diameters(self):
+        return [self.polydisperse.di, self.polydisperse.dj]
+    
+    def set_rij(self,r_ij):
+        self.polydisperse.rij = r_ij.astype('float64')
+    
+    def get_rij(self):
+        return self.polydisperse.rij
+    def set_scaledrcut(self, rcut):
+        self.polydisperse.scaledrcut = rcut
+    def get_scaledrcut(self):
+        return self.polydisperse.scaledrcut
+    
+    def set_v0(self, v0):
+        self.polydisperse.params = [v0,self.polydisperse.param[1]]
+    def get_v0(self):
+        return self.polydisperse.params[0]
+    
+    def set_eps(self, eps):
+        self.polydisperse.params = [self.polydisperse.param[0],eps]
+    def get_eps(self):
+        return self.polydisperse.params[1]
+    
+    def get_pairforce(self):
+        return self.polydisperse.getPairForce()

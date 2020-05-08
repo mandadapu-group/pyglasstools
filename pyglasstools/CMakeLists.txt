@@ -3,7 +3,7 @@ set(COMPONENT_NAME pyglasstools)
 #### Add C++ Source Files
 set(_${COMPONENT_NAME}_sources
     module-pyglasstools.cpp
-    MPIInterface.cpp
+    #MPIInterface.cpp
     )
 
 #### Finding External Packages
@@ -53,6 +53,7 @@ add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
+            CorrelationAnalysis.py
     )
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)

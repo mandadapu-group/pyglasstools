@@ -26,8 +26,9 @@ class nonaffine_logger(object):
         #Save filename
         self.filename = filename
         
+        self.getnconv = 'nconv' in names
         #First, parse the list of names based on what type of obsercables they are
-        self.__glob_obs_names = [s for s in names if "g_" in s ];
+        self.__global_obs_names = [s for s in names if "nonaffine" in s or "eigenvalue" in s];
         self.global_obs = [] 
 
         self.__eigenvector_obs_names = [s for s in names if "eigenvector" in s ];
@@ -40,28 +41,33 @@ class nonaffine_logger(object):
         #Initialize the "hessian" class
         self.hessian = None;
         
-        if not (not self.__glob_obs_names) or not (not self.__eigenvector_obs_names):
+        if not (not self.__global_obs_names) or not (not self.__eigenvector_obs_names):
             #Construct the hessian
             self.hessian = slepc_hessian(self.sysdata,self.pair,self.manager)
             #self.hessian = hessian(self.sysdata,self.pair)
         
         #Once initialization is done, the logger adds itself to the global list of available loggers 
         nonaffine_loggers.append(self)
-        if not (not self.__glob_obs_names):
+
+        if not (not self.__global_obs_names) or self.getnconv:
             #Initialize file to save:
             self.file = MPILogFile(comm, self.filename, MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
             #Create column headers
             if rank == 0:
-                self.file.write("{:<20} ".format("Frame"))
-                for name in self.__glob_obs_names:
-                    self.file.write("{:<20} ".format(name))
+                self.file.write("{:<10} ".format("Frame"))
+                if self.getnconv:
+                    self.file.write("{:<10} ".format('nconv'))
+                if not (not self.__global_obs_names):
+                    for name in self.__global_obs_names:
+                        self.file.write("{:<20} ".format(name))
+                
                 self.file.write("\n")
         
         if not (not self.__eigenvector_obs_names):
             self.file_eigenvector = {}
             for name in self.__eigenvector_obs_names:
-                self.file_eigenvector[name] = MPILogFile(comm, name+".txt", MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
+                self.file_eigenvector[name] = MPILogFile(comm, name+".xyz", MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
 
     def run(self,mode="manual"):
         if (mode == "manual"):
@@ -70,18 +76,25 @@ class nonaffine_logger(object):
             self.hessian.eigs_all()
         else:
             raise NameError;
-        if not (not self.__glob_obs_names):
+        if not (not self.__global_obs_names):
             self.hessian.compute_nonaffine()
         else:
             self.hessian.eigs()
+
     def save(self,frame_num):
-        if not (not self.__glob_obs_names):
+        if not (not self.__global_obs_names):
             if rank == 0:
                 self.file.write("{:<20d} ".format(frame_num))
-            for name in self.__glob_obs_names:
+                if self.getnconv:
+                    self.file.write("{:<10d} ".format(self.hessian.nconv))
+
+            for name in self.__global_obs_names:
                 val = 0
-                if "g_nonaffine" in name:
+                if "nonaffine" in name:
                     val = self.hessian.nonaffinetensor[int(name[-2]),int(name[-1])]
+                elif "eigenvalue" in name:
+                    val = self.hessian.get_eigenvalue(int(name.replace('eigenvalue_','')))
+                
                 if rank == 0:
                     self.file.write("{:<20.12e} ".format(val))
             if rank == 0:
@@ -97,14 +110,15 @@ class nonaffine_logger(object):
                 else:
                     continue
                 if rank == 0:
-                    self.file_eigenvector[name].write("Frame {:d} \n".format(frame_num))
-                    self.file_eigenvector[name].write("#{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
-                    self.file_eigenvector[name].write("{: <15} {: <15} {: <15} {: <15} \n".format("Coord_x","Coord_y","Coord_z",name))
+                    self.file_eigenvector[name].write("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
+                    self.file_eigenvector[name].write("#{: <14} {: <15} {: <15} {: <15} :".format("Coord_x","Coord_y","Coord_z",name+"_x",name+"_y",name+"_mag"))
+                    self.file_eigenvector[name].write("Frame {:d}  \n".format(frame_num))
                     for i in range(len(self.sysdata.traj[frame_num].particles.position)):
-                        self.file_eigenvector[name].write("{:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(  self.sysdata.traj[frame_num].particles.position[i,0],
-                                                                                                                self.sysdata.traj[frame_num].particles.position[i,1],
-                                                                                                                self.sysdata.traj[frame_num].particles.position[i,2],
-                                                                                                                val[2*i],val[2*i+1]))
+                        self.file_eigenvector[name].write("{:d} {:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} {:<15.6e} \n".format(   self.sysdata.traj[frame_num].particles.typeid[i],
+                                                                                                                                self.sysdata.traj[frame_num].particles.position[i,0],
+                                                                                                                                self.sysdata.traj[frame_num].particles.position[i,1],
+                                                                                                                                self.sysdata.traj[frame_num].particles.position[i,2],
+                                                                                                                                val[2*i],val[2*i+1],np.sqrt(val[2*i]**2+val[2*i+1]**2)))
                 comm.Barrier();
 
     def update(self,frame_num):
@@ -134,6 +148,8 @@ class slepc_hessian(object):
                 return orig_attr
     def get_eigenvector(self,index):
         return self.H.getEigenvector(index)
+    def get_eigenvalue(self,index):
+        return self.H.getEigenvalue(index)
     def get_range(self,index):
         return self.H.getRange(index)
     def eigs(self):

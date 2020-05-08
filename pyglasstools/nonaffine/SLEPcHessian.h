@@ -30,8 +30,6 @@ class PYBIND11_EXPORT SLEPcHessian
     public:
         Eigen::MatrixXd nonaffinetensor;
         int nconv; 
-        double maxeigval;
-        double tol;
 
         SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, std::shared_ptr<PETScManager> manager)
             : m_sysdata(sysdata), m_potential(potential), m_manager(manager)
@@ -130,7 +128,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 
 
                 nconv = 0;
-                maxeigval = 0;
+                m_maxeigval = 0;
                 nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
                 //Construct for loop here:
             };
@@ -142,6 +140,13 @@ class PYBIND11_EXPORT SLEPcHessian
             SlepcFinalize();
         };
         
+        double getEigenvalue(unsigned int index) 
+        {
+                PetscReal lambda_r;//Vec xr,global_xr;
+                ierr = EPSGetEigenvalue(eps,index,&lambda_r,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                return lambda_r;
+        }
+
         std::vector<double> getEigenvector(unsigned int index) 
         {
                 int globsize;
@@ -179,9 +184,8 @@ class PYBIND11_EXPORT SLEPcHessian
         {
             if (nconv > 0)
             {
-                ierr = EPSGetEigenvalue(eps,nconv-1,&maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                ierr = EPSGetTolerances(eps,&tol,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                double cond = hessian_length*maxeigval*m_manager->pinv_tol;//*tol;
+                ierr = EPSGetEigenvalue(eps,nconv-1,&m_maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                double cond = hessian_length*m_maxeigval*m_manager->pinv_tol;//*tol;
                 Vec xr,mult,seqmult;
                 VecScatter ctx;
                 
@@ -235,7 +239,7 @@ class PYBIND11_EXPORT SLEPcHessian
 
         void getAllEigenPairs_Mumps()
         {
-            getMaxEigenvalue();
+            getMaxEigenvalue_forMumps();
 
             //Set value MUMPS work-space
             ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_14 200");CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -249,7 +253,7 @@ class PYBIND11_EXPORT SLEPcHessian
             KSP            ksp;
             PC             pc;
             PetscInt       maxit;
-            PetscReal      inta,intb;
+            PetscReal      inta,intb,tol;
             
             ierr = EPSSetWhichEigenpairs(eps,EPS_ALL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             
@@ -265,8 +269,8 @@ class PYBIND11_EXPORT SLEPcHessian
             /*
                 Set interval for spectrum slicing
             */
-            inta = hessian_length*maxeigval*m_manager->lowerbound_tol;//*tol;
-            intb = maxeigval*(1+inta);//PETSC_MAX_REAL;
+            inta = hessian_length*m_maxeigval*m_manager->lowerbound_tol;//*tol;
+            intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
             ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             m_manager->printPetscNotice(5,"Search interval is: ["+to_string_sci(inta)+", "+ to_string_sci(intb)+"]\n");
             
@@ -317,7 +321,7 @@ class PYBIND11_EXPORT SLEPcHessian
              Get number of converged approximate eigenpairs
             */
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            m_manager->printPetscNotice(5,"Number of converged egenpairs: "+std::to_string(nconv)+"\n");
+            m_manager->printPetscNotice(5,"Number of converged eigenpairs: "+std::to_string(nconv)+"\n");
             if (m_manager->getNoticeLevel() >= 6)
             {
                 m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
@@ -329,7 +333,7 @@ class PYBIND11_EXPORT SLEPcHessian
             }
         };
         
-        void getMaxEigenvalue()
+        void getMaxEigenvalue_forMumps()
         {
             //This should only be done when computing a small amount of eigenvalues
             m_manager->printPetscNotice(5,"Computing Maximum Eigenvalue \n");
@@ -341,8 +345,8 @@ class PYBIND11_EXPORT SLEPcHessian
             EPSSolve(eps);
             
             ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = EPSGetEigenvalue(eps,0,&maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            m_manager->printPetscNotice(5,"Maximum Eigenvalue: "+to_string_sci(maxeigval)+"\n");
+            ierr = EPSGetEigenvalue(eps,0,&m_maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            m_manager->printPetscNotice(5,"Maximum Eigenvalue: "+to_string_sci(m_maxeigval)+"\n");
         };
 
         void getEigenPairs()
@@ -351,6 +355,7 @@ class PYBIND11_EXPORT SLEPcHessian
             //and setting the which to anything other than EPS_ALL
             EPSType type;
             Vec            xr,xi;
+            PetscReal      tol;
             PetscInt       nev,maxit,its;
             EPSWhich whicheig;
             
@@ -405,6 +410,7 @@ class PYBIND11_EXPORT SLEPcHessian
         std::shared_ptr< PETScManager > m_manager;
         double max_rcut;
         unsigned int hessian_length;
+        double m_maxeigval;
         
         Mat hessian;
         EPS eps;
@@ -420,8 +426,10 @@ void export_SLEPcHessian(py::module& m)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
     .def("getEigenvector", &SLEPcHessian::getEigenvector)
+    .def("getEigenvalue", &SLEPcHessian::getEigenvalue)
     .def("getRange", &SLEPcHessian::getRange)
     .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
+    .def_readwrite("nconv", &SLEPcHessian::nconv)
     ;
 };
 #endif //__SLEPCHESSIAN_H__

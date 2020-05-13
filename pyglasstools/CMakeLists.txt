@@ -44,13 +44,13 @@ include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS} ${GSL_INCLUDE_DIRS})
 
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 target_link_libraries(_${COMPONENT_NAME} PRIVATE ${LIBRARIES})
-set_target_properties(_${COMPONENT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/..")
+#set_target_properties(_${COMPONENT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/..")
 set_target_properties(_${COMPONENT_NAME} PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 set_target_properties(_${COMPONENT_NAME} PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 
-install(TARGETS _${COMPONENT_NAME} 
-        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-        )
+#install(TARGETS _${COMPONENT_NAME} 
+#        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
+#        )
 
 add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 
@@ -60,9 +60,9 @@ set(files   __init__.py
             CorrelationAnalysis.py
     )
 
-install(FILES ${files}
-        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-       )
+#install(FILES ${files}
+#        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
+#       )
 
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)

@@ -2,8 +2,8 @@
 #include "ParticleSystem.h"
 #include "Calculator.h"
 #include "Manager.h"
-//#include "MPIInterface.h"
-//#include "MPIBasicOperations.h"
+#include "MPIInterface.h"
+#include "MPIBasicOperations.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 
@@ -29,7 +29,6 @@ bool launch_timing=false;
 
 PYBIND11_MODULE(_pyglasstools, m)
 {
-    /*
     int external_init = MPI::initialize();
 
     // if HOOMD called MPI_Init, it should call MPI_Finalize at exit
@@ -37,7 +36,6 @@ PYBIND11_MODULE(_pyglasstools, m)
     {
         Py_AtExit(MPI::finalize);
     }
-    */
     export_SimBox(m);
     
     export_ParticleSystem(m);

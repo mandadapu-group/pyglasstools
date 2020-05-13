@@ -5,7 +5,6 @@ set(PYBIND11_CPP_STANDARD -std=c++14)
 
 #pybind11 has a cmake file to configure compatible c++ flags
 include(pybind11Tools)
-
 if (PYTHON_VERSION_MAJOR LESS 3)
     message(SEND_ERROR "PyGlassTools requires Python 3.x")
 endif()

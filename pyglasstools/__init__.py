@@ -1,11 +1,29 @@
 """ PyGlassTools python API
 """
+import sys;
+import ctypes;
+import os;
+
+#In order for our MPI wrapper to work , we need to set dlopen flag to need to RTLD_GLOBAL 
+flags = sys.getdlopenflags();
+sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
+
 from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
 from pyglasstools import observables
 from os import path
 import numpy as np
+"""
+_default_excepthook = sys.excepthook;
 
+def _custom_excepthook(type, value, traceback):
+    _default_excepthook(type, value, traceback);
+    sys.stderr.flush();
+    if context.exec_conf is not None:
+        _pyglasstools.abort_mpi(context.exec_conf);
+
+sys.excepthook = _hoomd_sys_excepthook
+"""
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()

@@ -33,9 +33,7 @@ namespace MPI
         MPI_Initialized(&external_init);
         if (!external_init)
             {
-                py::print("Test");
                 MPI_Init(0, (char ***) NULL);
-                py::print("Test 2");
             }
 
         return external_init;

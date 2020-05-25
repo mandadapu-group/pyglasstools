@@ -3,7 +3,7 @@
 #include "Calculator.h"
 #include "Manager.h"
 #include "MPIInterface.h"
-#include "MPIBasicOperations.h"
+//#include "MPIBasicOperations.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 
@@ -14,18 +14,38 @@
  create the pyglasstools python module and define the exports here.
  */
 
-//void mpi_barrier_world()
-//  {
-//   #ifdef ENABLE_MPI
-//  MPI_Barrier(MPI_COMM_WORLD);
-//  #endif
-//  }
 
-// values used in measuring hoomd launch timing
-unsigned int launch_time, start_time, mpi_init_time;
-bool launch_timing=false;
+namespace MPI
+{
+    //! Initialize the MPI environment
+    int initialize()
+    {
+        // initialize MPI if it has not been initialized by another program
+        int external_init = 0;
+        MPI_Initialized(&external_init);
+        if (!external_init)
+            {
+                MPI_Init(0, (char ***) NULL);
+            }
 
+        return external_init;
+    }
 
+    //! Get the processor name associated to this rank
+    std::string get_processor_name()
+    {
+        char proc_name[MPI_MAX_PROCESSOR_NAME];
+        int name_len;
+        MPI_Get_processor_name(proc_name, &name_len);
+        return std::string(proc_name);
+    }
+
+    //! Finalize MPI environment
+    void finalize()
+    {
+        MPI_Finalize();
+    }
+}
 
 PYBIND11_MODULE(_pyglasstools, m)
 {
@@ -46,5 +66,5 @@ PYBIND11_MODULE(_pyglasstools, m)
     
     export_Manager(m); 
     
-    //export_MPICommunicator(m);  
+    export_MPICommunicator(m);  
 }

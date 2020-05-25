@@ -67,21 +67,19 @@ unsigned int MPI::Communicator::getNRanks() const
 
 void export_MPICommunicator(pybind11::module& m)
     {
-    pybind11::class_<MPI::Communicator, std::shared_ptr<MPI::Communicator> > mpicommunicator(m,"MPI::Communicator");
+    pybind11::class_<MPI::Communicator, std::shared_ptr<MPI::Communicator> > mpicommunicator(m,"Communicator");
     mpicommunicator.def(pybind11::init< >())
         .def("splitPartitions", &MPI::Communicator::splitPartitions)
         .def("getPartition", &MPI::Communicator::getPartition)
         .def("getNRanks", &MPI::Communicator::getNRanks)
         .def("getRank", &MPI::Communicator::getRank)
         .def("barrier", &MPI::Communicator::barrier)
-        .def("getNRanksGlobal", &MPI::Communicator::getNRanksGlobal)
+        .def("getSizeGlobal", &MPI::Communicator::getSizeGlobal)
         .def("getRankGlobal", &MPI::Communicator::getRankGlobal)
-#ifdef ENABLE_MPI
-        .def_static("_make_mpi_conf_mpi_comm",  [](pybind11::object mpi_comm) -> std::shared_ptr<MPI::Communicator>
-            {
-            MPI_Comm *comm = (MPI_Comm*)PyLong_AsVoidPtr(mpi_comm.ptr());
-            return std::make_shared<MPI::Communicator>(*comm);
-            })
-#endif
+        //.def_static("_make_mpi_conf_mpi_comm",  [](pybind11::object mpi_comm) -> std::shared_ptr<MPI::Communicator>
+        //    {
+        //    MPI_Comm *comm = (MPI_Comm*)PyLong_AsVoidPtr(mpi_comm.ptr());
+         //   return std::make_shared<MPI::Communicator>(*comm);
+         //   })
     ;
     }

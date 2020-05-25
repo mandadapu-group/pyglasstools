@@ -111,6 +111,20 @@ class PYBIND11_EXPORT Manager
                 return *m_nullstream;
                 }
         }
+        std::ostream& widenotice(unsigned int level)
+        {
+            assert(m_notice_stream);
+            if (level <= m_notice_level)// && proc_rank == 0)
+                {
+                if (m_notice_prefix != std::string("") && level > 1)
+                    *m_notice_stream << m_notice_prefix << "(" << level << ") for process (" << proc_rank << "): ";
+                return *m_notice_stream;
+                }
+            else
+                {
+                return *m_nullstream;
+                }
+        }
     protected:
         std::string m_notice_prefix;
         std::ostream *m_notice_stream;  //!< notice stream

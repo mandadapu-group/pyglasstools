@@ -11,12 +11,12 @@ namespace py = pybind11;
 #include <petscmat.h>
 #include <petscvec.h>
 
-class PYBIND11_EXPORT PETScManager : public Manager
+class PYBIND11_EXPORT HessianManager : public Manager
 {
     public:
         double pinv_tol;       
         double lowerbound_tol;       
-        PETScManager() : Manager(), ierr(0) 
+        HessianManager() : Manager()
         {
             auto argv = py::module::import("sys").attr("argv");
             pinv_tol = std::numeric_limits<double>::epsilon();
@@ -54,6 +54,13 @@ class PYBIND11_EXPORT PETScManager : public Manager
                 }
             }
         };
+        ~HessianManager(){};
+};
+
+class PYBIND11_EXPORT PETScManager : public HessianManager
+{
+    public:
+        PETScManager() : ierr(0) {};
         ~PETScManager(){};
         void printPetscNotice(unsigned int level,std::string statement)
         {
@@ -96,6 +103,13 @@ class PYBIND11_EXPORT PETScManager : public Manager
         }
     private:
         PetscErrorCode ierr; 
+};
+
+void export_HessianManager(py::module& m)
+{
+    py::class_<HessianManager, std::shared_ptr<HessianManager> >(m,"HessianManager")
+    .def(py::init<>())
+    ;
 };
 
 void export_PETScManager(py::module& m)

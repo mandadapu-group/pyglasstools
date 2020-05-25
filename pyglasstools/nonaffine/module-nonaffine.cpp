@@ -1,6 +1,6 @@
-#include "Hessian.h"
+#include "SpectraHessian.h"
 #include "SLEPcHessian.h"
-#include "../extern/pybind11/include/pybind11/pybind11.h"
+#include <pybind11/pybind11.h>
 
 //! Create the python module
 /*! each class setup their own python exports in a function export_ClassName
@@ -9,8 +9,15 @@
 
 PYBIND11_MODULE(_nonaffine, m)
 {
+    int external_init = slepc::initialize();
+
+    if (!external_init)
+    {
+        Py_AtExit(slepc::finalize);
+    }
     export_Hessian(m);
     export_SLEPcHessian(m);
     export_SelectionRule(m);
     export_PETScManager(m);
+    export_HessianManager(m);
 }

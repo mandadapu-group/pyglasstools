@@ -11,8 +11,7 @@
 #include <pyglasstools/MathAndTypes.h>
 #include <pyglasstools/ParticleSystem.h>
 #include <pyglasstools/potential/PairPotential.h>
-#include <pyglasstools/Manager.h>
-#include "PETScManager.h"
+#include "NonAffineManager.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -22,8 +21,20 @@ namespace py = pybind11;
 namespace abr = Aboria;
 
 #include <slepceps.h>
-
 static char help[] = "A Hessian class object for eigendecomposition and non-affine elasticity tensor calculation. Requires SLEPc/PETSc library!\n\n";
+namespace slepc
+{
+    PetscErrorCode initialize()
+    {
+        PetscErrorCode ierr = SlepcInitialize(NULL,NULL,(char*)0,help);
+        return ierr;
+    }
+
+    void finalize()
+    {
+        SlepcFinalize();
+    }
+}
 
 class PYBIND11_EXPORT SLEPcHessian
 {
@@ -34,7 +45,6 @@ class PYBIND11_EXPORT SLEPcHessian
         SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, std::shared_ptr<PETScManager> manager)
             : m_sysdata(sysdata), m_potential(potential), m_manager(manager)
             {
-                SlepcInitialize(NULL,NULL,(char*)0,help);
                 ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 m_manager->printPetscNotice(5,"Constructing SLEPc Hessian Object \n");
                 
@@ -48,6 +58,25 @@ class PYBIND11_EXPORT SLEPcHessian
                 m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
                 hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
                 
+                buildHessianandMisForce();
+
+                nconv = 0;
+                m_maxeigval = 0;
+                nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
+                //Construct for loop here:
+            };
+        virtual ~SLEPcHessian()
+        {
+            MatDestroy(&hessian);
+            MatDestroy(&misforce);
+            EPSDestroy(&eps);
+        };
+        void setSystemData(std::shared_ptr<ParticleSystem> newsysdata)
+        {
+            m_sysdata = newsysdata;
+        }
+        void buildHessianandMisForce()
+        {
                 //MatCreate(PETSC_COMM_WORLD,&hessian);
                 MatCreate(PETSC_COMM_WORLD,&hessian);
                 MatSetSizes(hessian,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,hessian_length);
@@ -125,21 +154,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 EPSCreate(PETSC_COMM_WORLD,&eps);
                 ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 EPSSetOperators(eps,hessian,NULL);
-                
-
-                nconv = 0;
-                m_maxeigval = 0;
-                nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
-                //Construct for loop here:
-            };
-        virtual ~SLEPcHessian()
-        {
-            MatDestroy(&hessian);
-            MatDestroy(&misforce);
-            EPSDestroy(&eps);
-            SlepcFinalize();
-        };
-        
+        }
         double getEigenvalue(unsigned int index) 
         {
                 PetscReal lambda_r;//Vec xr,global_xr;
@@ -171,7 +186,7 @@ class PYBIND11_EXPORT SLEPcHessian
                 VecDestroy(&xr);
                 return eigenvector;
         }
-        std::tuple<int,int> getRange(unsigned int index) 
+        std::tuple<int,int> getPETScMatRange(unsigned int index) 
         {
                 Vec xr;
                 MatCreateVecs(hessian,NULL,&xr);
@@ -185,7 +200,7 @@ class PYBIND11_EXPORT SLEPcHessian
             if (nconv > 0)
             {
                 ierr = EPSGetEigenvalue(eps,nconv-1,&m_maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                double cond = hessian_length*m_maxeigval*m_manager->pinv_tol;//*tol;
+                double cond = m_manager->pinv_tol;//*tol;
                 Vec xr,mult,seqmult;
                 VecScatter ctx;
                 
@@ -269,7 +284,7 @@ class PYBIND11_EXPORT SLEPcHessian
             /*
                 Set interval for spectrum slicing
             */
-            inta = hessian_length*m_maxeigval*m_manager->lowerbound_tol;//*tol;
+            inta = m_manager->lowerbound_tol;//*tol;
             intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
             ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             m_manager->printPetscNotice(5,"Search interval is: ["+to_string_sci(inta)+", "+ to_string_sci(intb)+"]\n");
@@ -422,12 +437,14 @@ void export_SLEPcHessian(py::module& m)
 {
     py::class_<SLEPcHessian, std::shared_ptr<SLEPcHessian> >(m,"SLEPcHessian")
     .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager>  >())
+    .def("setSystemData", &SLEPcHessian::setSystemData)
+    .def("buildHessianandMisForce", &SLEPcHessian::buildHessianandMisForce)
     .def("getEigenPairs", &SLEPcHessian::getEigenPairs)
     .def("getAllEigenPairs_Mumps", &SLEPcHessian::getAllEigenPairs_Mumps)
     .def("calculateNonAffine", &SLEPcHessian::calculateNonAffine)
     .def("getEigenvector", &SLEPcHessian::getEigenvector)
     .def("getEigenvalue", &SLEPcHessian::getEigenvalue)
-    .def("getRange", &SLEPcHessian::getRange)
+    .def("getPETScMatRange", &SLEPcHessian::getPETScMatRange)
     .def_readwrite("nonaffinetensor", &SLEPcHessian::nonaffinetensor)
     .def_readwrite("nconv", &SLEPcHessian::nconv)
     ;

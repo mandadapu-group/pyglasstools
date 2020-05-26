@@ -10,7 +10,6 @@ find_package(SLEPc REQUIRED)
 find_package(MPI REQUIRED)
 
 include_directories(${PETSC_INC} ${SLEPC_INC} ${MPI_CXX_INCLUDE_PATH})
-
 pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
 target_link_libraries(_${SUBCOMPONENT_NAME} PRIVATE ${PETSC_LIB} ${SLEPC_LIB} ${MPI_CXX_LIBRARIES})
 #set_target_properties(_${SUBCOMPONENT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/..;\$ORIGIN")

@@ -13,41 +13,15 @@ from pyglasstools import utils;
 from pyglasstools import observables
 from os import path
 import numpy as np
-"""
-_default_excepthook = sys.excepthook;
 
-def _custom_excepthook(type, value, traceback):
-    _default_excepthook(type, value, traceback);
-    sys.stderr.flush();
-    if context.exec_conf is not None:
-        _pyglasstools.abort_mpi(context.exec_conf);
 
-sys.excepthook = _hoomd_sys_excepthook
-"""
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-nprocs = size
+#Initialize a single communicator during module call
+comm = _pyglasstools.Communicator()
+rank = comm.getRank()
+size = comm.getSizeGlobal()
 
 #The module should save more than one logger, which analyzes various observables
 loggers = [];
-
-#https://stackoverflow.com/questions/45680050/cannot-write-to-shared-mpi-file-with-mpi4py
-class MPILogFile(object):
-    def __init__(self, comm, filename, mode):
-        self.file_handle = MPI.File.Open(comm, filename, mode)
-        self.file_handle.Set_atomicity(True)
-        self.buffer = bytearray
-
-    def write(self, msg):
-        b = bytearray()
-        b.extend(map(ord, msg))
-        self.file_handle.Write_shared(b)
-
-    def close(self):
-        self.file_handle.Sync()
-        self.file_handle.Close()
 
 #will automatically create the required calculators . . .
 class logger(object):
@@ -186,7 +160,7 @@ class field_logger(object):
         #Initialize file to save:
         self.file = {}
         for name in self.__field_obs_names: 
-            self.file[name] = MPILogFile(comm, self.fileprefix+"_"+name, MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND)
+            self.file[name] = MPILogFile(comm, self.fileprefix+"_"+name)
     def run(self): 
         if not (not self.__field_obs_names):
             self.ikfield.computelocal(self.gridpoints)

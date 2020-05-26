@@ -15,9 +15,9 @@ PYBIND11_MODULE(_nonaffine, m)
     {
         Py_AtExit(slepc::finalize);
     }
-    export_Hessian(m);
-    export_SLEPcHessian(m);
-    export_SelectionRule(m);
+    
     export_PETScManager(m);
     export_HessianManager(m);
+    export_SLEPcHessian(m);
+    export_SpectraHessian(m);
 }

@@ -15,7 +15,9 @@ class PYBIND11_EXPORT HessianManager : public Manager
 {
     public:
         double pinv_tol;       
-        double lowerbound_tol;       
+        double lowerbound_tol;  
+        int nev, ncv, maxiter;
+        std::string selrule;     
         HessianManager() : Manager()
         {
             auto argv = py::module::import("sys").attr("argv");
@@ -44,6 +46,66 @@ class PYBIND11_EXPORT HessianManager : public Manager
                     try
                     {
                         lowerbound_tol = std::stod(py::str(*test),nullptr);
+                    }
+                    catch(...)
+                    {
+                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
+                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
+                                                std::string(py::str(*test)));
+                    }
+                }
+                else if (std::string(py::str(*test)) == "-spectra_nev")
+                {
+                    //Increment manually
+                    ++test;
+                    try
+                    {
+                        nev = std::stoi(py::str(*test),nullptr);
+                    }
+                    catch(...)
+                    {
+                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
+                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
+                                                std::string(py::str(*test)));
+                    }
+                }
+                else if (std::string(py::str(*test)) == "-spectra_ncv")
+                {
+                    //Increment manually
+                    ++test;
+                    try
+                    {
+                        ncv = std::stoi(py::str(*test),nullptr);
+                    }
+                    catch(...)
+                    {
+                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
+                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
+                                                std::string(py::str(*test)));
+                    }
+                }
+                else if (std::string(py::str(*test)) == "-spectra_maxiter")
+                {
+                    //Increment manually
+                    ++test;
+                    try
+                    {
+                        maxiter = std::stoi(py::str(*test),nullptr);
+                    }
+                    catch(...)
+                    {
+                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
+                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
+                                                std::string(py::str(*test)));
+                    }
+                }
+                else if (std::string(py::str(*test)) == "-spectra_selrule")
+                {
+                    //Increment manually
+                    ++test;
+                    try
+                    {
+                        selrule = py::str(*test);
                     }
                     catch(...)
                     {

@@ -3,6 +3,7 @@
 #include "Calculator.h"
 #include "Manager.h"
 #include "MPIInterface.h"
+#include "MPIFile.h"
 //#include "MPIBasicOperations.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
@@ -67,4 +68,6 @@ PYBIND11_MODULE(_pyglasstools, m)
     export_Manager(m); 
     
     export_MPICommunicator(m);  
+    
+    export_MPIFile(m);
 }

@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2019 The Regents of the University of Michigan
 // This file is part of the HOOMD-blue project, released under the BSD 3-Clause License.
+#ifndef __MPI_INTERFACE_H__
+#define __MPI_INTERFACE_H__
 
 // ensure that HOOMDMath.h is the first thing included
 #include <mpi.h>
@@ -51,7 +53,6 @@ namespace cereal
 */
 namespace MPI
 {
-
     class PYBIND11_EXPORT Communicator
         {
         public:
@@ -74,7 +75,7 @@ namespace MPI
                 return m_comm_world;
             }
 
-            void abort(int error_code)
+            void mpiabort(int error_code)
             {
                 MPI_Abort(m_comm, error_code);
             }
@@ -446,3 +447,5 @@ namespace MPI
 
 //! Exports Communicator to python
 void export_MPICommunicator(pybind11::module& m);
+
+#endif

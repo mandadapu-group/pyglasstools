@@ -11,119 +11,43 @@ namespace py = pybind11;
 #include <petscmat.h>
 #include <petscvec.h>
 
+
 class PYBIND11_EXPORT HessianManager : public Manager
 {
     public:
-        double pinv_tol;       
-        double lowerbound_tol;  
+        double pinv_tol, lowerbound_tol;  
         int nev, ncv, maxiter;
         std::string selrule;     
-        HessianManager() : Manager()
+        
+        HessianManager() : pinv_tol(1e-12), lowerbound_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
         {
-            auto argv = py::module::import("sys").attr("argv");
-            pinv_tol = std::numeric_limits<double>::epsilon();
-            for( auto test = argv.begin(); test != argv.end(); ++test)
-            {
-                if (std::string(py::str(*test)) == "-pinv_tol")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        pinv_tol = std::stod(py::str(*test),nullptr);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-                else if (std::string(py::str(*test)) == "-lowerbound_tol")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        lowerbound_tol = std::stod(py::str(*test),nullptr);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-                else if (std::string(py::str(*test)) == "-spectra_nev")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        nev = std::stoi(py::str(*test),nullptr);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-                else if (std::string(py::str(*test)) == "-spectra_ncv")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        ncv = std::stoi(py::str(*test),nullptr);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-                else if (std::string(py::str(*test)) == "-spectra_maxiter")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        maxiter = std::stoi(py::str(*test),nullptr);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-                else if (std::string(py::str(*test)) == "-spectra_selrule")
-                {
-                    //Increment manually
-                    ++test;
-                    try
-                    {
-                        selrule = py::str(*test);
-                    }
-                    catch(...)
-                    {
-                        throw std::domain_error(std::string("Process [")+std::to_string(proc_rank)+std::string("]: ") +
-                                                std::string("Did you correctly input your tolerance for pseudoinverse? The value you put is: ")+
-                                                std::string(py::str(*test)));
-                    }
-                }
-            }
+            detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
+            detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
+            detail::argparser<int>("-spectra_nev",nev, "[ERROR] Invalid value spectra_nev", argv);
+            detail::argparser<int>("-spectra_ncv",ncv, "[ERROR] Invalid value spectra_ncv", argv);
+            detail::argparser<int>("-spectra_maxiter",maxiter, "[ERROR] Invalid value for maxier", argv);
+            detail::argparser<std::string>("-spectra_selrule",selrule, "[ERROR] Invalid value for spectra selrule", argv);
         };
         ~HessianManager(){};
 };
 
-class PYBIND11_EXPORT PETScManager : public HessianManager
+
+class PYBIND11_EXPORT PETScManager : public Manager
 {
     public:
-        PETScManager() : ierr(0) {};
+        PetscErrorCode ierr; 
+        double pinv_tol, lowerbound_tol, fd_threshold; 
+        std::string fd_mode; 
+        
+        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), fd_mode("minimum")
+        {
+            detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
+            detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
+            detail::argparser<double>("-fd_threshold",fd_threshold, "[ERROR] Invalid value for fd_threshold", argv);
+            detail::argparser<std::string>("-fd_mode",fd_mode, "[ERROR] Invalid value for fd_mode",argv);
+        };
         ~PETScManager(){};
+        
         void printPetscNotice(unsigned int level,std::string statement)
         {
             if (level <= m_notice_level)
@@ -163,8 +87,6 @@ class PYBIND11_EXPORT PETScManager : public HessianManager
                 CHKERRABORT(PETSC_COMM_WORLD,ierr);
             }
         }
-    private:
-        PetscErrorCode ierr; 
 };
 
 void export_HessianManager(py::module& m)

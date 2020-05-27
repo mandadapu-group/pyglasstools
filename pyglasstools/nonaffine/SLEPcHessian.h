@@ -90,6 +90,32 @@ class PYBIND11_EXPORT SLEPcHessian
         void saveForceDipoleProblem(std::shared_ptr<MPI::LogFile> logfile);
 };
 
+
+SLEPcHessian::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, std::shared_ptr<PETScManager> manager, std::shared_ptr<MPI::Communicator> comm)
+    : m_sysdata(sysdata), m_potential(potential), m_manager(manager), m_comm(comm)
+{
+    ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    m_manager->printPetscNotice(5,"Constructing SLEPc Hessian Object \n");
+    
+    double maxforce_rcut = potential->scaled_rcut;
+    double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
+                                            std::end(abr::get<diameter>(m_sysdata->particles)) );
+    maxforce_rcut *= maxdiameter;
+    max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
+    
+    //Construct Hessian
+    m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
+    hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
+    
+    buildHessianandMisForce();
+
+    nconv = 0;
+    m_maxeigval = 0;
+    nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
+    MatCreateVecs(hessian,NULL,&forcedipole_disp);
+        //Construct for loop here:
+};
+
 void SLEPcHessian::saveForceDipoleProblem(std::shared_ptr<MPI::LogFile> logfile)
 {
     m_manager->notice(5) << "Saving computation" << std::endl;
@@ -97,16 +123,16 @@ void SLEPcHessian::saveForceDipoleProblem(std::shared_ptr<MPI::LogFile> logfile)
     Vec global_xr;
     VecScatter ctx;
     VecGetSize(forcedipole_disp,&globsize);
-    VecScatterCreateToAll(forcedipole_disp,&ctx,&global_xr);
+    VecScatterCreateToZero(forcedipole_disp,&ctx,&global_xr);
     
     double *tempvecp = new double[globsize];
     VecGetArray(global_xr,&tempvecp);
     VecScatterBegin(ctx,forcedipole_disp,global_xr,INSERT_VALUES,SCATTER_FORWARD);
     VecScatterEnd(ctx,forcedipole_disp,global_xr,INSERT_VALUES,SCATTER_FORWARD);
-    std::vector<double> displacement(tempvecp,tempvecp+globsize);//(hessian.rows());
     m_manager->notice(10) << "Process " << m_comm->getRank() << "is outputting eigenvector" << std::endl;
     if (m_comm->isRoot())
     {
+        std::vector<double> displacement(tempvecp,tempvecp+globsize);//(hessian.rows());
         int id_x = 0;
         m_manager->notice(10) << "didwereachhere? " << m_comm->getRank() << "is outputting eigenvalue" << std::endl;
         for( auto p_i = m_sysdata->particles.begin(); p_i != m_sysdata->particles.end(); ++p_i)
@@ -141,27 +167,27 @@ void SLEPcHessian::solveForceDipoleProblem(double force_threshold)
     KSP ksp;
     MatCreateVecs(hessian,NULL,&forcing);
     PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
+    
     //choose a random particle
     std::random_device dev;
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> int_dist(0,m_sysdata->particles.size()-1); // distribution in range [1, 6]
     bool particlenotfound = true;
-    double forcedipole;
+    double forcedipole = std::numeric_limits<double>::max();
     PetscInt id_j, id_i;
     //All processes will look for
     m_manager->notice(5) << "Looking for pairs of particles to perturb" << std::endl; 
-    while(particlenotfound)
+    for( auto p_i = m_sysdata->particles.begin(); p_i != m_sysdata->particles.end(); ++p_i)
     {
         //std::cout << dist6(rng) << std::endl;
         //py::print(id_i,id_i+1,Iend);
-        int i = int_dist(rng);
         for( auto p_j = abr::euclidean_search(m_sysdata->particles.get_query(), 
-                    abr::get<position>(m_sysdata->particles[i]), max_rcut); p_j != false; ++p_j)
+                    abr::get<position>(*p_i), max_rcut); p_j != false; ++p_j)
         {
-            id_j = abr::get<abr::id>(*p_j);
-            id_i = abr::get<abr::id>(m_sysdata->particles[i]);
+            PetscInt tempid_j = abr::get<abr::id>(*p_j);
+            PetscInt tempid_i = abr::get<abr::id>(*p_i);
             
-            if (id_i != id_j && 2*id_i < Iend && 2*id_i >= Istart && 2*id_i + 1 < Iend && 2*id_i+1 >= Istart)
+            if (tempid_i != tempid_j && 2*tempid_i < Iend && 2*tempid_i >= Istart && 2*tempid_i + 1 < Iend && 2*tempid_i+1 >= Istart)
             {
                 //Compute a list of local obsercavles 
                 //Next we loop through the j-th particles for the virial stress
@@ -170,13 +196,19 @@ void SLEPcHessian::solveForceDipoleProblem(double force_threshold)
                 m_potential->rij = rij;
                 
                 //Don't forget to set diameters of the potential
-                m_potential->di =  abr::get<diameter>(m_sysdata->particles[i]);
+                m_potential->di =  abr::get<diameter>(*p_i);
                 m_potential->dj =  abr::get<diameter>(*p_j);
                 
                 //Make sure the particle is unique
-                if (m_potential->getRcut() > rij.dot(rij) && abs(m_potential->getPairForce()) < abs(force_threshold))
+                if (m_potential->getRcut() > rij.dot(rij))
+                //if (m_potential->getRcut() > rij.dot(rij) && abs(m_potential->getPairForce()) < abs(force_threshold))
                 {
-                    particlenotfound = false;
+                    if (abs(forcedipole) > abs(m_potential->getPairForce()))
+                    {
+                        forcedipole = m_potential->getPairForce();
+                        id_i = tempid_i; 
+                        id_j = tempid_j; 
+                    }
                 }
             }
         }
@@ -184,6 +216,7 @@ void SLEPcHessian::solveForceDipoleProblem(double force_threshold)
     m_comm->barrier();
 
     //Now determine which rank has the smallest force. Once determined, we will broadcast the values
+    m_manager->notice(5) << "Assembling forcing vector" << std::endl; 
     std::vector< double > listofforces(m_comm->getSizeGlobal());
     m_comm->all_gather_v(forcedipole, listofforces);
     int therank = std::distance(listofforces.begin(),std::max_element(listofforces.begin(), listofforces.end()));
@@ -214,12 +247,11 @@ void SLEPcHessian::solveForceDipoleProblem(double force_threshold)
             if (m_potential->getRcut() > rij.dot(rij) && abs(m_potential->getPairForce()) < abs(force_threshold))
             {
                 m_manager->notice(5) << "Perturb Particle " << id_i << " and " << id_j << std::endl;
-                forcedipole = m_potential->getPairForce();
+                forcedipole = 100;//100*m_potential->getPairForce();
                 VecSetValue(forcing,2*id_i,-forcedipole*rij[0], ADD_VALUES);
                 VecSetValue(forcing,2*id_i+1,-forcedipole*rij[1], ADD_VALUES);
                 VecSetValue(forcing,2*id_j,forcedipole*rij[0], ADD_VALUES);
                 VecSetValue(forcing,2*id_j+1,forcedipole*rij[1], ADD_VALUES);
-                particlenotfound = false;
             }
         }
     }
@@ -239,32 +271,6 @@ void SLEPcHessian::solveForceDipoleProblem(double force_threshold)
     KSPSolve(ksp,forcing,forcedipole_disp);
     MatNullSpaceDestroy(&constant);
 };
-
-SLEPcHessian::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, std::shared_ptr<PETScManager> manager, std::shared_ptr<MPI::Communicator> comm)
-    : m_sysdata(sysdata), m_potential(potential), m_manager(manager), m_comm(comm)
-    {
-        ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        m_manager->printPetscNotice(5,"Constructing SLEPc Hessian Object \n");
-        
-        double maxforce_rcut = potential->scaled_rcut;
-        double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
-                                                std::end(abr::get<diameter>(m_sysdata->particles)) );
-        maxforce_rcut *= maxdiameter;
-        max_rcut = std::max(maxforce_rcut,maxdiameter); //whichever is maximum
-        
-        //Construct Hessian
-        m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
-        hessian_length = (unsigned int)m_sysdata->simbox->dim*m_sysdata->particles.size();
-        
-        buildHessianandMisForce();
-
-        nconv = 0;
-        m_maxeigval = 0;
-        nonaffinetensor = Eigen::MatrixXd::Zero((unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2,(unsigned int)m_sysdata->simbox->dim*((unsigned int)m_sysdata->simbox->dim+1)/2);                
-        MatCreateVecs(hessian,NULL,&forcedipole_disp);
-        //Construct for loop here:
-    };
-
 void SLEPcHessian::buildHessianandMisForce()
 {
         //MatCreate(PETSC_COMM_WORLD,&hessian);
@@ -371,6 +377,7 @@ std::vector<double> SLEPcHessian::getEigenvector(unsigned int index, bool forall
         VecScatter ctx;
         MatCreateVecs(hessian,NULL,&xr);
         VecGetSize(xr,&globsize);
+        std::vector<double> eigenvector;
         if (forall)
             VecScatterCreateToAll(xr,&ctx,&global_xr);
         else 
@@ -381,8 +388,21 @@ std::vector<double> SLEPcHessian::getEigenvector(unsigned int index, bool forall
         ierr = EPSGetEigenvector(eps,index,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         VecScatterBegin(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
         VecScatterEnd(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
-        std::vector<double> eigenvector(tempvecp,tempvecp+globsize);//(hessian.rows());
-        
+        if (forall)
+        {
+            std::copy(tempvecp, tempvecp+globsize, std::back_inserter(eigenvector));
+        } 
+        else
+        {
+            if (m_comm->isRoot())
+            {
+                std::copy(tempvecp, tempvecp+globsize, std::back_inserter(eigenvector));
+            }
+            else
+            {
+                eigenvector.resize(globsize);
+            }
+        }
         //Destroy all objects
         VecRestoreArray(global_xr,&tempvecp);
         delete [] tempvecp;
@@ -394,7 +414,7 @@ std::vector<double> SLEPcHessian::getEigenvector(unsigned int index, bool forall
 
 void SLEPcHessian::saveEigenvector(unsigned int index, std::shared_ptr<MPI::LogFile> logfile)
 {
-    std::vector<double> eigenvector = getEigenvector(index,true);
+    std::vector<double> eigenvector = getEigenvector(index,false);
     m_manager->notice(10) << "Process " << m_comm->getRank() << "is outputting eigenvector" << std::endl;
     if (m_comm->isRoot())
     {
@@ -526,14 +546,14 @@ void SLEPcHessian::getAllEigenPairs_Mumps()
     m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
     
     ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_manager->printPetscNotice(5,"Stopping condition: tol="+to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
+    m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
     /*
         Set interval for spectrum slicing
     */
     inta = m_manager->lowerbound_tol;//*tol;
     intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
     ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_manager->printPetscNotice(5,"Search interval is: ["+to_string_sci(inta)+", "+ to_string_sci(intb)+"]\n");
+    m_manager->printPetscNotice(5,"Search interval is: ["+detail::to_string_sci(inta)+", "+ detail::to_string_sci(intb)+"]\n");
     
     /*
          Set shift-and-invert with Cholesky; select MUMPS if available
@@ -607,7 +627,7 @@ void SLEPcHessian::getMaxEigenvalue_forMumps()
     
     ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSGetEigenvalue(eps,0,&m_maxeigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_manager->printPetscNotice(5,"Maximum Eigenvalue: "+to_string_sci(m_maxeigval)+"\n");
+    m_manager->printPetscNotice(5,"Maximum Eigenvalue: "+detail::to_string_sci(m_maxeigval)+"\n");
 };
 
 void SLEPcHessian::checkSmallestEigenvalue_forMumps()
@@ -624,7 +644,7 @@ void SLEPcHessian::checkSmallestEigenvalue_forMumps()
     PetscReal vr;
     ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSGetEigenvalue(eps,0,&vr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_manager->printPetscNotice(5,"Smallest Eigenvalue: "+to_string_sci(vr)+"\n");
+    m_manager->printPetscNotice(5,"Smallest Eigenvalue: "+detail::to_string_sci(vr)+"\n");
 };
 
 
@@ -657,7 +677,7 @@ void SLEPcHessian::getEigenPairs()
     ierr = EPSGetDimensions(eps,&nev,NULL,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     m_manager->printPetscNotice(5,"Number of requested eigenvalues: "+std::to_string(nev)+"\n");
     ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_manager->printPetscNotice(5,"Stopping condition: tol="+to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
+    m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
     
     ierr = MatCreateVecs(hessian,NULL,&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = MatCreateVecs(hessian,NULL,&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);

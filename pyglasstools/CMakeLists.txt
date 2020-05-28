@@ -57,7 +57,6 @@ add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
-            io.py
     )
 
 #install(FILES ${files}

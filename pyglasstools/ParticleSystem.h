@@ -17,8 +17,37 @@ class PYBIND11_EXPORT ParticleSystem
                         unsigned int numparticles, std::vector<double> atomdiameter, 
                         std::vector<double> atommass, std::vector< std::vector<double> > atomposition, 
                         std::vector< std::vector<double> > atomvelocity)
-                        :   simbox(simbox), particles(numparticles), 
-                            m_numparticles(numparticles)  
+                        :   simbox(simbox), particles(numparticles) 
+        {
+            setParticleSystemData(numparticles, atomdiameter, atommass, atomposition, atomvelocity);
+            abr::vdouble3 boxmax = abr::vdouble3(simbox->getUpperBound(0), simbox->getUpperBound(1), simbox->getUpperBound(2));
+            abr::vdouble3 boxmin = abr::vdouble3(simbox->getLowerBound(0), simbox->getLowerBound(1), simbox->getLowerBound(2));
+            abr::vbool3 periodic = abr::vbool3((bool)simbox->getPeriodic(0),(bool)simbox->getPeriodic(1),(bool)simbox->getPeriodic(2));
+            particles.init_neighbour_search(boxmin, boxmax, periodic);
+        };
+        ~ParticleSystem(){};
+        
+        void updateParticleSystem(  unsigned int numparticles, std::vector<double> atomdiameter, std::vector<double> atommass, 
+                                    std::vector< std::vector<double> > atomposition, 
+                                    std::vector< std::vector<double> > atomvelocity)
+        {
+            setParticleSystemData(numparticles, atomdiameter, atommass, atomposition, atomvelocity);
+            particles.update_positions();
+        }
+        
+        void moveParticles( std::vector< std::vector<double> > atomposition) 
+        {
+            #pragma omp parallel for
+            for(unsigned int i=0; i < atomposition.size(); i++)
+            {
+                abr::get<position>(particles[i]) += abr::vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
+            }
+            particles.update_positions();
+        };
+        
+        void setParticleSystemData(  unsigned int numparticles, std::vector<double> atomdiameter, std::vector<double> atommass, 
+                                    std::vector< std::vector<double> > atomposition, 
+                                    std::vector< std::vector<double> > atomvelocity)
         {
             abr::get<diameter>(particles) = atomdiameter;
             abr::get<mass>(particles) = atommass;
@@ -29,16 +58,11 @@ class PYBIND11_EXPORT ParticleSystem
                 abr::get<position>(particles[i]) = abr::vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
                 abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0], atomvelocity[i][1], atomvelocity[i][2]);
             }
-            abr::vdouble3 boxmax = abr::vdouble3(simbox->getUpperBound(0), simbox->getUpperBound(1), simbox->getUpperBound(2));
-            abr::vdouble3 boxmin = abr::vdouble3(simbox->getLowerBound(0), simbox->getLowerBound(1), simbox->getLowerBound(2));
-            abr::vbool3 periodic = abr::vbool3((bool)simbox->getPeriodic(0),(bool)simbox->getPeriodic(1),(bool)simbox->getPeriodic(2));
-            particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
-        ~ParticleSystem(){};
 
         void setMass(std::vector<double> atommass)
         {
-            if (m_numparticles != atommass.size() )
+            if (particles.size() != atommass.size() )
                 throw std::invalid_argument("[ERROR]: Size of mass array mismatch with # of particles!");
             else
                 abr::get<mass>(particles) = atommass;
@@ -50,7 +74,7 @@ class PYBIND11_EXPORT ParticleSystem
         
         void setDiameter(std::vector<double> atomdiameter)
         {
-            if (m_numparticles != atomdiameter.size() )
+            if (particles.size() != atomdiameter.size() )
                 throw std::invalid_argument("[ERROR]: Size of diameter array mismatch with # of particles!");
             else
                 abr::get<diameter>(particles) = atomdiameter;
@@ -62,12 +86,12 @@ class PYBIND11_EXPORT ParticleSystem
         
         void setAtomPosition(std::vector< std::vector<double> > atomposition)
         {
-            if (m_numparticles != atomposition.size() )
+            if (particles.size() != atomposition.size() )
                 throw std::invalid_argument("[ERROR]: Size of position array mismatch with # of particles!");
             else
             {
                 #pragma omp parallel for
-                for(unsigned int i=0; i < m_numparticles; i++)
+                for(unsigned int i=0; i < particles.size(); i++)
                 {
                     abr::get<position>(particles[i]) = abr::vdouble3(atomposition[i][0],atomposition[i][1],atomposition[i][2]);
                 }
@@ -75,9 +99,9 @@ class PYBIND11_EXPORT ParticleSystem
         };
         std::vector< std::vector<double> > getAtomPosition()
         {
-            std::vector< std::vector<double> > atomposition(m_numparticles, std::vector<double>(3,0));
+            std::vector< std::vector<double> > atomposition(particles.size(), std::vector<double>(3,0));
             #pragma omp parallel for
-            for(unsigned int i=0; i < m_numparticles; i++)
+            for(unsigned int i=0; i < particles.size(); i++)
             {
                 atomposition[i][0] = abr::get<position>(particles[i])[0];
                 atomposition[i][1] = abr::get<position>(particles[i])[1];
@@ -88,13 +112,13 @@ class PYBIND11_EXPORT ParticleSystem
         
         void setAtomVelocity(std::vector< std::vector<double> > atomvelocity)
         {
-            if (m_numparticles != atomvelocity.size() )
+            if (particles.size() != atomvelocity.size() )
                 throw std::invalid_argument("[ERROR]: Size of velocity array mismatch with # of particles!");
             else
             {
                 //m_atomvelocity = atomvelocity;
                 #pragma omp parallel for
-                for(unsigned int i=0; i < m_numparticles; i++)
+                for(unsigned int i=0; i < particles.size(); i++)
                 {
                     abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
                 }
@@ -103,9 +127,9 @@ class PYBIND11_EXPORT ParticleSystem
         
         std::vector< std::vector<double> > getAtomVelocity()
         {
-            std::vector< std::vector<double> > atomvelocity(m_numparticles, std::vector<double>(3,0));
+            std::vector< std::vector<double> > atomvelocity(particles.size(), std::vector<double>(3,0));
             #pragma omp parallel for
-            for(unsigned int i=0; i < m_numparticles; i++)
+            for(unsigned int i=0; i < particles.size(); i++)
             {
                 atomvelocity[i][0] = abr::get<velocity>(particles[i])[0];
                 atomvelocity[i][1] = abr::get<velocity>(particles[i])[1];
@@ -128,8 +152,6 @@ class PYBIND11_EXPORT ParticleSystem
         
         std::shared_ptr<SimBox> simbox;
         AboriaParticles particles;
-    private:
-        unsigned int m_numparticles;
 };
 
 //an export function here

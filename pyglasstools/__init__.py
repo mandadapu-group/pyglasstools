@@ -10,10 +10,8 @@ sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
 
 from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
-from pyglasstools import observables
 from os import path
 import numpy as np
-
 
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
@@ -21,8 +19,18 @@ rank = comm.getRank()
 size = comm.getSizeGlobal()
 
 #The module should save more than one logger, which analyzes various observables
-loggers = [];
+loggers_list = [];
+solvers_list = [];
 
+def analyze(frame_list):
+    for frame_num in frame_list:
+        for solver in solvers_list:
+            solver.update(frame_num);
+            solver.run();
+        comm.barrier()
+        for logger in loggers_list:
+            logger.save(frame_num);
+"""
 #will automatically create the required calculators . . .
 class logger(object):
     global loggers 
@@ -205,10 +213,4 @@ class field_logger(object):
         self.field_obs = observables.initialize_field(self.__field_obs_names,len(self.gridpoints))
         for name in self.field_obs:
             self.ikfield.addObservable(self.field_obs[name]._getObservable())
-
-def analyze(frame_list):
-    for frame_num in frame_list:
-        for logger in loggers:
-            logger.update(frame_num);
-            logger.run();
-            logger.save(frame_num);
+"""

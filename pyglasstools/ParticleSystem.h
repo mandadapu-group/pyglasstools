@@ -26,7 +26,6 @@ class PYBIND11_EXPORT ParticleSystem
             particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
         ~ParticleSystem(){};
-        
         void updateParticleSystem(  unsigned int numparticles, std::vector<double> atomdiameter, std::vector<double> atommass, 
                                     std::vector< std::vector<double> > atomposition, 
                                     std::vector< std::vector<double> > atomvelocity)
@@ -170,6 +169,8 @@ void export_ParticleSystem(py::module& m)
     .def("getAtomPosition", &ParticleSystem::getAtomPosition)
     .def("getAtomVelocity", &ParticleSystem::getAtomVelocity)
     .def("getNeighbors", &ParticleSystem::getNeighbors)
+    .def("update", &ParticleSystem::updateParticleSystem) 
+    .def("move", &ParticleSystem::moveParticles) 
     ;
 };
 #endif //__SYSTEM_DATA_H__

@@ -4,7 +4,6 @@
 #include "Manager.h"
 #include "MPIInterface.h"
 #include "MPIFile.h"
-//#include "MPIBasicOperations.h"
 
 #include "extern/pybind11/include/pybind11/pybind11.h"
 
@@ -57,14 +56,14 @@ PYBIND11_MODULE(_pyglasstools, m)
     {
         Py_AtExit(MPI::finalize);
     }
+    export_Calculator(m); 
+    
     export_SimBox(m);
     
     export_ParticleSystem(m);
     
-    export_GlobalCalculator(m);    
-    
-    export_LocalCalculator(m); 
-    
+    export_Observable(m);
+
     export_Manager(m); 
     
     export_MPICommunicator(m);  

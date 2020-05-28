@@ -57,6 +57,7 @@ add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 #Link our .py scripts so that CMake updates them for newer builds
 set(files   __init__.py
             utils.py
+            io.py
     )
 
 #install(FILES ${files}
@@ -68,7 +69,7 @@ foreach(file ${files})
 endforeach()
 
 ####Add our sub-modules
-add_subdirectory(cgfunc)
 add_subdirectory(potential)
-add_subdirectory(observables)
-add_subdirectory(nonaffine)
+add_subdirectory(thermo)
+#add_subdirectory(irvingkirkwood)
+#add_subdirectory(nonaffine)

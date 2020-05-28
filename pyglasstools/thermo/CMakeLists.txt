@@ -1,15 +1,11 @@
-set(SUBCOMPONENT_NAME cgfunc)
+set(SUBCOMPONENT_NAME thermo)
 
 #### Add C++ Source Files
 set(_${SUBCOMPONENT_NAME}_sources
-    module-cgfunc.cpp
+    module-thermo.cpp
     )
 
 pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
-
-#### Link the module with GSL libraries
-include_directories(${GSL_INCLUDE_DIRS})
-target_link_libraries(_${SUBCOMPONENT_NAME} GSL::gsl GSL::gslcblas)
 
 #install(TARGETS _${SUBCOMPONENT_NAME} 
 #        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}/${SUBCOMPONENT_NAME}

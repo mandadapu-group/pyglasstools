@@ -29,11 +29,10 @@ class PYBIND11_EXPORT Calculator
 {
     protected:
 
-        std::map< std::string, std::shared_ptr< Observable > > m_observables;
         std::shared_ptr< ParticleSystem > m_sysdata; //!< particle system, equipped with neighbor list 
         std::shared_ptr< PairPotential > m_potential;
-    public:
         double max_rcut;
+    public:
         
         Calculator( std::shared_ptr< ParticleSystem > sysdata, 
                     std::shared_ptr< PairPotential > potential)
@@ -47,10 +46,6 @@ class PYBIND11_EXPORT Calculator
             };
         ~Calculator(){};
         
-        virtual void addObservable(std::shared_ptr< Observable > obs)
-        {
-            m_observables.insert(std::pair<std::string, std::shared_ptr<Observable> >(obs->name, obs));
-        }
 
         void setSystemData( std::shared_ptr< ParticleSystem > sysdata)
         {
@@ -58,14 +53,6 @@ class PYBIND11_EXPORT Calculator
         } 
         
         virtual void compute(){};
-        
-        virtual void clearState()
-        {
-            for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
-            {
-                it->second->clear();
-            }
-        }
 };
 
 void export_Calculator(py::module& m)

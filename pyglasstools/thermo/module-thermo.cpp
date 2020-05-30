@@ -4,10 +4,14 @@
 #include <pybind11/pybind11.h>
 
 //Typedefs several observables here
-typedef ThermoProperty<VirialStress> GlobalVirialStress;
-typedef ThermoProperty<KineticStress> GlobalKineticStress;
-typedef ThermoProperty<Density> GlobalDensity;
-typedef ThermoProperty<BornStiffnessTensor> GlobalBornTensor;
+typedef ForceProperty<2, 2, VirialStress > GlobalVirialStress2D;
+typedef ForceProperty<2, 3, VirialStress > GlobalVirialStress3D;
+
+typedef LocalProperty<2, 2, KineticStress > GlobalKineticStress2D;
+typedef LocalProperty<2, 3, KineticStress > GlobalKineticStress3D;
+
+typedef ForceProperty<4, 2, BornStiffnessTensor > GlobalBornTensor2D;
+typedef ForceProperty<4, 3, BornStiffnessTensor > GlobalBornTensor3D;
 
 //! Create the python module
 /*! each class setup their own python exports in a function export_ClassName
@@ -16,11 +20,12 @@ typedef ThermoProperty<BornStiffnessTensor> GlobalBornTensor;
 
 PYBIND11_MODULE(_thermo, m)
 {
-    //export_Observable(m);
     export_ThermoCalculator(m);
-    export_ThermoProperty<GlobalVirialStress>(m, "GlobalVirialStress");
-    export_ThermoProperty<GlobalKineticStress>(m, "GlobalKineticStress");
-    export_ThermoProperty<GlobalBornTensor>(m, "GlobalBornTensor");
-    export_ThermoProperty<GlobalDensity>(m, "GlobalDensity");
-    
+    export_ThermoPropertyBase(m);
+    export_ThermoProperty< GlobalVirialStress2D >(m, "GlobalVirialStress2D");
+    export_ThermoProperty< GlobalVirialStress3D >(m, "GlobalVirialStress3D");
+    export_ThermoProperty< GlobalBornTensor2D >(m, "GlobalBornTensor2D");
+    export_ThermoProperty< GlobalBornTensor3D >(m, "GlobalBornTensor3D");
+    export_ThermoProperty< GlobalKineticStress2D >(m, "GlobalKineticStress2D");
+    export_ThermoProperty< GlobalKineticStress3D >(m, "GlobalKineticStress3D");
 }

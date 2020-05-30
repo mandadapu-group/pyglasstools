@@ -6,6 +6,8 @@
 
 class PYBIND11_EXPORT ThermoCalculator : public Calculator
 {
+    private:
+        std::map< std::string, std::shared_ptr< ThermoProperty > > m_observables;
     public:
 
         ThermoCalculator(   std::shared_ptr< ParticleSystem > sysdata, 
@@ -13,6 +15,10 @@ class PYBIND11_EXPORT ThermoCalculator : public Calculator
             : Calculator(sysdata, potential){};
         ~ThermoCalculator(){};
 
+        virtual void addObservable(std::shared_ptr< ThermoProperty > obs)
+        {
+            m_observables.insert(std::pair<std::string, std::shared_ptr< ThermoProperty > >(obs->name, obs));
+        }
         virtual void compute();
         
         virtual void computeLocalObs(const AboriaParticles::value_type& particle_i) 
@@ -20,25 +26,35 @@ class PYBIND11_EXPORT ThermoCalculator : public Calculator
             for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
             {
                 if (it->second->islocal)
-                    it->second->accumulate(particle_i,particle_i,m_potential);
+                    it->second->accumulate(particle_i);
                 else 
                     continue;
             }
         }
         
         virtual void computePairObs(const AboriaParticles::value_type& particle_i, 
-                                    const AboriaParticles::value_type& particle_j)
+                                    const AboriaParticles::value_type& particle_j,
+                                    Eigen::Vector3d rij)
         {
             for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
             {
                 if (!it->second->islocal)
                 {
-                    it->second->accumulate(particle_i,particle_j,m_potential);
+                    it->second->accumulate(particle_i,particle_j,rij,m_potential);
                 }
                 else
                     continue;
             }
         }
+        
+        virtual void clearState()
+        {
+            for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
+            {
+                it->second->clear();
+            }
+        }
+        
         void divideByVolume()
         {
             for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
@@ -66,13 +82,7 @@ void ThermoCalculator::compute()
             {
                 //set the distance between particle i and particle j
                 Eigen::Vector3d rij(p_j.dx()[0], p_j.dx()[1], p_j.dx()[2]);
-                m_potential->rij = rij;
-                
-                //Don't forget to set diameters of the potential
-                m_potential->di =  abr::get<diameter>(*p_i);
-                m_potential->dj =  abr::get<diameter>(*p_j);
-                
-                computePairObs(*p_i,*p_j);
+                computePairObs(*p_i,*p_j,rij);
             }
         } // end of for loop on j
     } //end of for loop on i

@@ -18,12 +18,6 @@ class PYBIND11_EXPORT Observable
             {};
         virtual void clear(){};
 
-        virtual void accumulate(const AboriaParticles::value_type& particle_i, 
-                                const AboriaParticles::value_type& particle_j, 
-                                const std::shared_ptr<PairPotential>& potential)
-        {};
-        virtual void divideByVolume(double vol){};
-
         std::string name; //Name of the observable, e.g., pressure, etc.
         std::string type; //Type of the observable, e.g., the type is a vector, scalar, tensor, etc.
         bool islocal; //Does the observable require the property of a single particle, or does it require neighboring particles?

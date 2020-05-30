@@ -7,11 +7,20 @@ import numpy as np
 def initialize_global(names,dim):
     list_obs = {}
     if any("virialstress" in s for s in names):
-        list_obs['virialstress'] = _thermo.GlobalVirialStress("virialstress", "2-TENSOR", False, dim)
-    elif any("kineticstress" in s for s in names):
-        list_obs['kineticstress'] = _thermo.GlobalKineticStress("kineticstress", "2-TENSOR", False, dim)
-    elif any("borntensor" in s for s in names):
-        list_obs['borntensor'] = _thermo.GlobalBornTensor("borntensor", "4-TENSOR", False, dim)#rcut
+        if dim == 2:
+            list_obs['virialstress'] = _thermo.GlobalVirialStress2D("virialstress", "2-TENSOR", False)
+        elif dim == 3:
+            list_obs['virialstress'] = _thermo.GlobalVirialStress3D("virialstress", "2-TENSOR", False)
+    if any("kineticstress" in s for s in names):
+        if dim == 2:
+            list_obs['kineticstress'] = _thermo.GlobalKineticStress2D("kineticstress", "2-TENSOR", False)
+        elif dim == 3:
+            list_obs['kineticstress'] = _thermo.GlobalKineticStress3D("kineticstress", "2-TENSOR", False)
+    if any("borntensor" in s for s in names):
+        if dim == 2:
+            list_obs['borntensor'] = _thermo.GlobalBornTensor2D("borntensor", "4-TENSOR", False)
+        elif dim == 3:
+            list_obs['borntensor'] = _thermo.GlobalBornTensor3D("borntensor", "4-TENSOR", False)
     return list_obs
 
 class calculator(object):

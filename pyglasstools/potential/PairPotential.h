@@ -16,43 +16,38 @@ class PYBIND11_EXPORT PairPotential
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         //Zero initialize everything
         PairPotential()
-            : scaled_rcut(0), di(0), dj(0), rij(Vector3d::Zero())
+            : scaled_rcut(0)
         {
         };
         //If parameter is given
         PairPotential(const std::vector<double>& _params)
-            : scaled_rcut(0), di(0), dj(0), rij(Vector3d::Zero()), params(_params)
+            : scaled_rcut(0), params(_params)
         {
         };
         
         //If parameter and dimensionless cut-off radius is given
         PairPotential(const double& _scaled_rcut, const std::vector<double>& _params)
-            : scaled_rcut(_scaled_rcut), di(0), dj(0), rij(Vector3d::Zero()), params(_params)
+            : scaled_rcut(_scaled_rcut), params(_params)
         {
         };
         virtual ~PairPotential(){};
 
-        //Virtual methods here
-        virtual double getRcut()
+        virtual double getRcut(Eigen::Vector3d rij, double di, double dj)
         {
-            return 0.0;
-        };
+           return 0;
+        }
         //! Evaluate the force and energy
-        virtual double getPairForce()
+        virtual double getPairForce(Eigen::Vector3d rij, double di, double dj)
         {
-            return 0.0;
-        };
-        
+           return 0;
+        }
         //! Evaluate the force and energy
-        virtual double getBondStiffness()
+        virtual double getBondStiffness(Eigen::Vector3d rij, double di, double dj)
         {
-            return 0.0;
-        };
+           return 0;
+        }
         
         double scaled_rcut;
-        double di;
-        double dj;
-        Vector3d rij;
         std::vector<double> params;
 };
 
@@ -76,7 +71,7 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
         };
         ~ShortRangePairPotential(){};
 
-        double getRcut()
+        double getRcut(Eigen::Vector3d rij, double di, double dj)
         {
             double rsq_ij = rij.dot(rij);
             double rsq_cut = scaled_rcut*scaled_rcut;
@@ -84,7 +79,7 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
             return model.computeRcut(di,dj);
         };
         //! Evaluate the force and energy
-        double getPairForce()
+        double getPairForce(Eigen::Vector3d rij, double di, double dj)
         {
             double rsq_ij = rij.dot(rij);
             double rsq_cut = scaled_rcut*scaled_rcut;
@@ -93,7 +88,7 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
         };
         
         //! Evaluate the force and energy
-        double getBondStiffness()
+        double getBondStiffness(Eigen::Vector3d rij, double di, double dj)
         {
             double rsq_ij = rij.dot(rij);
             double rsq_cut = scaled_rcut*scaled_rcut;
@@ -110,9 +105,6 @@ void export_PairPotential(py::module& m)
     .def("getRcut", &PairPotential::getRcut)
     .def("getPairForce", &PairPotential::getPairForce)
     .def_readwrite("scaled_rcut", &PairPotential::scaled_rcut)
-    .def_readwrite("di", &PairPotential::di)
-    .def_readwrite("dj", &PairPotential::dj)
-    .def_readwrite("rij", &PairPotential::rij)
     .def_readwrite("params", &PairPotential::params)
     ;
 };

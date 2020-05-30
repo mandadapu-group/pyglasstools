@@ -10,6 +10,7 @@ set(_${COMPONENT_NAME}_sources
 
 #Find EIGEN
 list(APPEND INCLUDES extern/eigen/)
+list(APPEND INCLUDES extern/eigen/unsupported/)
 
 #Find Boost
 find_package(Boost 1.50.0 REQUIRED serialization)

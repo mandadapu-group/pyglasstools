@@ -38,6 +38,7 @@ class logfile(object):
         
         #Then, add observables
         self.global_obs = thermo.initialize_global(self.__obs_names, self.solver.sysdata.simbox.dim)
+       
         self.solver.add_observables(self.global_obs)
         #Create column headers
         if rank == 0:
@@ -51,13 +52,23 @@ class logfile(object):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
         for name in self.__obs_names:
+            Dim = self.solver.sysdata.simbox.dim
             if "virialstress" in name:
-                self.global_obs['virialstress'].save(self.file, [int(name[-2]),int(name[-1])])
+                i = int(name[-2]) 
+                j = int(name[-1])
+                self.global_obs['virialstress'].save(self.file, i+Dim*j)
                 self.file.write_shared(" ")
             elif "kineticstress" in name:
-                self.global_obs['virialstress'].save(self.file, [int(name[-2]),int(name[-1])])
+                i = int(name[-2]) 
+                j = int(name[-1])
+                self.global_obs['kineticstress'].save(self.file, i+Dim*j)
                 self.file.write_shared(" ")
             elif "borntensor" in name:
-                self.global_obs['virialstress'].save(self.file, [int(name[-2]),int(name[-1])])
+                i = int(name[-4]) 
+                j = int(name[-3])
+                k = int(name[-2]) 
+                l = int(name[-1])
+                #self.global_obs['borntensor'].save(self.file,i+Dim*(j+Dim*(k+Dim*l)))
+                self.global_obs['borntensor'].save(self.file,l+Dim*(k+Dim*(j+Dim*i)))
                 self.file.write_shared(" ")
         self.file.write_shared("\n")

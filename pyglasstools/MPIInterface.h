@@ -18,7 +18,9 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/utility.hpp> 
 #include <cereal/archives/binary.hpp>
-#include "extern/pybind11/include/pybind11/pybind11.h"
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/eigen.h>
 
 //for serialization of eigen types
 namespace cereal
@@ -189,6 +191,13 @@ namespace MPI
                 delete[] buf;
                 }
 
+            template<typename T>
+            T pybcast(T& val, unsigned int root)
+            {
+                T new_val = val;
+                bcast(new_val,root);
+                return new_val;
+            }
             //! Wrapper around MPI_Scatterv that scatters a vector of serializable objects
             template<typename T>
             void scatter_v(const std::vector<T>& in_values, T& out_value, unsigned int root)
@@ -259,6 +268,13 @@ namespace MPI
                 delete[] rbuf;
                 }
 
+            template<typename T>
+            T pyscatter_v(const std::vector<T>& in_values, unsigned int root)
+            {
+                T out_value;
+                scatter_v(in_values,out_value,root);
+                return out_value;
+            }
             //! Wrapper around MPI_Gatherv
             template<typename T>
             void gather_v(const T& in_value, std::vector<T> & out_values, unsigned int root)
@@ -434,6 +450,14 @@ namespace MPI
                 ar >> val;
 
                 delete[] buf;
+                }
+            
+            template<typename T>
+            T pyrecv(const unsigned int src, const unsigned int tag)
+                {
+                    T val;
+                    recv(val,src,tag);
+                    return val;
                 }
 
         protected:

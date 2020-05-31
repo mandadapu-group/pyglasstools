@@ -32,23 +32,34 @@ class ikcalculator(object):
         self.cgfunc = cgfunc
         self.manager = _pyglasstools.Manager();
         
-        nmax = int(sysdata.simbox.boxsize[0]/dx)
-        points = np.linspace(-sysdata.simbox.boxsize[0]/2.0,+sysdata.simbox.boxsize[0]/2.0,nmax)
-        self.gridpoints = []
-        for i in range(len(points)): 
-            for j in range(len(points)):
-                self.gridpoints.append(np.array([points[i],points[j],0]).astype(np.float64))
-        self.gridpoints = np.asarray(self.gridpoints,dtype=np.float64)
-        self.gridsize = len(self.gridpoints) 
-        
-        self.calculator = _irvingkirkwood.IrvingKirkwood(sysdata._getParticleSystem(),potential._getPairPotential(),cgfunc._getCGFunc(),self.gridpoints)
+        #Maybe move it to C++ side . . . .
+        globalsize = 0
+        if rank == 0:
+            nmax = int(sysdata.simbox.boxsize[0]/dx)
+            points = np.linspace(-sysdata.simbox.boxsize[0]/2.0,+sysdata.simbox.boxsize[0]/2.0,nmax)
+            gridpoints = []
+            for i in range(len(points)): 
+                for j in range(len(points)):
+                    gridpoints.append(np.asarray([points[i],points[j],0],dtype=np.float64))
+            globalsize = len(gridpoints)
+            self.gridpoints = np.array_split(np.asarray(gridpoints,dtype=np.float64),size)
+            del points, nmax
+        else:
+            self.gridpoints = np.array_split([np.zeros(size)],size) 
+
+        #Scatter and reshape
+        self.gridpoints = comm.scatter_v(self.gridpoints,0)
+        self.gridpoints = np.reshape(self.gridpoints,(len(self.gridpoints),3))
+        #Broadcast the true size
+        self.gridsize =  comm.bcast(globalsize,0); #del globalsize
+        self.calculator = _irvingkirkwood.IrvingKirkwood(sysdata._getParticleSystem(),potential._getPairPotential(),cgfunc._getCGFunc(),comm)
         solvers_list.append(self)
    
     def add_observables(self, observables):
         for name in observables:
             self.calculator.addObservable(observables[name])
     def run(self):
-        self.calculator.compute()
+        self.calculator.compute(self.gridpoints)
     
     def update(self,frame_num):
         self.sysdata.update(frame_num); #Let's try and move it up? Have it story current frame number . . .

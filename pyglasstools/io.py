@@ -107,22 +107,40 @@ class fieldlogger(object):
         self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, self.solver.sysdata.simbox.dim,self.solver.gridpoints)
         self.solver.add_observables(self.field_obs)
         self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+"_"+".xyz")
-         
-    def save(self,frame_num):
+    
+    def save_perrank(self,frame_num):
         Dim = self.solver.sysdata.simbox.dim
-        if rank == 0:
-            self.file.write_shared("{:d} \n".format(len(self.solver.gridpoints)))
-            self.file.write_shared("#Frame {:d}  \n".format(frame_num))
         for index, gridpos in enumerate(self.solver.gridpoints):
-            self.file.write_shared("{} ".format(self.solver.gridpoints[index][0]))
-            self.file.write_shared("{} ".format(self.solver.gridpoints[index][1]))
+            outline = "{} ".format(1)
+            outline += "{} ".format(self.solver.gridpoints[index][0])
+            outline += "{} ".format(self.solver.gridpoints[index][1])
             if Dim == 3:
-                self.file.write_shared("{} ".format(self.solver.gridpoints[index][2]))
+                outline += "{} ".format(self.solver.gridpoints[index][2])
             for name in self.__obs_names:
                 flattenindex = 0;
                 if "stress" in name:
                     i = int(name[-2]) 
                     j = int(name[-1])
                     flattenindex = i+Dim*j
-                self.field_obs[name[:-3]].save(self.file, i+Dim*j, index)
-            self.file.write_shared("\n");
+                outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
+            outline += "\n"
+            self.file.write_shared(outline);
+    
+    def save(self,frame_num):
+        if rank == 0:
+            self.file.write_shared("{:d} \n".format(self.solver.gridsize))
+            self.file.write_shared("#Frame {:d}  \n".format(frame_num))
+        #Set up a signal
+        #signal = False;
+        #if rank == 0:
+        self.save_perrank(frame_num)
+        #    signal = True
+        #    if size > 1:
+        #        comm.send(signal,rank+1,rank)
+        #else:
+        #    while signal == False:
+        #        signal = comm.recv(rank-1,rank-1)
+        #    self.save_perrank(frame_num)
+        #    signal = True
+        #    if rank < size-1:
+               # comm.send(signal,rank+1,rank)

@@ -36,7 +36,6 @@ class PYBIND11_EXPORT ThermoProperty : public Observable
         virtual void clear(){}
         
         virtual void divideByVolume(double vol){}
-    
 };
 
 //Now, create specializations

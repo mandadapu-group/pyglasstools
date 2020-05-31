@@ -14,7 +14,7 @@ class VirialStress
         
         virtual void compute(   const AboriaParticles::value_type& p_i, 
                                 const AboriaParticles::value_type& p_j,
-                                Eigen::Vector3d rij, 
+                                const Eigen::Vector3d& rij, 
                                 const std::shared_ptr<PairPotential>& potential,
                                 Eigen::Tensor<double, 2>& val)
         {
@@ -35,6 +35,18 @@ class VirialStress
                 }
             }
         }
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
+                                const AboriaParticles::value_type& p_j,
+                                Eigen::Vector3d rij, 
+                                const std::shared_ptr<PairPotential>& potential,
+                                Eigen::Tensor<double, 2>& val, double bondval)
+        {
+            Eigen::Tensor<double, 2> zerotensor(val);
+            zerotensor.setZero();
+            compute(p_i,p_j,rij,potential,zerotensor);
+            val += 0.5*bondval*zerotensor;
+        }
+        
 };
 
 class KineticStress
@@ -46,7 +58,6 @@ class KineticStress
         virtual void compute(   const AboriaParticles::value_type& p_i, 
                                 Eigen::Tensor<double, 2>& val)
         {
-
             //Compute virial stress going through component-by-component
             for(int j = 0; j < val.dimension(1); ++j)
             {
@@ -55,6 +66,12 @@ class KineticStress
                     val(i,j) += abr::get<mass>(p_i)*(abr::get<velocity>(p_i)[i])*(abr::get<velocity>(p_i)[j]);
                 }
             }
+        }
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
+                                Eigen::Tensor<double, 2>& val, double cgval)
+        {
+            compute(p_i,val);
+            val = val*cgval;
         }
 };
 
@@ -93,6 +110,16 @@ class BornStiffnessTensor
                 }
             }
 
+        }
+
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
+                                const AboriaParticles::value_type& p_j,
+                                Eigen::Vector3d rij, 
+                                const std::shared_ptr<PairPotential>& potential,
+                                Eigen::Tensor<double, 4>& val, double bondval)
+        {
+            compute(p_i,p_j,rij,potential,val);
+            val = 0.5*bondval*val;
         }
 };
 

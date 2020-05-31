@@ -72,5 +72,5 @@ endforeach()
 ####Add our sub-modules
 add_subdirectory(potential)
 add_subdirectory(thermo)
-#add_subdirectory(irvingkirkwood)
+add_subdirectory(irvingkirkwood)
 #add_subdirectory(nonaffine)

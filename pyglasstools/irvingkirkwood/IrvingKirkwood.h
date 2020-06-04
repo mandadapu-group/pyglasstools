@@ -24,7 +24,15 @@ class PYBIND11_EXPORT IrvingKirkwood : public Calculator
         {
             m_observables.insert(std::pair<std::string, std::shared_ptr<CoarseGrainedField> >(obs->name, obs));
         }
-
+        virtual void printDisplacement()
+        {
+            for( auto p_i = m_sysdata->particles.begin(); p_i != m_sysdata->particles.end(); ++p_i)
+            {
+                int id = abr::get<abr::id>(*p_i);
+                py::print(abr::get<displacement>(*p_i)[0],abr::get<displacement>(*p_i)[1],id);
+                py::print("WHY",abr::get<displacement>(m_sysdata->particles[id])[0],abr::get<displacement>(m_sysdata->particles[id])[1],abr::get<abr::id>(*p_i));
+            }
+        }
         virtual void clearState(unsigned int grid_id)
         {
             for (auto it=m_observables.begin(); it!=m_observables.end(); ++it)
@@ -109,6 +117,7 @@ void export_IrvingKirkwood(py::module& m)
     .def("compute", &IrvingKirkwood::compute)
     .def("setSystemData", &IrvingKirkwood::setSystemData)
     .def("addObservable", &IrvingKirkwood::addObservable)
+    .def("printDisplacement", &IrvingKirkwood::printDisplacement)
     ;
 };
 

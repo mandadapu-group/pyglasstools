@@ -21,12 +21,28 @@ size = comm.getSizeGlobal()
 #The module should save more than one logger, which analyzes various observables
 loggers_list = [];
 solvers_list = [];
+savemode = "cartesian"
+def set_savemode(inmode):
+    global savemode
+    savemode = inmode
 
-def analyze(frame_list):
+def analyze(frame_list,mode):
     for frame_num in frame_list:
         for solver in solvers_list:
             solver.update(frame_num);
-            solver.run();
+            if (mode == "normal"):
+                solver.run();
+            else:
+                solver.run(mode);
         comm.barrier()
         for logger in loggers_list:
-            logger.save(frame_num);
+            if savemode == "polar":
+                logger.save(frame_num, savemode);
+            else:
+                logger.save(frame_num);
+
+def reset():
+    global loggers_list, solvers_list, savemode
+    loggers_list.clear()
+    solvers_list.clear()
+    savemode = "cartesian"

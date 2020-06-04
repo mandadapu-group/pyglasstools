@@ -37,11 +37,47 @@ class PYBIND11_EXPORT ParticleSystem
         void moveParticles( std::vector< std::vector<double> > atomposition) 
         {
             #pragma omp parallel for
-            for(unsigned int i=0; i < atomposition.size(); i++)
+            for(unsigned int i=0; i < particles.size(); i++)
             {
                 abr::get<position>(particles[i]) += abr::vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
             }
             particles.update_positions();
+        };
+        
+        void moveParticles() 
+        {
+            #pragma omp parallel for
+            for(unsigned int i=0; i < particles.size(); i++)
+            {
+                abr::get<position>(particles[i]) += abr::get<displacement>(particles[i]);
+            }
+            particles.update_positions();
+        };
+        
+        void setDisplacement( std::vector< std::vector<double> > atomdisplacement) 
+        {
+            #pragma omp parallel for
+            for(unsigned int i=0; i < particles.size(); i++)
+            {
+                abr::get<displacement>(particles[i]) = abr::vdouble3(atomdisplacement[i][0], atomdisplacement[i][1], atomdisplacement[i][2]);
+            }
+        };
+        
+        std::vector< std::vector<double> > getDisplacement()
+        {
+            std::vector< std::vector<double> > atomdisplacement(particles.size(), std::vector<double>(3,0));
+            #pragma omp parallel for
+            for(unsigned int i=0; i < particles.size(); i++)
+            {
+                atomdisplacement[i][0] = abr::get<displacement>(particles[i])[0];
+                atomdisplacement[i][1] = abr::get<displacement>(particles[i])[1];
+                atomdisplacement[i][2] = abr::get<displacement>(particles[i])[2];
+            }
+            return atomdisplacement;
+        };
+        abr::vdouble3 getDisplacementID(unsigned int id)
+        {
+            return abr::get<displacement>(particles[id]);
         };
         
         void setParticleSystemData(  unsigned int numparticles, std::vector<double> atomdiameter, std::vector<double> atommass, 
@@ -56,6 +92,7 @@ class PYBIND11_EXPORT ParticleSystem
             {
                 abr::get<position>(particles[i]) = abr::vdouble3(atomposition[i][0], atomposition[i][1], atomposition[i][2]);
                 abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0], atomvelocity[i][1], atomvelocity[i][2]);
+                abr::get<displacement>(particles[i]) = abr::vdouble3(0,0,0);
             }
         };
 
@@ -121,6 +158,7 @@ class PYBIND11_EXPORT ParticleSystem
                 {
                     abr::get<velocity>(particles[i]) = abr::vdouble3(atomvelocity[i][0],atomvelocity[i][1],atomvelocity[i][2]);
                 }
+                particles.update_positions();
             }
         };
         
@@ -164,13 +202,16 @@ void export_ParticleSystem(py::module& m)
     .def("setMass", &ParticleSystem::setMass)
     .def("getDiameter", &ParticleSystem::getDiameter)
     .def("setDiameter", &ParticleSystem::setDiameter)
+    .def("getDisplacement", &ParticleSystem::getDisplacement)
+    .def("setDisplacement", &ParticleSystem::setDisplacement)
     .def("setAtomPosition", &ParticleSystem::setAtomPosition)
     .def("setAtomVelocity", &ParticleSystem::setAtomVelocity)
     .def("getAtomPosition", &ParticleSystem::getAtomPosition)
     .def("getAtomVelocity", &ParticleSystem::getAtomVelocity)
+    .def("moveParticles", (void (ParticleSystem::*)(std::vector< std::vector<double> >)) &ParticleSystem::moveParticles)
+    .def("moveParticles", (void (ParticleSystem::*)( )) &ParticleSystem::moveParticles)
     .def("getNeighbors", &ParticleSystem::getNeighbors)
     .def("update", &ParticleSystem::updateParticleSystem) 
-    .def("move", &ParticleSystem::moveParticles) 
     ;
 };
 #endif //__SYSTEM_DATA_H__

@@ -7,6 +7,9 @@
 typedef ForceProperty<2, 2, VirialStress > GlobalVirialStress2D;
 typedef ForceProperty<2, 3, VirialStress > GlobalVirialStress3D;
 
+typedef ForceProperty<2, 2, ElasticVirialStress > GlobalElasticVirialStress2D;
+typedef ForceProperty<2, 3, ElasticVirialStress > GlobalElasticVirialStress3D;
+
 typedef LocalProperty<2, 2, KineticStress > GlobalKineticStress2D;
 typedef LocalProperty<2, 3, KineticStress > GlobalKineticStress3D;
 
@@ -24,6 +27,8 @@ PYBIND11_MODULE(_thermo, m)
     export_ThermoPropertyBase(m);
     export_ThermoProperty< GlobalVirialStress2D >(m, "GlobalVirialStress2D");
     export_ThermoProperty< GlobalVirialStress3D >(m, "GlobalVirialStress3D");
+    export_ThermoProperty< GlobalElasticVirialStress2D >(m, "GlobalElasticVirialStress2D");
+    export_ThermoProperty< GlobalElasticVirialStress3D >(m, "GlobalElasticVirialStress3D");
     export_ThermoProperty< GlobalBornTensor2D >(m, "GlobalBornTensor2D");
     export_ThermoProperty< GlobalBornTensor3D >(m, "GlobalBornTensor3D");
     export_ThermoProperty< GlobalKineticStress2D >(m, "GlobalKineticStress2D");

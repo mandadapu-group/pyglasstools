@@ -126,14 +126,35 @@ class fieldlogger(object):
             outline += "\n"
             self.file.write_shared(outline);
     
-    def save(self,frame_num):
+    def save_perrank_polar(self,frame_num):
+        Dim = self.solver.sysdata.simbox.dim
+        for index, gridpos in enumerate(self.solver.gridpoints):
+            outline = "{} ".format(1)
+            outline += "{} ".format(int(self.solver.gridid[index]))
+            outline += "{} ".format(self.solver.globalr[index])
+            outline += "{} ".format(self.solver.globaltheta[index])
+            for name in self.__obs_names:
+                flattenindex = 0;
+                if "stress" in name:
+                    i = int(name[-2]) 
+                    j = int(name[-1])
+                    flattenindex = i+Dim*j
+                outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
+            outline += "\n"
+            self.file.write_shared(outline);
+    
+    def save(self,frame_num,savemode):
         if rank == 0:
             self.file.write_shared("{:d} \n".format(self.solver.gridsize))
             self.file.write_shared("#Frame {:d}  \n".format(frame_num))
+        comm.barrier()
         #Set up a signal
         #signal = False;
         #if rank == 0:
-        self.save_perrank(frame_num)
+        if savemode == "cartesian":
+            self.save_perrank(frame_num)
+        elif savemode == "polar":
+            self.save_perrank_polar(frame_num)
         #    signal = True
         #    if size > 1:
         #        comm.send(signal,rank+1,rank)

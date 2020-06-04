@@ -7,6 +7,8 @@
 //Typedefs several observables here
 typedef ForceField< 2, 2, VirialStress> VirialStressField2D;
 typedef ForceField< 2, 3, VirialStress> VirialStressField3D;
+typedef ForceField< 2, 2, ElasticVirialStress> ElasticVirialStressField2D;
+typedef ForceField< 2, 3, ElasticVirialStress> ElasticVirialStressField3D;
 typedef LocalField< 2, 2, KineticStress> KineticStressField2D;
 typedef LocalField< 2, 3, KineticStress> KineticStressField3D;
 //typedef CoarseGrainedField<Density> DensityField;
@@ -21,8 +23,10 @@ PYBIND11_MODULE(_irvingkirkwood, m)
     export_IrvingKirkwood(m);
     export_CoarseGrainedFieldBase(m);
     export_CoarseGrainedField< VirialStressField2D >(m, "VirialStressField2D");
-    export_CoarseGrainedField< KineticStressField2D >(m, "KineticStressField2D");
     export_CoarseGrainedField< VirialStressField3D >(m, "VirialStressField3D");
+    export_CoarseGrainedField< ElasticVirialStressField2D >(m, "ElasticVirialStressField2D");
+    export_CoarseGrainedField< ElasticVirialStressField3D >(m, "ElasticVirialStressField3D");
+    export_CoarseGrainedField< KineticStressField2D >(m, "KineticStressField2D");
     export_CoarseGrainedField< KineticStressField3D >(m, "KineticStressField3D");
     //export_CoarseGrainedField<DensityField>(m, "DensityField");
 }

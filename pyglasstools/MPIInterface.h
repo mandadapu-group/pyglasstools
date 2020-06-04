@@ -392,7 +392,15 @@ namespace MPI
                 delete[] recv_counts;
                 delete[] rbuf;
                 }
-
+            
+            //! Wrapper around MPI_Allgatherv
+            template<typename T>
+            std::vector<T> pyall_gather_v(const T& in_value)
+            {
+                std::vector<T> out_values;
+                all_gather_v(in_value, out_values);
+                return out_values;
+            }
             //! Wrapper around MPI_Send that handles any serializable object
             template<typename T>
             void send(const T& val,const unsigned int dest, const unsigned int tag)

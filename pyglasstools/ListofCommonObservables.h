@@ -49,6 +49,45 @@ class VirialStress
         
 };
 
+class ElasticVirialStress : public VirialStress
+{
+    public:
+        ElasticVirialStress(){};
+        ~ElasticVirialStress(){};
+        
+        void compute(   const AboriaParticles::value_type& p_i, 
+                        const AboriaParticles::value_type& p_j,
+                        const Eigen::Vector3d& rij, 
+                        const std::shared_ptr<PairPotential>& potential,
+                        Eigen::Tensor<double, 2>& val)
+        {
+            
+            double di = abr::get<diameter>(p_i);
+            double dj = abr::get<diameter>(p_j);
+
+            //Compute pair-force, but now based on relative displacement!
+            Eigen::Vector3d uij;
+            uij  << abr::get<displacement>(p_j)[0]-abr::get<displacement>(p_i)[0],
+                       abr::get<displacement>(p_j)[1]-abr::get<displacement>(p_i)[1],
+                       abr::get<displacement>(p_j)[2]-abr::get<displacement>(p_i)[2];
+            //py::print(newrij,abr::get<displacement>(p_j)[0],abr::get<displacement>(p_i)[0],abr::get<displacement>(p_j)[1],abr::get<displacement>(p_i)[1],
+                       //abr::get<displacement>(p_j)[2],abr::get<displacement>(p_i)[2]);
+            double forceval = potential->getPairForce(rij, di, dj);
+            double forceval1 = potential->getPairForce(uij+rij, di, dj);
+            Eigen::Vector3d F =  forceval*rij;//(urij);
+            Eigen::Vector3d F1 =  forceval1*(uij+rij);//(urij);
+            
+            //Compute virial stress going through component-by-component
+            for(int j = 0; j < val.dimension(1); ++j)
+            {
+                for (int i = 0; i < val.dimension(0); ++i)
+                {
+                    val(i,j) += F1[i]*(uij[j]+rij[j])-F[i]*rij[j];
+                }
+            }
+        }
+};
+
 class KineticStress
 {
     public:

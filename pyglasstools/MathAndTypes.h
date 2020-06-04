@@ -10,9 +10,10 @@
 #include <Aboria.h>
 
 ABORIA_VARIABLE(velocity, Aboria::vdouble3, "velocity");
+ABORIA_VARIABLE(displacement, Aboria::vdouble3, "displacement");
 ABORIA_VARIABLE(mass, double, "mass");
 ABORIA_VARIABLE(diameter, double, "diameter");
-typedef Aboria::Particles< std::tuple<velocity, diameter, mass> > AboriaParticles;
+typedef Aboria::Particles< std::tuple<velocity, displacement,diameter, mass> > AboriaParticles;
 typedef typename AboriaParticles::position position;        
 
 template <typename T>

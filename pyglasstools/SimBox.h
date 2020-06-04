@@ -148,6 +148,29 @@ class PYBIND11_EXPORT SimBox
                 return boxsize[0]*boxsize[1]*boxsize[2];
         }
         
+        std::vector<double> minImage(const std::vector<double>& v) const
+        {
+            std::vector<double> w = v;
+            std::vector<double> L = boxsize;
+
+            if (periodic[2])
+            {
+                double img = rintf(w[2] / boxsize[2]);
+                w[2] -= boxsize[2] * img;
+            }
+            if (periodic[1])
+            {
+                double img = rintf(w[1] / boxsize[1]);
+                w[1] -= boxsize[1] * img;
+            }
+            if (periodic[0])
+            {
+                double img = rintf(w[0] / boxsize[0]);
+                w[0] -= boxsize[0] * img;
+            }
+            return w;
+        }
+        
         int dim;
         std::vector<double> origin;
         std::vector<double> boxsize;       //!< L precomputed (used to avoid subtractions in boundary conditions)
@@ -173,7 +196,7 @@ void export_SimBox(py::module& m)
     .def("getDim", &SimBox::getDim)
     .def("setDim", &SimBox::setDim)
     .def("getVolume", &SimBox::getVolume)
-    
+    .def("minImage", &SimBox::minImage)   
     .def_readwrite("dim", &SimBox::dim)
     .def_readwrite("origin", &SimBox::origin)
     .def_readwrite("boxsize", &SimBox::boxsize)

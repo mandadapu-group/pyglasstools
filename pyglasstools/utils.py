@@ -50,6 +50,7 @@ class data_gsd(object):
 
     """
     def __init__(self, traj_gsd,frame_num):
+        self.frame_num = frame_num
         #Store trajectory data
         self.traj = traj_gsd; 
         #Store simulation box
@@ -67,22 +68,35 @@ class data_gsd(object):
                                                             );
     def update(self,frame_num):
         #Store simulation box
-        self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
-                                Ly=self.traj[frame_num].configuration.box[1],
-                                Lz=self.traj[frame_num].configuration.box[2],
-                                ndim=2)
-        
-        # create the c++ mirror class
-        self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
-                                                            len(self.traj[frame_num].particles.diameter),
-                                                            self.traj[frame_num].particles.diameter,
-                                                            self.traj[frame_num].particles.mass,
-                                                            self.traj[frame_num].particles.position,
-                                                            self.traj[frame_num].particles.velocity 
-                                                            );
+        if frame_num != self.frame_num:
+            self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
+                                    Ly=self.traj[frame_num].configuration.box[1],
+                                    Lz=self.traj[frame_num].configuration.box[2],
+                                    ndim=2)
+            
+            # create the c++ mirror class
+            self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
+                                                                len(self.traj[frame_num].particles.diameter),
+                                                                self.traj[frame_num].particles.diameter,
+                                                                self.traj[frame_num].particles.mass,
+                                                                self.traj[frame_num].particles.position,
+                                                                self.traj[frame_num].particles.velocity 
+                                                                );
+            self.frame_num = frame_num
     def _getParticleSystem(self):
         return self.particledata
     
+    def move_particles(self,displacement):
+        self.particledata.moveParticles(displacement)
+    def move_particles(self):
+        self.particledata.moveParticles()
+    
+    def set_displacement(self,displacement):
+        self.particledata.setDisplacement(displacement)
+    
+    def get_displacement(self):
+        return self.particledata.getDisplacement()
+
     def set_diameters(self,diameter):
         self.particledata.setDiameter(diameter.astype('float64'))
     

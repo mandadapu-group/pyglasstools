@@ -36,14 +36,15 @@ class PYBIND11_EXPORT PETScManager : public Manager
 {
     public:
         PetscErrorCode ierr; 
-        double pinv_tol, lowerbound_tol, fd_threshold; 
+        double pinv_tol, lowerbound_tol, fd_random_min, fd_random_max; 
         std::string fd_mode; 
         
-        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), fd_mode("minimum")
+        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("random")
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
             detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
-            detail::argparser<double>("-fd_threshold",fd_threshold, "[ERROR] Invalid value for fd_threshold", argv);
+            detail::argparser<double>("-fd_random_min",fd_random_min, "[ERROR] Invalid value for fd_threshold", argv);
+            detail::argparser<double>("-fd_random_max",fd_random_max, "[ERROR] Invalid value for fd_threshold", argv);
             detail::argparser<std::string>("-fd_mode",fd_mode, "[ERROR] Invalid value for fd_mode",argv);
         };
         ~PETScManager(){};
@@ -100,6 +101,11 @@ void export_PETScManager(py::module& m)
 {
     py::class_<PETScManager, std::shared_ptr<PETScManager> >(m,"PETScManager")
     .def(py::init<>())
+    .def_readwrite("pinv_tol", &PETScManager::pinv_tol)
+    .def_readwrite("lowerbound_tol", &PETScManager::lowerbound_tol)
+    .def_readwrite("fd_random_min", &PETScManager::fd_random_min)
+    .def_readwrite("fd_random_max", &PETScManager::fd_random_max)
+    .def_readwrite("fd_mode", &PETScManager::fd_mode)
     ;
 };
 #endif

@@ -151,8 +151,27 @@ class PYBIND11_EXPORT SimBox
         std::vector<double> minImage(const std::vector<double>& v) const
         {
             std::vector<double> w = v;
-            std::vector<double> L = boxsize;
-
+            if (periodic[2])
+            {
+                double img = rintf(w[2] / boxsize[2]);
+                w[2] -= boxsize[2] * img;
+            }
+            if (periodic[1])
+            {
+                double img = rintf(w[1] / boxsize[1]);
+                w[1] -= boxsize[1] * img;
+            }
+            if (periodic[0])
+            {
+                double img = rintf(w[0] / boxsize[0]);
+                w[0] -= boxsize[0] * img;
+            }
+            return w;
+        }
+        
+        Eigen::Vector3d minImageEigen(const Eigen::Vector3d& v) const
+        {
+            Eigen::Vector3d w = v;
             if (periodic[2])
             {
                 double img = rintf(w[2] / boxsize[2]);

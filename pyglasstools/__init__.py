@@ -26,7 +26,7 @@ def set_savemode(inmode):
     global savemode
     savemode = inmode
 
-def analyze(frame_list,mode):
+def analyze(frame_list,mode="normal"):
     for frame_num in frame_list:
         for solver in solvers_list:
             solver.update(frame_num);

@@ -1,5 +1,15 @@
-//#include "SpectraHessian.h"
+#include "NonAffineManager.h"
+
+#include "PETScHessian.h"
 #include "SLEPcHessian.h"
+
+#include "PETScGlobalProperty.h"
+#include "PETScVectorField.h"
+
+#include "PETScForceDipole.h"
+#include "SLEPcNMA.h"
+
+#include <slepceps.h>
 #include <pybind11/pybind11.h>
 
 //! Create the python module
@@ -7,10 +17,26 @@
  create the observables python module and define the exports here.
  */
 
+namespace slepc
+{
+    PetscErrorCode initialize()
+    {
+        PetscErrorCode ierr = SlepcInitialize(NULL,NULL,(char*)0,NULL);
+        return ierr;
+    }
+
+    void finalize()
+    {
+        SlepcFinalize();
+    }
+};
+
 typedef PETScVectorField<2> PETScVectorField2D;
 typedef PETScVectorField<3> PETScVectorField3D;
 typedef PETScGlobalProperty<1,2> GlobalVector2D;   
 typedef PETScGlobalProperty<1,3> GlobalVector3D;   
+typedef PETScGlobalProperty<4,2> NonAffineTensor2D;   
+//typedef PETScGlobalProperty<1,3> GlobalVector3D;   
 
 PYBIND11_MODULE(_nonaffine, m)
 {
@@ -20,14 +46,30 @@ PYBIND11_MODULE(_nonaffine, m)
     {
         Py_AtExit(slepc::finalize);
     }
+    //Export PETSc Managers
+    export_HessianManager(m);
+    export_PETScManager(m);
+    
+    //Export PETScObservables
     export_PETScVectorFieldBase(m);
+    export_PETScVectorField< PETScVectorField2D >(m,"PETScVectorField2D");
+    export_PETScVectorField< PETScVectorField3D >(m,"PETScVectorField3D");
+    
     export_PETScGlobalPropertyBase(m);
     export_PETScGlobalProperty< GlobalVector2D >(m,"GlobalVector2D");    
     export_PETScGlobalProperty< GlobalVector3D >(m,"GlobalVector3D");    
-    export_PETScVectorField< PETScVectorField2D >(m,"PETScVectorField2D");
-    export_PETScVectorField< PETScVectorField3D >(m,"PETScVectorField3D");
-    export_PETScManager(m);
-    export_HessianManager(m);
-    export_SLEPcHessian(m);
+    export_PETScGlobalProperty< NonAffineTensor2D >(m,"NonAffineTensor2D");    
+    export_PETScGlobalProperty< PETScGlobalScalar >(m,"GlobalScalar");    
+    
+    //Export PETSc Hessian Objects
+    export_PETScHessianBase(m);
+    export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
+    export_PETScHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
+    //export_PETScHessian< PETScFDHessian3D>(m, "PETScFDHessian3D");
+    
+    //Export PETSc Calculators
+    export_PETScForceDipoleCalculator(m);
+    export_SLEPcNMA(m);
+    //export_SLEPcHessian(m);
     //export_SpectraHessian(m);
 }

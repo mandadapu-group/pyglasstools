@@ -1,79 +1,9 @@
-#ifndef __COARSEGRAINED_FIELD_H__
-#define __COARSEGRAINED_FIELD_H__
+#ifndef __PETSC_VECTOR_FIELD_H__
+#define __PETSC_VECTOR_FIELD_H__
 
 #include <pyglasstools/Observable.h>
-#include <array>
-#include <Eigen/CXX11/Tensor>
-
-class PYBIND11_EXPORT PETScGlobalPropertyBase : public Observable
-{
-    protected:
-        std::shared_ptr< MPI::Communicator > m_comm;
-        std::stringstream outline;
-    public:
-        PETScGlobalPropertyBase() : Observable() {};
-        PETScGlobalPropertyBase(    std::string _name, std::string _type, bool _islocal, int _dim, 
-                            std::shared_ptr< MPI::Communicator > comm) 
-            : Observable(_name, _type, _islocal, _dim), m_comm(comm), outline("")
-        {
-        };
-
-        ~PETScGlobalPropertyBase(){};
-
-        virtual void setValue(double valid, const int id){}
-        virtual std::vector<double> getValue(){return std::vector<double>(1);}
-        //Virtual methods for vector fields
-        virtual std::string gettostring(const int id){return outline.str();};
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index){}
-};
-
-template< int Rank, int Dim >
-class PYBIND11_EXPORT PETScGlobalProperty : public PETScGlobalPropertyBase
-{
-    protected:
-        Eigen::Tensor<double, Rank> val;
-    public:
-        
-        PETScGlobalProperty(){};
-        PETScGlobalProperty(    std::string _name, std::string _type, bool _islocal, 
-                                std::shared_ptr< MPI::Communicator > comm) 
-            : PETScGlobalPropertyBase(_name, _type, _islocal, Dim,comm)
-        {
-            std::array<Eigen::Index, Rank > size_array;
-            size_array.fill(Dim);
-            val.resize(size_array);
-            clear();
-        };
-
-        ~PETScGlobalProperty(){};
-
-        virtual void setValue(double valid, int id)
-        {
-            double* val_data = val.data();
-            val_data[id] = valid;
-        }
-        
-        virtual std::vector<double> getValue()
-        {
-            std::vector<double> outval(val.data(),val.data()+val.size());
-            return outval;
-        }
-        //Virtual methods for vector fields
-        virtual std::string gettostring(const int id)
-        {
-            Eigen::TensorMap< Eigen::Tensor<double, 1> > tensorview(val.data(), val.size());
-            return std::to_string(tensorview(id));
-        } 
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
-        {
-            Eigen::TensorMap< Eigen::Tensor<double, 1> > tensorview(val.data(), val.size());
-            logfile->write_shared(std::to_string(tensorview(index)));
-        }
-        void clear()
-        {
-            val.setZero();
-        }
-};
+#include <pyglasstools/Manager.h>
+#include <petscmat.h>
 
 class PYBIND11_EXPORT PETScVectorFieldBase : public Observable
 {
@@ -197,24 +127,6 @@ void export_PETScVectorFieldBase(py::module& m)
     ;
 };
 
-void export_PETScGlobalPropertyBase(py::module& m)
-{
-    py::class_<PETScGlobalPropertyBase, std::shared_ptr<PETScGlobalPropertyBase> >(m,"PETScGlobalPropertyBase")
-    .def(py::init< std::string, std::string, bool, int, std::shared_ptr< MPI::Communicator > >())
-    ;
-};
-
-template<class T>
-void export_PETScGlobalProperty(py::module& m, const std::string& name)
-{
-    py::class_<T, PETScGlobalPropertyBase, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init< std::string, std::string, bool, std::shared_ptr< MPI::Communicator > >())
-    .def("setValue", &T::setValue)
-    .def("getValue", &T::getValue)
-    .def("gettostring",&T::gettostring)    
-    .def("save",&T::save)
-    ;
-};
 
 template<class T>
 void export_PETScVectorField(py::module& m, const std::string& name)
@@ -226,4 +138,4 @@ void export_PETScVectorField(py::module& m, const std::string& name)
     ;
 };
 
-#endif //__COARSEGRAINED_FIELD_H__
+#endif //__PETSC_VECTOR_FIELD_H__

@@ -1,18 +1,18 @@
-#ifndef __SLEPC_HESSIAN_H__
-#define __SLEPC_HESSIAN_H__
+#ifndef __PETSC_HESSIAN_H__
+#define __PETSC_HESSIAN_H__
 
 #include "PETScHessianBase.h"
 
-template<int Dim >
-class SLEPcHessian : public PETScHessianBase
+template< int Dim >
+class PETScHessian : public PETScHessianBase
 {
     public:
         MatNullSpace constant;
-        Vec nullvec[Dim];
+        Vec nullvec[Dim];//, nully
         
-        SLEPcHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
+        PETScHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
                         std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
-        ~SLEPcHessian()
+        ~PETScHessian()
         {
             MatNullSpaceDestroy(&constant);
             for(int i = 0; i < Dim; ++i)
@@ -20,25 +20,23 @@ class SLEPcHessian : public PETScHessianBase
                 VecDestroy(&nullvec[i]);
             }
         }        
-        virtual void destroyPETScObjects()
+        void destroyPETScObjects()
         {
+            MatDestroy(&hessian);
             MatNullSpaceDestroy(&constant);
             for(int i = 0; i < Dim; ++i)
             {
                 VecDestroy(&nullvec[i]);
             }
-            MatDestroy(&hessian);
-            MatDestroy(&misforce);
         };
-        
         void assemblePETScObjects();
         void setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij);
-        void setMisforceVectorValues(PetscInt id_i,PetscInt real_id,double factor,Eigen::Vector3d rij, Eigen::Vector3d nij);
         void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
 };
+
 //dynamic_pointer_cast<Base, Derived>
 template< int Dim >
-SLEPcHessian<Dim>::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
+PETScHessian<Dim>::PETScHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
                                 std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm)
     : PETScHessianBase(sysdata, potential, manager, comm)
 {
@@ -47,7 +45,7 @@ SLEPcHessian<Dim>::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::
 
 //Implementation is still specific to 2D!!!
 template< int Dim >
-void SLEPcHessian<Dim>::assemblePETScObjects()
+void PETScHessian<Dim>::assemblePETScObjects()
 {
         //Add command line options
         ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -70,11 +68,6 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
         MatSetUp(hessian);
         //set the nullspace
         m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
-        
-        MatCreate(PETSC_COMM_WORLD,&misforce);
-        MatSetSizes(misforce,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,(unsigned int)Dim*((unsigned int)Dim+1)/2);
-        MatSetType(misforce,MATDENSE);
-        MatSetUp(misforce);
         
         PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
         //We loop through the rows owned by the the processor
@@ -106,17 +99,18 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
                         Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
                                                      +Eigen::Matrix3d::Identity()*m_potential->getPairForce(rij, di, dj);
                         setHessianValues(id_i, id_j, Istart, Iend, i, offdiag_ij);
-                        setMisforceVectorValues(id_i,i,factor,rij,nij);
                     }
                 }
             }
         }
         
         m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
+        m_manager->printPetscNotice(6,"Initialize the null space vectors\n");
         for (int i = 0; i < Dim; ++i)
         {
             MatCreateVecs(hessian,NULL,&nullvec[i]);
         }
+        m_manager->printPetscNotice(6,"Set the values of the null space vectors\n");
         for (PetscInt i = Istart; i < Iend; ++i) 
         {
             //Instantiate the iterator at a particular position
@@ -124,6 +118,7 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
             PetscInt id_i = abr::get<abr::id>(*p_i);
             setNullSpaceBasis(id_i, Istart, Iend, i);
         }
+        m_manager->printPetscNotice(6,"Assemble and normalize \n");
         for (int i = 0; i < Dim; ++i)
         {
             VecAssemblyBegin(nullvec[i]);
@@ -133,14 +128,14 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
 
         MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-        MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
+        m_manager->notice(5) << "Test here" << std::endl; 
         MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
+        m_manager->notice(5) << "Test here again" << std::endl; 
         MatSetNullSpace(hessian,constant);
 };
 
 template< int Dim >
-void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij)
+void PETScHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij)
 {
     //Each "set value" must be carefully considered because we don't know the 
     //parallel layout of the matrix beforehand !! But we are allowerd to fill them row-by-row
@@ -168,28 +163,11 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
 };
 
 template< int Dim >
-void SLEPcHessian<Dim>::setMisforceVectorValues(PetscInt id_i, int real_id, double factor, Eigen::Vector3d rij, Eigen::Vector3d nij)
+void PETScHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
 {
     if (Dim*id_i == real_id)
     { 
-        MatSetValue(misforce,Dim*id_i,0, -factor*rij[0]*nij[0]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i,1, -factor*rij[0]*nij[1]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i,2, -factor*rij[1]*nij[1]*nij[0],ADD_VALUES); 
-    }
-    //y-component of the row
-    else if (Dim*id_i+1 == real_id)
-    {
-        MatSetValue(misforce,Dim*id_i+1,0, -factor*rij[0]*nij[0]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+1,1, -factor*rij[0]*nij[1]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+1,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
-    }
-}
-
-template< int Dim >
-void SLEPcHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
-{
-    if (Dim*id_i == real_id)
-    { 
+        
         VecSetValue(nullvec[0],Dim*id_i,1, INSERT_VALUES);
         VecSetValue(nullvec[1],Dim*id_i,0, INSERT_VALUES);
         if (Dim == 3)
@@ -206,7 +184,7 @@ void SLEPcHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscI
 };
 /*
 template< int Dim >
-void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, Eigen::Matrix3d offdiag_ij)
+void PETScHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, Eigen::Matrix3d offdiag_ij)
 {
     //Each "set value" must be carefully considered because we don't know the 
     //parallel layout of the matrix beforehand !! But we are allowerd to fill them row-by-row
@@ -308,7 +286,7 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
 */
 
 template< class T >
-void export_SLEPcHessian(py::module& m, const std::string& name)
+void export_PETScHessian(py::module& m, const std::string& name)
 {
     py::class_<T, PETScHessianBase, std::shared_ptr<T> >(m,name.c_str())
     .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::Communicator > >())

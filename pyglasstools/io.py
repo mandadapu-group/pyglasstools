@@ -7,7 +7,7 @@ import numpy as np
 class logfile(object):
     global loggers_list
 
-    def __init__(self, filename=None, names = None, solver = None):
+    def __init__(self, filename=None, names = None, solver = None,mode="new"):
         #Save filename
         self.filename = filename
         #Next, parse the list of names based on what type of obsercables they are
@@ -42,7 +42,7 @@ class logfile(object):
        
         self.solver.add_observables(self.global_obs)
         #Create column headers
-        if rank == 0:
+        if rank == 0 and mode =="new":
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:

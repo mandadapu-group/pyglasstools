@@ -40,6 +40,8 @@ def initialize_global(names,dim):
     if any("eigenvalue" in s for s in names):
         for s in [name for name in names if "eigenvalue" in name]:
             list_obs[s] = _nonaffine.GlobalScalar(s, "SCALAR", False,comm)
+    if any("nconv" in s for s in names):
+        list_obs["nconv"] = _nonaffine.GlobalScalar("nconv", "SCALAR", False,comm)
     return list_obs
 
 class fdcalculator(object):
@@ -83,9 +85,7 @@ class eigensolver(object):
 
     def add_observables(self, observables):
         for name in observables:
-            if "nonaffinetensor" in name:
-                self.cppeigensolver.addGlobalProperty(observables[name])
-            if "eigenvalue" in name:
+            if "nonaffinetensor" in name or "nconv" in name or "eigenvalue" in name:
                 self.cppeigensolver.addGlobalProperty(observables[name])
             if "eigenvector" in name:
                 self.cppeigensolver.addVectorField(observables[name])
@@ -183,7 +183,7 @@ class logfile(object):
                     for i in range(Dim):
                         self.global_obs[name].save(self.file, i)
                         self.file.write_shared(" ")
-                if "eigenvalue" in name:
+                if "eigenvalue" in name or "nconv" in name:
                     self.global_obs[name].save(self.file)
                 if "nonaffinetensor" in name:
                     i = int(name[-4]) 

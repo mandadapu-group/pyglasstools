@@ -172,6 +172,10 @@ void SLEPcNMA::getAllEigenPairs_Mumps()
         ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
     }
+    if (m_observables.count("nconv") > 0)
+    {
+        m_observables["nconv"]->setValue((double)nconv);
+    }
     //Save Solution
     if(nconv >0)
     {

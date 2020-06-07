@@ -2,11 +2,11 @@
 
 PyGlassTools is a Python module that compiles a couple of calculations that I routinely do when analyzing atomistic trajectories, particularly supercooled liquids and glasses. Flexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
 
-This is a (highly) experimental version for development purposes. **Do not git pull/clone** unless you are confident with what you're doing!
+This is a (highly) experimental version and still in-development. **Do not git pull/clone** unless you are confident with what you're doing!
 
 ## **Announcements**
 
-(06/06/2020): Most of the restructuring is finished. Added force dipole calculations and a way for nonaffine and irvingkirkwood modules to communicate. Will do more test calculations soon.
+(06/07/2020): Currently performing lots of test calculations. Will try to move functions and class methods to separate implementation files to reduce (re)compilation time.
 
 ## **Contents** 
 

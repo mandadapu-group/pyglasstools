@@ -22,12 +22,13 @@ class PETScHessian : public PETScHessianBase
         }        
         void destroyPETScObjects()
         {
-            MatDestroy(&hessian);
             MatNullSpaceDestroy(&constant);
             for(int i = 0; i < Dim; ++i)
             {
                 VecDestroy(&nullvec[i]);
             }
+            MatDestroy(&hessian);
+            MatDestroy(&misforce);
         };
         void assemblePETScObjects();
         void setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij);

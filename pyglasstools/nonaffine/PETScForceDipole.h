@@ -16,16 +16,19 @@ class PYBIND11_EXPORT PETScForceDipoleCalculator
         std::map<std::string, std::shared_ptr< PETScVectorFieldBase > > m_vectorfields;
         std::map<std::string, std::shared_ptr< PETScGlobalPropertyBase > > m_observables;
         
-        //PETSc objects for all computation 
-        Vec forcing; 
-        KSP ksp;
-        
     public:
         PETScForceDipoleCalculator( std::shared_ptr< PETScHessianBase > hessian)
             : m_hessian(hessian), forcedipole(std::numeric_limits<double>::max()), id_i(0), id_j(0)
         {
+        }
+        void setHessian(std::shared_ptr< PETScHessianBase > hessian)
+        {
+            m_hessian = hessian;
+        }
+        
+        virtual void assemblePETScObjects(const Vec& forcing)
+        {
             rij.setZero();
-            MatCreateVecs(m_hessian->hessian,NULL,&forcing);
             
             PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(m_hessian->hessian, &Istart, &Iend);
             if (m_hessian->m_manager->fd_mode == "random")
@@ -54,18 +57,9 @@ class PYBIND11_EXPORT PETScForceDipoleCalculator
             VecAssemblyBegin(forcing);
             VecAssemblyEnd(forcing);
             
-            //set the values according to particleid
-            KSPCreate(PETSC_COMM_WORLD,&ksp);
-            KSPSetOperators(ksp,m_hessian->hessian,m_hessian->hessian);
-            //Do another insert command line options just to be sure
-            m_hessian->ierr = PetscOptionsInsertString(NULL,m_hessian->m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,m_hessian->ierr);
-            KSPSetFromOptions(ksp);
         }
-
         virtual ~PETScForceDipoleCalculator()
         {
-            KSPDestroy(&ksp);
-            VecDestroy(&forcing);
         };
         virtual void addVectorField(const std::shared_ptr< PETScVectorFieldBase >& obs)
         {
@@ -86,6 +80,7 @@ void PETScForceDipoleCalculator::findMinimumPairForce()
 {
     //All processes will look for
     //Now determine which rank has the smallest force. Once determined, we will broadcast the values
+    forcedipole = 0;
     if(m_hessian->m_comm->isRoot())
     {
         m_hessian->m_manager->notice(5) << "Looking for pairs of particles to perturb" << std::endl; 
@@ -135,6 +130,7 @@ void PETScForceDipoleCalculator::findMinimumPairForce()
 
 void PETScForceDipoleCalculator::findRandomPairForce()
 {
+    forcedipole = 0;
     if (m_hessian->m_comm->isRoot())
     {
         std::random_device dev;
@@ -148,12 +144,12 @@ void PETScForceDipoleCalculator::findRandomPairForce()
             //std::cout << dist6(rng) << std::endl;
             //py::print(id_i,id_i+1,Iend);
             auto p_i = m_hessian->m_sysdata->particles.begin()+dist6(rng);
+            PetscInt tempid_i = abr::get<abr::id>(*p_i);
             for( auto p_j = abr::euclidean_search(m_hessian->m_sysdata->particles.get_query(), 
                         abr::get<position>(*p_i), m_hessian->max_rcut); p_j != false; ++p_j)
             {
                 PetscInt tempid_j = abr::get<abr::id>(*p_j);
-                PetscInt tempid_i = abr::get<abr::id>(*p_i);
-               
+                 
                 //This needs to be changed so that it works in 2/3 dimensions 
                 if (tempid_i != tempid_j)
                 {
@@ -170,7 +166,7 @@ void PETScForceDipoleCalculator::findRandomPairForce()
                     //if (m_hessian->m_potential->getRcut() > rij.dot(rij) && abs(m_hessian->m_potential->getPairForce()) < abs(force_threshold))
                     double testdipole = abs(m_hessian->m_potential->getPairForce(bar_rij,di,dj));
                     if (    m_hessian->m_potential->getRcut(bar_rij,di,dj) > bar_rij.dot(bar_rij) && 
-                            abs(forcedipole) > testdipole && testdipole*bar_rij.norm() > m_hessian->m_manager->fd_random_min 
+                            testdipole*bar_rij.norm() > m_hessian->m_manager->fd_random_min 
                             && testdipole*bar_rij.norm() < m_hessian->m_manager->fd_random_max)
                     {
                         m_hessian->m_manager->notice(5) << "Found it!" << std::endl;
@@ -187,7 +183,6 @@ void PETScForceDipoleCalculator::findRandomPairForce()
         }
         while (notfound);
     }
-    m_hessian->m_comm->barrier();
     //Now, broadcast the results for id_i, id_j, rij, and forcedipole
     //Now determine which rank has the smallest force. Once determined, we will broadcast the values
     m_hessian->m_comm->bcast(id_i,0); 
@@ -200,6 +195,19 @@ void PETScForceDipoleCalculator::solveForceDipoleProblem()
 {
     if (m_vectorfields.count("forcedipole") > 0)
     {
+        KSP ksp;
+        Vec forcing;
+        
+        MatCreateVecs(m_hessian->hessian,NULL,&forcing);
+        //set the values according to particleid
+        KSPCreate(PETSC_COMM_WORLD,&ksp);
+        KSPSetOperators(ksp,m_hessian->hessian,m_hessian->hessian);
+        
+        assemblePETScObjects(forcing);
+        
+        //Do another insert command line options just to be sure
+        m_hessian->ierr = PetscOptionsInsertString(NULL,m_hessian->m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,m_hessian->ierr);
+        KSPSetFromOptions(ksp);
         //Create the vector to store solution
         m_vectorfields["forcedipole"]->createVector(m_hessian->hessian);
         
@@ -219,6 +227,9 @@ void PETScForceDipoleCalculator::solveForceDipoleProblem()
         m_hessian->m_manager->printPetscNotice(5, "Solve the force dipole problem. \n");
         KSPSolve(ksp,forcing,m_vectorfields["forcedipole"]->vectorobs);
         m_hessian->m_manager->printPetscNotice(5, "Force dipole calculation finished. \n");
+        
+        KSPDestroy(&ksp);
+        VecDestroy(&forcing);
     }
 };
 
@@ -226,6 +237,7 @@ void export_PETScForceDipoleCalculator(py::module& m)
 {
     py::class_< PETScForceDipoleCalculator, std::shared_ptr< PETScForceDipoleCalculator > >(m,"PETScForceDipoleCalculator")
     .def(py::init< std::shared_ptr< PETScHessianBase > >())
+    .def("setHessian", &PETScForceDipoleCalculator::setHessian)
     .def("solveForceDipoleProblem", &PETScForceDipoleCalculator::solveForceDipoleProblem)
     .def("addVectorField", &PETScForceDipoleCalculator::addVectorField)
     .def("addGlobalProperty", &PETScForceDipoleCalculator::addGlobalProperty)

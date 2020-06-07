@@ -141,6 +141,7 @@ class fdcalculator(object):
     
     def update(self,frame_num):
         self.pyhessian.update(frame_num)
+        self.cppcalculator.setHessian(self.pyhessian.cpphessian)
         
 class eigensolver(object):
     global solvers_list
@@ -189,32 +190,6 @@ class hessian(object):
             self.cpphessian.destroyPETScObjects()
             self.cpphessian.assemblePETScObjects()
             self.frame_num = frame_num 
-    #def save_forcedipole(self,logfile):
-    #    return self.hessian.saveForceDipoleProblem(logfile)
-    #def get_range(self,index):
-    #    return self.hessian.getRange(index)
-    
-    ## computing eigenvectors
-    #def eigs(self):
-    #    self.hessian.getEigenPairs()
-    #def alleigs(self):
-    #    self.hessian.getAllEigenPairs()
-    #def get_eigenvector(self,index):
-    #    return self.hessian.getEigenvector(index)
-    #def save_eigenvector(self,index,logfile):
-    #    return self.hessian.saveEigenvector(index,logfile)
-    #def get_eigenvalue(self,index):
-    #    return self.hessian.getEigenvalue(index)
-    #def save_eigenvalue(self,index,logfile):
-    #    return self.hessian.saveEigenvalue(index,logfile)
-    
-    ## Building nonaffine elasticity tensor
-    #def compute_nonaffinetensor(self):
-    #    self.hessian.calculateNonAffineTensor()
-    #def get_nonaffinetensor(self,i,j, logfile):
-    #    return self.hessian.saveNonAffineTensor(i,j,logfile)
-    #def save_nonaffinetensor(self,i,j,logfile):
-    #    return self.hessian.saveNonAffineTensor(i,j,logfile)
 
 class fieldlogger(object):
     global loggers_list

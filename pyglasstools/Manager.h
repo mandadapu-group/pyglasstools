@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include <map>
 #include <mpi.h>
 
 #include <pybind11/pybind11.h>

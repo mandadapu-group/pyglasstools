@@ -6,7 +6,7 @@ This is a (highly) experimental version for development purposes. **Do not git p
 
 ## **Announcements**
 
-(05/28/2020): Major features for elasticity analysis are ready. Current restructuring modules and submodules.
+(06/06/2020): Most of the restructuring is finished. Added force dipole calculations and a way for nonaffine and irvingkirkwood modules to communicate. Will do more test calculations soon.
 
 ## **Contents** 
 

@@ -14,11 +14,7 @@ class SLEPcHessian : public PETScHessianBase
                         std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
         ~SLEPcHessian()
         {
-            MatNullSpaceDestroy(&constant);
-            for(int i = 0; i < Dim; ++i)
-            {
-                VecDestroy(&nullvec[i]);
-            }
+            destroyPETScObjects();
         }        
         virtual void destroyPETScObjects()
         {

@@ -42,6 +42,88 @@ def initialize_global(names,dim):
             list_obs[s] = _nonaffine.GlobalScalar(s, "SCALAR", False,comm)
     return list_obs
 
+class fdcalculator(object):
+    global solvers_list
+
+    def __init__(self, sysdata, potential):
+        self.pyhessian = hessian(sysdata,potential,"petsc");
+        self.cppcalculator = _nonaffine.PETScForceDipoleCalculator(self.pyhessian.cpphessian)
+        solvers_list.append(self)
+
+    def add_observables(self, observables):
+        for name in observables:
+            if ("forcedipole" in name):
+                if "forcedipole_center" in name or "forcedipole_pi" in name or "forcedipole_pj" in name:
+                    self.cppcalculator.addGlobalProperty(observables[name])
+                else:
+                    self.cppcalculator.addVectorField(observables[name])
+    
+    def run(self,mode="manual"):
+        self.cppcalculator.solveForceDipoleProblem()
+    
+    def set_forcedipole_minmax(forcemin = None, forcemax = None): 
+        if forcemin is not None:
+           self.pyhessian.cppmanager.fd_random_min = forcemin;     
+        if forcemax is not None:
+           self.pyhessian.cppmanager.fd_random_max = forcemax;     
+    
+    def update(self,frame_num):
+        self.pyhessian.update(frame_num)
+        self.cppcalculator.setHessian(self.pyhessian.cpphessian)
+        
+class eigensolver(object):
+    global solvers_list
+
+    def __init__(self, sysdata, potential, package = "slepc"):
+        if package == "slepc":
+            self.pyhessian = hessian(sysdata,potential,"slepc");
+            self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
+        #We need Spectra implementation here as well
+        solvers_list.append(self)
+
+    def add_observables(self, observables):
+        for name in observables:
+            if "nonaffinetensor" in name:
+                self.cppeigensolver.addGlobalProperty(observables[name])
+            if "eigenvalue" in name:
+                self.cppeigensolver.addGlobalProperty(observables[name])
+            if "eigenvector" in name:
+                self.cppeigensolver.addVectorField(observables[name])
+    
+    def run(self,mode="manual"):
+        self.cppeigensolver.getAllEigenPairs()
+    
+    def update(self,frame_num):
+        self.pyhessian.update(frame_num)
+        self.cppeigensolver.setHessian(self.pyhessian.cpphessian)
+
+class hessian(object):
+    def __init__(self, sysdata,potential, package):
+        #Initialize system data and pair potential of the system
+        self.sysdata = sysdata;
+        self.potential = potential;
+        self.cppmanager = _nonaffine.PETScManager();
+        if (package == "petsc"):
+            self.cpphessian = _nonaffine.PETScHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
+        elif (package == "slepc"):
+            self.cpphessian = _nonaffine.SLEPcHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
+        self.frame_num = self.sysdata.frame_num
+        #elif (package == "spectra"):
+        #    self.manager = _nonaffine.HessianManager();
+        #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),potential._getPairPotential(),self.manager,comm)
+        self.package = package
+   
+    def update(self,frame_num):
+        self.sysdata.update(frame_num);
+        self.cpphessian.setSystemData(self.sysdata.particledata)
+        if self.frame_num != frame_num:
+            self.cpphessian.destroyPETScObjects()
+            self.cpphessian.assemblePETScObjects()
+            self.frame_num = frame_num
+
+
+########
+
 class logfile(object):
     global loggers_list
 
@@ -97,6 +179,10 @@ class logfile(object):
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
                 Dim = self.sysdata.simbox.dim
+                if "forcedipole" in name:
+                    for i in range(Dim):
+                        self.global_obs[name].save(self.file, i)
+                        self.file.write_shared(" ")
                 if "eigenvalue" in name:
                     self.global_obs[name].save(self.file)
                 if "nonaffinetensor" in name:
@@ -113,83 +199,6 @@ class logfile(object):
         if len(vector) < 3:
             vector = np.append(vector,0)
         return vector
-
-class fdcalculator(object):
-    global solvers_list
-
-    def __init__(self, hessian):
-        self.pyhessian = hessian;
-        self.cppcalculator = _nonaffine.PETScForceDipoleCalculator(self.pyhessian.cpphessian)
-        solvers_list.append(self)
-
-    def add_observables(self, observables):
-        for name in observables:
-            if ("forcedipole" in name):
-                if "forcedipole_center" in name or "forcedipole_pi" in name or "forcedipole_pj" in name:
-                    self.cppcalculator.addGlobalProperty(observables[name])
-                else:
-                    self.cppcalculator.addVectorField(observables[name])
-    
-    def run(self,mode="manual"):
-        self.cppcalculator.solveForceDipoleProblem()
-    
-    def set_forcedipole_minmax(forcemin = None, forcemax = None): 
-        if forcemin is not None:
-           self.pyhessian.cppmanager.fd_random_min = forcemin;     
-        if forcemax is not None:
-           self.pyhessian.cppmanager.fd_random_max = forcemax;     
-    
-    def update(self,frame_num):
-        self.pyhessian.update(frame_num)
-        self.cppcalculator.setHessian(self.pyhessian.cpphessian)
-        
-class eigensolver(object):
-    global solvers_list
-
-    def __init__(self, hessian, package = "slepc"):
-        self.pyhessian = hessian;
-        if package == "slepc":
-            self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
-        solvers_list.append(self)
-
-    def add_observables(self, observables):
-        for name in observables:
-            if "nonaffinetensor" in name:
-                self.cppeigensolver.addGlobalProperty(observables[name])
-            if "eigenvalue" in name:
-                self.cppeigensolver.addGlobalProperty(observables[name])
-            if "eigenvector" in name:
-                self.cppeigensolver.addVectorField(observables[name])
-    
-    def run(self,mode="manual"):
-        self.cppeigensolver.getAllEigenPairs()
-    
-    def update(self,frame_num):
-        self.pyhessian.update(frame_num)
-        self.cppeigensolver.setHessian(self.pyhessian.cpphessian)
-class hessian(object):
-    def __init__(self, sysdata,potential, package):
-        #Initialize system data and pair potential of the system
-        self.sysdata = sysdata;
-        self.potential = potential;
-        self.cppmanager = _nonaffine.PETScManager();
-        if (package == "petsc"):
-            self.cpphessian = _nonaffine.PETScHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
-        elif (package == "slepc"):
-            self.cpphessian = _nonaffine.SLEPcHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
-        self.frame_num = self.sysdata.frame_num
-        #elif (package == "spectra"):
-        #    self.manager = _nonaffine.HessianManager();
-        #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),potential._getPairPotential(),self.manager,comm)
-        self.package = package
-   
-    def update(self,frame_num):
-        self.sysdata.update(frame_num);
-        self.cpphessian.setSystemData(self.sysdata.particledata)
-        if self.frame_num != frame_num:
-            self.cpphessian.destroyPETScObjects()
-            self.cpphessian.assemblePETScObjects()
-            self.frame_num = frame_num 
 
 class fieldlogger(object):
     global loggers_list

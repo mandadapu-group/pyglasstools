@@ -80,7 +80,7 @@ void PETScForceDipoleCalculator::findMinimumPairForce()
 {
     //All processes will look for
     //Now determine which rank has the smallest force. Once determined, we will broadcast the values
-    forcedipole = 0;
+    forcedipole = std::numeric_limits<double>::max();
     if(m_hessian->m_comm->isRoot())
     {
         m_hessian->m_manager->notice(5) << "Looking for pairs of particles to perturb" << std::endl; 
@@ -130,7 +130,7 @@ void PETScForceDipoleCalculator::findMinimumPairForce()
 
 void PETScForceDipoleCalculator::findRandomPairForce()
 {
-    forcedipole = 0;
+    forcedipole = std::numeric_limits<double>::max();
     if (m_hessian->m_comm->isRoot())
     {
         std::random_device dev;

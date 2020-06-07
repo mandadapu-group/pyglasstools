@@ -14,11 +14,7 @@ class PETScHessian : public PETScHessianBase
                         std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
         ~PETScHessian()
         {
-            MatNullSpaceDestroy(&constant);
-            for(int i = 0; i < Dim; ++i)
-            {
-                VecDestroy(&nullvec[i]);
-            }
+            destroyPETScObjects();
         }        
         void destroyPETScObjects()
         {
@@ -67,6 +63,12 @@ void PETScHessian<Dim>::assemblePETScObjects()
         MatSetSizes(hessian,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,hessian_length);
         MatSetType(hessian,MATAIJ);
         MatSetUp(hessian);
+        
+        //Construct a "mock" misforce matrix, because we don't really need it
+        MatCreate(PETSC_COMM_WORLD,&misforce);
+        MatSetSizes(misforce,PETSC_DETERMINE,PETSC_DETERMINE,m_comm->getSizeGlobal(),m_comm->getSizeGlobal());
+        MatSetType(misforce,MATDENSE);
+        MatSetUp(misforce);
         //set the nullspace
         m_manager->printPetscNotice(5,"Assemble PETSc Sparse Matrix \n");
         
@@ -129,9 +131,7 @@ void PETScHessian<Dim>::assemblePETScObjects()
 
         MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-        m_manager->notice(5) << "Test here" << std::endl; 
         MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
-        m_manager->notice(5) << "Test here again" << std::endl; 
         MatSetNullSpace(hessian,constant);
 };
 

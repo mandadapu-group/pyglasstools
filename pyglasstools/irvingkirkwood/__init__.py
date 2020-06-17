@@ -78,7 +78,7 @@ class ikcalculator(object):
 class radialcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, cgfunc, rmax,dr,center=np.array([0,0,0])):
+    def __init__(self, sysdata, potential, cgfunc, center=np.array([0,0,0]),mode="normal",rmax=10,rmin=0,dr=0.1,dlnr=0.05):
         #Initialize system data and pair potential of the system
         self.sysdata = sysdata;
         self.potential = potential;
@@ -90,7 +90,10 @@ class radialcalculator(object):
         self.center = center
         if rank == 0:
             gridpoints = []
-            r = np.linspace(0,rmax,int(rmax/dr))[1:]
+            if mode == "normal":
+                r = np.linspace(0,rmax,int(rmax/dr))[1:]
+            elif mode == "log":
+                r = np.exp(np.linspace(np.log(rmin),np.log(rmax),int((np.log(rmax)-np.log(rmin))/dlnr)))
             gridid = [] #id based on radius
             globalr = []  
             globaltheta = []

@@ -58,7 +58,7 @@ class PYBIND11_EXPORT PETScGlobalScalar : public PETScGlobalPropertyBase
         } 
         void save( std::shared_ptr< MPI::LogFile > logfile)
         {
-            logfile->write_shared(std::to_string(val));
+            logfile->write_shared(detail::to_string_sci(val));
         }
 };
 

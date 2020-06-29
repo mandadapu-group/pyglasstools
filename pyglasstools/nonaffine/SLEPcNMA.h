@@ -185,6 +185,7 @@ void SLEPcNMA::getAllEigenPairs_Mumps()
         
         std::string prefix = "eigenvector_";
         std::string prefix1 = "eigenvalue_";
+        std::string prefix2 = "eigenrelerror_";
         std::stringstream filename;
         for(int i = 0; i < nconv; ++i)
         {
@@ -203,6 +204,15 @@ void SLEPcNMA::getAllEigenPairs_Mumps()
                 PetscReal vr;
                 ierr = EPSGetEigenvalue(eps,i,&vr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 m_observables[filename.str()]->setValue(vr);
+            }
+            
+            filename.str("");
+            filename << prefix2 << i;
+            if (m_observables.count(filename.str()) > 0)
+            {
+                PetscReal error;
+                ierr = EPSComputeError(eps,i,EPS_ERROR_RELATIVE,&error); CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                m_observables[filename.str()]->setValue(error);
             }
         }
         

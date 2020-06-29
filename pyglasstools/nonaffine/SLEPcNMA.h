@@ -66,9 +66,9 @@ void SLEPcNMA::getMaxEigenvalue_forMumps()
     //This should only be done when computing a small amount of eigenvalues
     m_hessian->m_manager->printPetscNotice(5,"Computing Maximum Eigenvalue \n");
     //and setting the which to anything other than EPS_ALL
-    EPSSetDimensions(eps,1,m_hessian->m_sysdata->particles.size(),m_hessian->m_sysdata->particles.size());
+    EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
     EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
-    EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE);
+    EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
     EPSSetUp(eps);
     EPSSolve(eps);
     

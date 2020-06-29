@@ -39,7 +39,7 @@ def analyze(frame_list,mode="normal"):
             if savemode == "polar":
                 logger.save(frame_num, savemode);
             else:
-                logger.save(frame_num);
+                logger.save(frame_num, savemode);
 
 def reset():
     global loggers_list, solvers_list, savemode

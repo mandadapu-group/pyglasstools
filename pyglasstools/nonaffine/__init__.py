@@ -174,7 +174,7 @@ class logfile(object):
                             self.file.write_shared("{} ".format(name))
             self.file.write_shared("\n")
          
-    def save(self,frame_num):
+    def save(self,frame_num,savemode):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
@@ -272,7 +272,7 @@ class fieldlogger(object):
         del newvector;
         return vector#Reshape
         
-    def save(self,frame_num):
+    def save(self,frame_num,savemode):
         if rank == 0:
             self.file.write_shared("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
             self.file.write_shared("#Frame {:d}  \n".format(frame_num))

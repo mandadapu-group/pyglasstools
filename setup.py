@@ -9,5 +9,5 @@ setup(name='pyglasstools',
       license='MIT',
       packages=find_packages(),
       package_data={"":["*.so"]},
-      install_requires=['numpy','scipy','gsd'],
+      install_requires=['numpy','scipy','gsd','tqdm'],
       zip_safe=False)

@@ -12,7 +12,7 @@ from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
 from os import path
 import numpy as np
-
+from tqdm import tqdm
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
 rank = comm.getRank()
@@ -22,11 +22,13 @@ size = comm.getSizeGlobal()
 loggers_list = [];
 solvers_list = [];
 savemode = "cartesian"
+
 def set_savemode(inmode):
     global savemode
     savemode = inmode
 
 def analyze(frame_list,mode="normal"):
+    progressbar = tqdm(total=len(frame_list),file=sys.stdout)
     for frame_num in frame_list:
         for solver in solvers_list:
             solver.update(frame_num);
@@ -40,6 +42,10 @@ def analyze(frame_list,mode="normal"):
                 logger.save(frame_num, savemode);
             else:
                 logger.save(frame_num, savemode);
+        if rank == 0:
+            progressbar.update(1)
+            print("")
+        comm.barrier()
 
 def reset():
     global loggers_list, solvers_list, savemode

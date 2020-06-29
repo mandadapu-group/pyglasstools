@@ -49,7 +49,7 @@ class logfile(object):
                     self.file.write_shared("{} ".format(name))
             self.file.write_shared("\n")
          
-    def save(self,frame_num):
+    def save(self,frame_num,savemode):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:

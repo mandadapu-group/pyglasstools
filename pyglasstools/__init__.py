@@ -13,6 +13,18 @@ from pyglasstools import utils;
 from os import path
 import numpy as np
 from tqdm import tqdm
+
+
+_default_excepthook = sys.excepthook;
+## \internal
+# \brief Override pythons except hook to abort MPI runs
+def _pyglasstools_sys_excepthook(type, value, traceback):
+    _default_excepthook(type, value, traceback);
+    sys.stderr.flush();
+    comm.abort();
+
+sys.excepthook = _pyglasstools_sys_excepthook
+
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
 rank = comm.getRank()

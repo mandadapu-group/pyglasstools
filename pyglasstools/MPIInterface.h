@@ -79,8 +79,15 @@ namespace MPI
 
             void mpiabort(int error_code)
             {
-                MPI_Abort(m_comm, error_code);
+                if( getSizeGlobal() > 1)
+                {
+                    // delay for a moment to give time for error messages to print
+                    int msec = 1000;
+                    usleep(msec*1000);
+                    MPI_Abort(m_comm, error_code);
+                }
             }
+
             //!< Partition the communicator
             /*! \param nrank Number of ranks per partition
             */

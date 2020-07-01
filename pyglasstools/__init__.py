@@ -15,8 +15,8 @@ import numpy as np
 from tqdm import tqdm
 
 
-_default_excepthook = sys.excepthook;
 ## \internal
+_default_excepthook = sys.excepthook;
 # \brief Override pythons except hook to abort MPI runs
 def _pyglasstools_sys_excepthook(type, value, traceback):
     _default_excepthook(type, value, traceback);
@@ -35,12 +35,21 @@ loggers_list = [];
 solvers_list = [];
 savemode = "cartesian"
 
+def reset():
+    global loggers_list, solvers_list
+    loggers_list.clear()
+    solvers_list.clear()
+
+import atexit
+atexit.register(reset)
+
 def set_savemode(inmode):
     global savemode
     savemode = inmode
 
 def analyze(frame_list,mode="normal"):
-    progressbar = tqdm(total=len(frame_list),file=sys.stdout)
+    if rank == 0:
+        progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False)
     for frame_num in frame_list:
         for solver in solvers_list:
             solver.update(frame_num);
@@ -57,10 +66,5 @@ def analyze(frame_list,mode="normal"):
         if rank == 0:
             progressbar.update(1)
             print("")
-        comm.barrier()
-
-def reset():
-    global loggers_list, solvers_list, savemode
-    loggers_list.clear()
-    solvers_list.clear()
-    savemode = "cartesian"
+    if rank == 0:
+        progressbar.close()

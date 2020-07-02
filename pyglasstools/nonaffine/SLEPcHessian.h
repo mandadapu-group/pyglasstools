@@ -109,10 +109,12 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
         }
         
         m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
+        
         for (int i = 0; i < Dim; ++i)
         {
             MatCreateVecs(hessian,NULL,&nullvec[i]);
         }
+        
         for (PetscInt i = Istart; i < Iend; ++i) 
         {
             //Instantiate the iterator at a particular position
@@ -120,6 +122,7 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
             PetscInt id_i = abr::get<abr::id>(*p_i);
             setNullSpaceBasis(id_i, Istart, Iend, i);
         }
+        
         for (int i = 0; i < Dim; ++i)
         {
             VecAssemblyBegin(nullvec[i]);
@@ -200,108 +203,6 @@ void SLEPcHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscI
             VecSetValue(nullvec[Dim],Dim*id_i,0, INSERT_VALUES);
     }
 };
-/*
-template< int Dim >
-void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, Eigen::Matrix3d offdiag_ij)
-{
-    //Each "set value" must be carefully considered because we don't know the 
-    //parallel layout of the matrix beforehand !! But we are allowerd to fill them row-by-row
-    //row must also consider indexing at particular 
-    
-    if (Dim*id_i >= Istart && Dim*id_i < Iend)
-    {
-        if (Dim*id_j >= Istart && Dim*id_j < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_j, offdiag_ij(0,0),ADD_VALUES);
-        }
-        if (Dim*id_j+1 >= Istart && Dim*id_j+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_j+1, offdiag_ij(0,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_j+2 >= Istart && Dim*id_j+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_j+2, offdiag_ij(0,2),ADD_VALUES);
-        }
-    }
-    if (Dim*id_i+1 >= Istart && Dim*id_i+1 < Iend)
-    {
-        if (Dim*id_j >= Istart && Dim*id_j < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_j, offdiag_ij(1,0),ADD_VALUES);
-        }
-        if (Dim*id_j+1 >= Istart && Dim*id_j+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_j+1, offdiag_ij(1,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_j+2 >= Istart && Dim*id_j+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_j+2, offdiag_ij(1,2),ADD_VALUES);
-        }
-    }
-    if (Dim == 3 && Dim*id_i+2 >= Istart && Dim*id_i+2 < Iend)
-    {
-        if (Dim*id_j >= Istart && Dim*id_j < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_j, offdiag_ij(2,0),ADD_VALUES);
-        }
-        if (Dim*id_j+1 >= Istart && Dim*id_j+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_j+1, offdiag_ij(2,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_j+2 >= Istart && Dim*id_j+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_j+2, offdiag_ij(2,2),ADD_VALUES);
-        }
-    }
-
-    //The diagonal term 
-    if (Dim*id_i >= Istart && Dim*id_i < Iend)
-    {
-        if (Dim*id_i >= Istart && Dim*id_i < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_i, -offdiag_ij(0,0),ADD_VALUES);
-        }
-        if (Dim*id_i+1 >= Istart && Dim*id_i+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_i+1, -offdiag_ij(0,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_i+2 >= Istart && Dim*id_i+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i, Dim*id_i+2, -offdiag_ij(0,2),ADD_VALUES);
-        }
-    }
-    if (Dim*id_i+1 >= Istart && Dim*id_i+1 < Iend)
-    {
-        if (Dim*id_i >= Istart && Dim*id_i < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_i, -offdiag_ij(1,0),ADD_VALUES);
-        }
-        if (Dim*id_i+1 >= Istart && Dim*id_i+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_i+1, -offdiag_ij(1,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_i+2 >= Istart && Dim*id_i+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+1, Dim*id_i+2, -offdiag_ij(1,2),ADD_VALUES);
-        }
-    }
-    if (Dim == 3 && Dim*id_i+2 >= Istart && Dim*id_i+2 < Iend)
-    {
-        if (Dim*id_i >= Istart && Dim*id_i < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_i, -offdiag_ij(2,0),ADD_VALUES);
-        }
-        if (Dim*id_i+1 >= Istart && Dim*id_i+1 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_i+1, -offdiag_ij(2,1),ADD_VALUES);
-        }
-        if (Dim == 3 && Dim*id_i+2 >= Istart && Dim*id_i+2 < Iend)
-        {
-            MatSetValue(hessian,Dim*id_i+2, Dim*id_i+2, -offdiag_ij(2,2),ADD_VALUES);
-        }
-    }
-}
-*/
 
 template< class T >
 void export_SLEPcHessian(py::module& m, const std::string& name)

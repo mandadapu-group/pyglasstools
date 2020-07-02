@@ -33,7 +33,7 @@ def initialize_field(names,dim,gridpoints):
 class ikcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, cgfunc, dx, mode="grid"):
+    def __init__(self, sysdata, potential, cgfunc, dx):
         #Initialize system data and pair potential of the system
         self.sysdata = sysdata;
         self.potential = potential;
@@ -43,24 +43,24 @@ class ikcalculator(object):
         #Maybe move it to C++ side . . . .
         globalsize = 0
         if rank == 0:
-            if mode == "grid":
-                nmax = int(sysdata.simbox.boxsize[0]/dx)
-                points = np.linspace(-sysdata.simbox.boxsize[0]/2.0,+sysdata.simbox.boxsize[0]/2.0,nmax)
-                gridpoints = []
-                for i in range(len(points)): 
-                    for j in range(len(points)):
-                        gridpoints.append(np.asarray([points[i],points[j],0],dtype=np.float64))
-                globalsize = len(gridpoints)
-                self.gridpoints = np.array_split(np.asarray(gridpoints,dtype=np.float64),size)
-                del points, nmax
+            nmax = int(sysdata.simbox.boxsize[0]/dx)
+            points = np.linspace(-sysdata.simbox.boxsize[0]/2.0,+sysdata.simbox.boxsize[0]/2.0,nmax)
+            gridpoints = []
+            for i in range(len(points)): 
+                for j in range(len(points)):
+                    gridpoints.append(np.asarray([points[i],points[j],0],dtype=np.float64))
+            globalsize = len(gridpoints)
+            self.gridpoints = np.array_split(np.asarray(gridpoints,dtype=np.float64),size)
+            del points, nmax
         else:
             self.gridpoints = np.array_split([np.zeros(size)],size) 
 
         #Scatter and reshape
         self.gridpoints = comm.scatter_v(self.gridpoints,0)
         self.gridpoints = np.reshape(self.gridpoints,(len(self.gridpoints),3))
+        
         #Broadcast the true size
-        self.gridsize =  comm.bcast(globalsize,0); #del globalsize
+        self.gridsize =  comm.bcast(globalsize,0); 
         self.calculator = _irvingkirkwood.IrvingKirkwood(sysdata._getParticleSystem(),potential._getPairPotential(),cgfunc._getCGFunc(),comm)
         solvers_list.append(self)
    
@@ -78,26 +78,28 @@ class ikcalculator(object):
 class radialcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, cgfunc, center=np.array([0,0,0]),mode="normal",rmax=10,rmin=0,dr=0.1,dlnr=0.05):
+    def __init__(self, sysdata, potential, cgfunc, center=np.array([0,0,0]),spacingtype="normal",rmax=10,rmin=0,dr=0.1,dlnr=0.05):
         #Initialize system data and pair potential of the system
         self.sysdata = sysdata;
         self.potential = potential;
         self.cgfunc = cgfunc
         self.manager = _pyglasstools.Manager();
 
-        #Maybe move it to C++ side . . . .
+        #TO DO: Move all of this hassle to C++ side . . . .
         globalsize = 0
         self.center = center
         if rank == 0:
             gridpoints = []
-            if mode == "normal":
+            if spacingtype == "normal":
                 r = np.linspace(0,rmax,int(rmax/dr))[1:]
-            elif mode == "log":
+            elif spacingtype == "log":
                 r = np.exp(np.linspace(np.log(rmin),np.log(rmax),int((np.log(rmax)-np.log(rmin))/dlnr)))
+            
             gridid = [] #id based on radius
             globalr = []  
             globaltheta = []
             gridpoints = []            
+            
             #Append the origin
             gridid.append(0)
             globalr.append(0)
@@ -147,14 +149,13 @@ class radialcalculator(object):
         solvers_list.append(self)
 
     def set_center(self,center):
-        print(self.gridpoints[0])
         self.center = center
         self.gridpoints[0:] += center
-        print(self.gridpoints[0])
     
     def add_observables(self, observables):
         for name in observables:
             self.calculator.addObservable(observables[name])
+    
     def run(self):
         self.calculator.compute(self.gridpoints)
     

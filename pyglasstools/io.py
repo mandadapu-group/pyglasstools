@@ -7,7 +7,8 @@ import numpy as np
 class logfile(object):
     global loggers_list
 
-    def __init__(self, filename=None, names = None, solver = None,mode="new"):
+    def __init__(self, filename=None, names = None, solver = None,savemode="new"):
+        
         #Save filename
         self.filename = filename
         #Next, parse the list of names based on what type of obsercables they are
@@ -42,14 +43,14 @@ class logfile(object):
        
         self.solver.add_observables(self.global_obs)
         #Create column headers
-        if rank == 0 and mode =="new":
+        if rank == 0 and savemode =="new":
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:
                     self.file.write_shared("{} ".format(name))
             self.file.write_shared("\n")
          
-    def save(self,frame_num,savemode):
+    def save(self,frame_num):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
@@ -77,12 +78,16 @@ class logfile(object):
 class fieldlogger(object):
     global loggers_list
 
-    def __init__(self, keyword=None, names = None, solver = None):
+    def __init__(self, keyword=None, names = None, solver = None, coordmode="cartesian"):
         #Save filename
         if (keyword == None):
             self.keyword = ""
         else:
             self.keyword = keyword
+
+        #Save whether you want polar or Cartesian coordinates
+        self.coordmode = coordmode
+
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
         #[s for s in names if "" in s or "eigenvalue" in s];
@@ -143,25 +148,16 @@ class fieldlogger(object):
             outline += "\n"
             self.file.write_shared(outline);
     
-    def save(self,frame_num,savemode):
+    def set_coordmode(inmode):
+        self.coordmode = inmode
+    
+    def save(self,frame_num):
         if rank == 0:
             self.file.write_shared("{:d} \n".format(self.solver.gridsize))
             self.file.write_shared("#Frame {:d}  \n".format(frame_num))
         comm.barrier()
-        #Set up a signal
-        #signal = False;
-        #if rank == 0:
-        if savemode == "cartesian":
+        
+        if self.savemode == "cartesian":
             self.save_perrank(frame_num)
-        elif savemode == "polar":
+        elif self.savemode == "polar":
             self.save_perrank_polar(frame_num)
-        #    signal = True
-        #    if size > 1:
-        #        comm.send(signal,rank+1,rank)
-        #else:
-        #    while signal == False:
-        #        signal = comm.recv(rank-1,rank-1)
-        #    self.save_perrank(frame_num)
-        #    signal = True
-        #    if rank < size-1:
-               # comm.send(signal,rank+1,rank)

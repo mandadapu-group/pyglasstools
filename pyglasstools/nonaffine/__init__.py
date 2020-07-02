@@ -63,7 +63,7 @@ class fdcalculator(object):
                 else:
                     self.cppcalculator.addVectorField(observables[name])
     
-    def run(self,mode="manual"):
+    def run(self):
         self.cppcalculator.solveForceDipoleProblem()
     
     def set_forcedipole_minmax(forcemin = None, forcemax = None): 
@@ -79,8 +79,10 @@ class fdcalculator(object):
 class eigensolver(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, package = "slepc"):
-        if package == "slepc":
+    def __init__(self, sysdata, potential, package = "slepc-petsc"):
+        self.package = package
+
+        if package == "slepc-petsc" or package == "slepc-mumps":
             self.pyhessian = hessian(sysdata,potential,"slepc");
             self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
         #We need Spectra implementation here as well
@@ -93,8 +95,8 @@ class eigensolver(object):
             if "eigenvector" in name:
                 self.cppeigensolver.addVectorField(observables[name])
     
-    def run(self,mode="manual"):
-        self.cppeigensolver.getAllEigenPairs()
+    def run(self):
+        self.cppeigensolver.getAllEigenPairs(self.package)
     
     def update(self,frame_num):
         self.pyhessian.update(frame_num)
@@ -118,25 +120,25 @@ class hessian(object):
    
     def update(self,frame_num):
         self.sysdata.update(frame_num);
-        self.cpphessian.setSystemData(self.sysdata.particledata)
+        #self.cpphessian.setSystemData(self.sysdata.particledata)
         if self.frame_num != frame_num:
             self.cpphessian.destroyPETScObjects()
             self.cpphessian.assemblePETScObjects()
             self.frame_num = frame_num
-
 
 ########
 
 class logfile(object):
     global loggers_list
 
-    def __init__(self, filename=None, names = None, solver = None, sysdata = None, mode="new"):
+    def __init__(self, filename=None, names = None, solver = None, sysdata = None, savemode="new"):
         #Save filename
         self.filename = filename
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
         #[s for s in names if "" in s or "eigenvalue" in s];
         self.sysdata = sysdata
+
         #Initialize a thermoproperty class
         if solver is None:
             if rank == 0:
@@ -165,8 +167,9 @@ class logfile(object):
         self.solver.add_observables(self.global_obs)
         
         Dim = self.sysdata.simbox.dim
+        
         #Create column headers
-        if rank == 0 and mode =="new":
+        if rank == 0 and savemode =="new":
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:
@@ -177,7 +180,7 @@ class logfile(object):
                             self.file.write_shared("{} ".format(name))
             self.file.write_shared("\n")
          
-    def save(self,frame_num,savemode):
+    def save(self,frame_num):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
@@ -275,7 +278,7 @@ class fieldlogger(object):
         del newvector;
         return vector#Reshape
         
-    def save(self,frame_num,savemode):
+    def save(self,frame_num):
         if rank == 0:
             self.file.write_shared("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
             self.file.write_shared("#Frame {:d}  \n".format(frame_num))

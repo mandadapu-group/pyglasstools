@@ -10,42 +10,39 @@ sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
 
 from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
-from os import path
 import numpy as np
 from tqdm import tqdm
-
-
-## \internal
-_default_excepthook = sys.excepthook;
-# \brief Override pythons except hook to abort MPI runs
-def _pyglasstools_sys_excepthook(type, value, traceback):
-    _default_excepthook(type, value, traceback);
-    sys.stderr.flush();
-    comm.abort();
-
-sys.excepthook = _pyglasstools_sys_excepthook
 
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
 rank = comm.getRank()
 size = comm.getSizeGlobal()
 
+## \internal
+_default_excepthook = sys.excepthook;
+
+# \brief Override pythons except hook to abort MPI runs
+def _pyglasstools_sys_excepthook(type, value, traceback):
+    _default_excepthook(type, value, traceback);
+    sys.stdout.flush();
+    sys.stderr.flush();
+    comm.abort(1);
+
+sys.excepthook = _pyglasstools_sys_excepthook
+
+
 #The module should save more than one logger, which analyzes various observables
 loggers_list = [];
 solvers_list = [];
-savemode = "cartesian"
 
+import atexit
+#This is an important function for anyone who wants to tinker with how the analysis is run and also for "cleanly" exiting the module
 def reset():
     global loggers_list, solvers_list
     loggers_list.clear()
     solvers_list.clear()
-
-import atexit
 atexit.register(reset)
 
-def set_savemode(inmode):
-    global savemode
-    savemode = inmode
 
 def analyze(frame_list,mode="normal"):
     if rank == 0:
@@ -57,12 +54,8 @@ def analyze(frame_list,mode="normal"):
                 solver.run();
             else:
                 solver.run(mode);
-        comm.barrier()
         for logger in loggers_list:
-            if savemode == "polar":
-                logger.save(frame_num, savemode);
-            else:
-                logger.save(frame_num, savemode);
+            logger.save(frame_num);
         if rank == 0:
             progressbar.update(1)
             print("")

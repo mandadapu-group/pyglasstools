@@ -3,6 +3,8 @@
 import sys;
 import ctypes;
 import os;
+from tqdm import tqdm
+import numpy as np
 
 #In order for our MPI wrapper to work , we need to set dlopen flag to need to RTLD_GLOBAL 
 flags = sys.getdlopenflags();
@@ -10,8 +12,6 @@ sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
 
 from pyglasstools import _pyglasstools;
 from pyglasstools import utils;
-import numpy as np
-from tqdm import tqdm
 
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()

@@ -132,8 +132,10 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
 
         MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+        
         MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
+        
         MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
         MatSetNullSpace(hessian,constant);
 };

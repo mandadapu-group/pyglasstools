@@ -105,6 +105,7 @@ class eigensolver(object):
 class hessian(object):
     def __init__(self, sysdata,potential, package):
         #Initialize system data and pair potential of the system
+        self.package = package;
         self.sysdata = sysdata;
         self.potential = potential;
         self.cppmanager = _nonaffine.PETScManager();
@@ -116,15 +117,21 @@ class hessian(object):
         #elif (package == "spectra"):
         #    self.manager = _nonaffine.HessianManager();
         #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),potential._getPairPotential(),self.manager,comm)
-        self.package = package
    
     def update(self,frame_num):
         self.sysdata.update(frame_num);
         self.cpphessian.setSystemData(self.sysdata.particledata)
         if self.frame_num != frame_num:
+            self.frame_num = frame_num
             self.cpphessian.destroyPETScObjects()
             self.cpphessian.assemblePETScObjects()
-            self.frame_num = frame_num
+
+        #Another way to update the hessian, by deleteing the object and creating it again from scratch
+        #del self.cpphessian
+        #if (self.package == "petsc"):
+        #    self.cpphessian = _nonaffine.PETScHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
+        #elif (self.package == "slepc"):
+        #    self.cpphessian = _nonaffine.SLEPcHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
 
 ########
 

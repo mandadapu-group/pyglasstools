@@ -144,25 +144,18 @@ void SLEPcNMA::getEigenPairs(std::string package)
     // Set solver parameters at runtime
     EPS eps;
     
-    //A bunch of objects for solving eigenpairs
-    EPSType type;
-    PetscInt       maxit;
-   
     ierr = EPSCreate(PETSC_COMM_WORLD,&eps);
     ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSSetOperators(eps,m_hessian->hessian,NULL);
     ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     if (package == "slepc-petsc")
     {
-        ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = PetscOptionsInsertString(NULL,"-st_pc_factor_mat_solver_type petsc");CHKERRABORT(PETSC_COMM_WORLD,ierr);
     }
     else if (package == "slepc-mumps")
     {
         #if defined(PETSC_HAVE_MUMPS)
-            #if defined(PETSC_USE_COMPLEX)
-                SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Spectrum slicing with MUMPS is not available for complex scalars");
-            #endif
-            ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscOptionsInsertString(NULL,"-st_pc_factor_mat_solver_type mumps");CHKERRABORT(PETSC_COMM_WORLD,ierr);
         #endif
     }
     

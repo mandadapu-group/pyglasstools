@@ -237,7 +237,9 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
     if (package == "slepc-petsc")
     {
         ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<float>::epsilon()*inta);
+        ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon()*m_hessian->m_manager->pinv_tol);
+        ierr = PCFactorSetShiftType(pc, MAT_SHIFT_NONZERO);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = PCFactorSetShiftAmount(pc, PETSC_DECIDE);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     }
     else if (package == "slepc-mumps")
     {

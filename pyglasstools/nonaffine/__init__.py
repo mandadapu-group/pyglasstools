@@ -120,7 +120,7 @@ class hessian(object):
    
     def update(self,frame_num):
         self.sysdata.update(frame_num);
-        #self.cpphessian.setSystemData(self.sysdata.particledata)
+        self.cpphessian.setSystemData(self.sysdata.particledata)
         if self.frame_num != frame_num:
             self.cpphessian.destroyPETScObjects()
             self.cpphessian.assemblePETScObjects()

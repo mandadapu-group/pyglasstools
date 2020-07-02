@@ -64,7 +64,7 @@ PYBIND11_MODULE(_nonaffine, m)
     //Export PETSc Hessian Objects
     export_PETScHessianBase(m);
     export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
-    export_PETScHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
+    export_SLEPcHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
     //export_PETScHessian< PETScFDHessian3D>(m, "PETScFDHessian3D");
     
     //Export PETSc Calculators

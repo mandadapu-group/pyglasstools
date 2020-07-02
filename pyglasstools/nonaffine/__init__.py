@@ -94,7 +94,6 @@ class eigensolver(object):
                 self.cppeigensolver.addGlobalProperty(observables[name])
             if "eigenvector" in name:
                 self.cppeigensolver.addVectorField(observables[name])
-    
     def run(self):
         self.cppeigensolver.getAllEigenPairs(self.package)
     
@@ -121,10 +120,10 @@ class hessian(object):
     def update(self,frame_num):
         self.sysdata.update(frame_num);
         self.cpphessian.setSystemData(self.sysdata.particledata)
-        if self.frame_num != frame_num:
-            self.frame_num = frame_num
-            self.cpphessian.destroyPETScObjects()
-            self.cpphessian.assemblePETScObjects()
+       # if self.frame_num != frame_num:
+        self.cpphessian.destroyPETScObjects()
+        self.cpphessian.assemblePETScObjects()
+        self.frame_num = frame_num
 
         #Another way to update the hessian, by deleteing the object and creating it again from scratch
         #del self.cpphessian
@@ -132,6 +131,11 @@ class hessian(object):
         #    self.cpphessian = _nonaffine.PETScHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
         #elif (self.package == "slepc"):
         #    self.cpphessian = _nonaffine.SLEPcHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
+        #if self.frame_num != frame_num:
+        #    self.frame_num = frame_num
+    
+    def check_diagonals(self):
+        return self.cpphessian.areDiagonalsNonZero()
 
 ########
 
@@ -188,7 +192,7 @@ class logfile(object):
             self.file.write_shared("\n")
          
     def save(self,frame_num):
-        if rank == 0:
+        if rank == 0 and self.solver.pyhessian.check_diagonals():
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
                 Dim = self.sysdata.simbox.dim
@@ -286,8 +290,9 @@ class fieldlogger(object):
         return vector#Reshape
         
     def save(self,frame_num):
-        if rank == 0:
-            self.file.write_shared("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
-            self.file.write_shared("#Frame {:d}  \n".format(frame_num))
-        comm.barrier()
-        self.save_perrank(frame_num)
+        if self.solver.pyhessian.check_diagonals():
+            if rank == 0:
+                self.file.write_shared("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
+                self.file.write_shared("#Frame {:d}  \n".format(frame_num))
+            comm.barrier()
+            self.save_perrank(frame_num)

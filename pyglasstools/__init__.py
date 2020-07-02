@@ -46,7 +46,8 @@ atexit.register(reset)
 
 def analyze(frame_list,mode="normal"):
     if rank == 0:
-        progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False)
+        progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False,initial=frame_list[0])
+        print("")
     for frame_num in frame_list:
         for solver in solvers_list:
             solver.update(frame_num);

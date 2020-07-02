@@ -162,10 +162,10 @@ class PYBIND11_EXPORT Manager
         {
             return *m_notice_stream;
         } 
-        std::ostream& notice(unsigned int level)
+        std::ostream& notice(unsigned int level, int target_rank = 0)
         {
             assert(m_notice_stream);
-            if (level <= m_notice_level && proc_rank == 0)
+            if (level <= m_notice_level && proc_rank == target_rank)
                 {
                 if (m_notice_prefix != std::string("") && level > 1)
                     *m_notice_stream << m_notice_prefix << "(" << level << "): ";

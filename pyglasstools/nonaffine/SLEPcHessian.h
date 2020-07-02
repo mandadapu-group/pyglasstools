@@ -9,7 +9,8 @@ class SLEPcHessian : public PETScHessianBase
     public:
         MatNullSpace constant;
         Vec nullvec[Dim];
-        
+        int diagonalsarenonzero;
+
         SLEPcHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
                         std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
         ~SLEPcHessian()
@@ -26,6 +27,18 @@ class SLEPcHessian : public PETScHessianBase
             MatDestroy(&hessian);
             MatDestroy(&misforce);
         };
+        
+        bool areDiagonalsNonZero()
+        {
+            if (diagonalsarenonzero < 1)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
         
         void assemblePETScObjects();
         void setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij);
@@ -48,7 +61,7 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
         //Add command line options
         ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
         m_manager->printPetscNotice(5,"Constructing PETSc Hessian Object \n");
-       
+        diagonalsarenonzero = 0;
         //Compute the max_rcut 
         double maxforce_rcut = m_potential->scaled_rcut;
         double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
@@ -73,9 +86,13 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
         MatSetUp(misforce);
         
         PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
+        
         //We loop through the rows owned by the the processor
+        std::set< int > particleid_nonneigh;
+        
         for (PetscInt i = Istart; i < Iend; ++i) 
         {
+            double neighbors_count = 0;
             //Instantiate the iterator at a particular position
             auto p_i = m_sysdata->particles.begin()+(int)(i/Dim);
             for( auto p_j = abr::euclidean_search(m_sysdata->particles.get_query(), 
@@ -103,41 +120,72 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
                                                      +Eigen::Matrix3d::Identity()*m_potential->getPairForce(rij, di, dj);
                         setHessianValues(id_i, id_j, Istart, Iend, i, offdiag_ij);
                         setMisforceVectorValues(id_i,i,factor,rij,nij);
+                        neighbors_count += 1;
                     }
                 }
             }
-        }
-        
-        m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
-        
-        for (int i = 0; i < Dim; ++i)
-        {
-            MatCreateVecs(hessian,NULL,&nullvec[i]);
-        }
-        
-        for (PetscInt i = Istart; i < Iend; ++i) 
-        {
-            //Instantiate the iterator at a particular position
-            auto p_i = m_sysdata->particles.begin()+(int)(i/Dim);
-            PetscInt id_i = abr::get<abr::id>(*p_i);
-            setNullSpaceBasis(id_i, Istart, Iend, i);
-        }
-        
-        for (int i = 0; i < Dim; ++i)
-        {
-            VecAssemblyBegin(nullvec[i]);
-            VecAssemblyEnd(nullvec[i]);
-            VecNormalize(nullvec[i],NULL);
+            if (neighbors_count < 1)
+            {
+                //Somehow a particle has no neighbors within the interaction cut-off. Add this to the list
+                m_manager->notice(7,m_comm->getRank()) << "Found particle with no neighbors!" << " \n" << std::string("Particle ID: ")+std::to_string((int)(i/Dim)) << std::endl;
+                particleid_nonneigh.insert((int)(i/Dim));
+                diagonalsarenonzero = 1;
+            }
         }
 
-        MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+        //Now it's time to gather all the results detected
+        std::vector< int > listdiagonalsarenonzero;
+        m_comm->all_gather_v(diagonalsarenonzero, listdiagonalsarenonzero);
+        diagonalsarenonzero = std::accumulate(listdiagonalsarenonzero.begin(), listdiagonalsarenonzero.end(), 0);
         
-        MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
-        
-        MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
-        MatSetNullSpace(hessian,constant);
+        //std::vector< std::vector< double > > totalparticleid_nonneigh;        
+        if (diagonalsarenonzero < 1)
+        {
+            m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
+            
+            for (int i = 0; i < Dim; ++i)
+            {
+                MatCreateVecs(hessian,NULL,&nullvec[i]);
+            }
+            
+            for (PetscInt i = Istart; i < Iend; ++i) 
+            {
+                //Instantiate the iterator at a particular position
+                auto p_i = m_sysdata->particles.begin()+(int)(i/Dim);
+                PetscInt id_i = abr::get<abr::id>(*p_i);
+                setNullSpaceBasis(id_i, Istart, Iend, i);
+            }
+            
+            for (int i = 0; i < Dim; ++i)
+            {
+                VecAssemblyBegin(nullvec[i]);
+                VecAssemblyEnd(nullvec[i]);
+                VecNormalize(nullvec[i],NULL);
+            }
+
+            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
+            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+            
+            MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
+            MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
+            
+            MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
+            MatSetNullSpace(hessian,constant);
+        }
+        else
+        {
+            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
+            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+            
+            MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
+            MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
+            
+            m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors. Any normal mode analysis will be immediately aborted \n");
+            for (auto pid : particleid_nonneigh)
+            {
+                m_manager->notice(0) << "Particle ID: " << pid << " detected by Process [" << m_comm->getRank() << "]" << std::endl;
+            } 
+        }
 };
 
 template< int Dim >
@@ -214,6 +262,7 @@ void export_SLEPcHessian(py::module& m, const std::string& name)
     .def("destroyPETScObjects", &T::destroyPETScObjects)
     .def("assemblePETScObjects", &T::assemblePETScObjects)
     .def("setSystemData", &T::setSystemData)
+    .def("areDiagonalsNonZero", &T::areDiagonalsNonZero)
     ;
 };
 

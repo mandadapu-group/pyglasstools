@@ -188,113 +188,121 @@ void SLEPcNMA::getEigenPairs(std::string package)
 
 void SLEPcNMA::getAllEigenPairs(std::string package)
 {
-    //Set the maximum eigenvalue
-    getMaxEigenvalue();
-    
-    // Set solver parameters at runtime
-    EPS eps;
-    
-    //A bunch of objects for solving eigenpairs
-    EPSType type;
-    ST             st;           
-    KSP            ksp;
-    PC             pc;
-    PetscInt       maxit;
-    PetscReal      inta,intb,tol;
-   
-    ierr = EPSCreate(PETSC_COMM_WORLD,&eps);
-    ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = EPSSetOperators(eps,m_hessian->hessian,NULL);
-    ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = EPSSetWhichEigenpairs(eps,EPS_ALL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    
-    //    Spectrum slicing requires Krylov-Schur
-    ierr = EPSSetType(eps,EPSKRYLOVSCHUR);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
-    
-    ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
-    //
-    //   Set interval for spectrum slicing
-    //
-    inta = m_hessian->m_manager->lowerbound_tol; //tol;
-    intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
-    ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Search interval is: ["+detail::to_string_sci(inta)+", "+ detail::to_string_sci(intb)+"]\n");
-    
-    //
-    //     Set shift-and-invert with Cholesky; select PETSC default solver for this
-    //
-    ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = STSetType(st,STSINVERT);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = KSPSetType(ksp,KSPPREONLY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    
-    ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
-    if (package == "slepc-petsc")
+    if (m_hessian->areDiagonalsNonZero())
     {
-        ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon()*m_hessian->m_manager->pinv_tol);
-        ierr = PCFactorSetShiftType(pc, MAT_SHIFT_NONZERO);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PCFactorSetShiftAmount(pc, 1e-10);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    }
-    else if (package == "slepc-mumps")
-    {
-        #if defined(PETSC_HAVE_MUMPS)
-            #if defined(PETSC_USE_COMPLEX)
-                SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Spectrum slicing with MUMPS is not available for complex scalars");
+        //Set the maximum eigenvalue
+        getMaxEigenvalue();
+        
+        // Set solver parameters at runtime
+        EPS eps;
+        
+        //A bunch of objects for solving eigenpairs
+        EPSType type;
+        ST             st;           
+        KSP            ksp;
+        PC             pc;
+        PetscInt       maxit;
+        PetscReal      inta,intb,tol;
+       
+        ierr = EPSCreate(PETSC_COMM_WORLD,&eps);
+        ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = EPSSetOperators(eps,m_hessian->hessian,NULL);
+        ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = EPSSetWhichEigenpairs(eps,EPS_ALL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        
+        //    Spectrum slicing requires Krylov-Schur
+        ierr = EPSSetType(eps,EPSKRYLOVSCHUR);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
+        
+        ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
+        //
+        //   Set interval for spectrum slicing
+        //
+        inta = m_hessian->m_manager->lowerbound_tol; //tol;
+        intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
+        ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(5,"Search interval is: ["+detail::to_string_sci(inta)+", "+ detail::to_string_sci(intb)+"]\n");
+        
+        //
+        //     Set shift-and-invert with Cholesky; select PETSC default solver for this
+        //
+        ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = STSetType(st,STSINVERT);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = KSPSetType(ksp,KSPPREONLY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        
+        ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
+        if (package == "slepc-petsc")
+        {
+            ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon());
+            //ierr = PCFactorSetShiftType(pc, MAT_SHIFT_NONZERO);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            //ierr = PCFactorSetShiftAmount(pc, 1e-10);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        }
+        else if (package == "slepc-mumps")
+        {
+            #if defined(PETSC_HAVE_MUMPS)
+                #if defined(PETSC_USE_COMPLEX)
+                    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Spectrum slicing with MUMPS is not available for complex scalars");
+                #endif
+                ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                
+                //Add several MUMPS options (see ex43.c for a better way of setting them in program):
+                //'-mat_mumps_icntl_13 1': turn off ScaLAPACK for matrix inertia
+                //'-mat_mumps_icntl_24 1': detect null pivots in factorization (for the case that a shift is equal to an eigenvalue)
+                //'-mat_mumps_cntl_3 <tol>': a tolerance used for null pivot detection (must be larger than machine epsilon)
+
+                //Note: depending on the interval, it may be necessary also to increase the workspace:
+                //'-mat_mumps_icntl_14 <percentage>': increase workspace with a percentage (50, 100 or more)
+                
+                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                std::string cntl_3 = "-mat_mumps_cntl_3 ";
+                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*inta);
+                ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
-            ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            
-            //Add several MUMPS options (see ex43.c for a better way of setting them in program):
-            //'-mat_mumps_icntl_13 1': turn off ScaLAPACK for matrix inertia
-            //'-mat_mumps_icntl_24 1': detect null pivots in factorization (for the case that a shift is equal to an eigenvalue)
-            //'-mat_mumps_cntl_3 <tol>': a tolerance used for null pivot detection (must be larger than machine epsilon)
+        }
+        
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //                  Solve the eigensystem
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+        ierr = EPSSetUp(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(5,"Solving for Eigenpairs . . . \n");
+        ierr = EPSSolve(eps); CHKERRABORT(PETSC_COMM_WORLD,ierr);
 
-            //Note: depending on the interval, it may be necessary also to increase the workspace:
-            //'-mat_mumps_icntl_14 <percentage>': increase workspace with a percentage (50, 100 or more)
-            
-            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            std::string cntl_3 = "-mat_mumps_cntl_3 ";
-            cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*inta);
-            ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        #endif
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //                Display solution and clean up
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+        //Get number of converged approximate eigenpairs
+        ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(5,"Number of converged eigenpairs: "+std::to_string(nconv)+"\n");
+        if (m_hessian->m_manager->getNoticeLevel() >= 6)
+        {
+            m_hessian->m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
+            ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        }
+        
+        saveResults(eps);
+        EPSDestroy(&eps);
     }
-    
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    //                  Solve the eigensystem
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-    ierr = EPSSetUp(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Solving for Eigenpairs . . . \n");
-    ierr = EPSSolve(eps); CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    //                Display solution and clean up
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-    //Get number of converged approximate eigenpairs
-    ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Number of converged eigenpairs: "+std::to_string(nconv)+"\n");
-    if (m_hessian->m_manager->getNoticeLevel() >= 6)
+    else
     {
-        m_hessian->m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
-        ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
     }
-    
-    saveResults(eps);
-    EPSDestroy(&eps);
 };
 
 void SLEPcNMA::calculateNonAffineTensor(const EPS& eps) 
 {
-    if (nconv > 0 && m_observables.count("nonaffinetensor"))
+    if (nconv > 0 && m_observables.count("nonaffinetensor") && m_hessian->areDiagonalsNonZero())
     {
         m_observables["nonaffinetensor"]->clear();
         m_hessian->m_manager->printPetscNotice(5,"Computing the nonaffine elasticity tensor \n");
@@ -362,6 +370,10 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
         VecDestroy(&mult);
         VecDestroy(&xr);
         m_observables["nonaffinetensor"]->multiplyBy(1/m_hessian->m_sysdata->simbox->vol);
+    }
+    else
+    {
+        m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
     }
 };
 

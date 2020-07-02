@@ -51,7 +51,12 @@ class PETScHessianBase
         virtual void assemblePETScObjects()
         {
         };
-
+        
+        virtual bool areDiagonalsNonZero()
+        {
+            return false;
+        }
+        
         void setSystemData(std::shared_ptr<ParticleSystem> newsysdata)
         {
             m_sysdata = newsysdata;
@@ -69,7 +74,7 @@ class PETScHessianBase
 
 PETScHessianBase::PETScHessianBase( std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
                                     std::shared_ptr< PETScManager > manager, std::shared_ptr<MPI::Communicator> comm)
-    : m_sysdata(sysdata), m_potential(potential), m_manager(manager), m_comm(comm)
+    : m_sysdata(sysdata), m_potential(potential), m_manager(manager), m_comm(comm), hessian_length(0), ierr(0), max_rcut(0.0)
 {
 };
 

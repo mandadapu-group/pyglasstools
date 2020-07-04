@@ -11,7 +11,6 @@ flags = sys.getdlopenflags();
 sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
 
 from pyglasstools import _pyglasstools;
-from pyglasstools import utils;
 
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
@@ -30,8 +29,10 @@ def _pyglasstools_sys_excepthook(type, value, traceback):
 
 sys.excepthook = _pyglasstools_sys_excepthook
 
-
 #The module should save more than one logger, which analyzes various observables
+globalsysdata = None
+globalpotential = None
+
 loggers_list = [];
 solvers_list = [];
 
@@ -43,22 +44,57 @@ def reset():
     solvers_list.clear()
 atexit.register(reset)
 
+def set_sysdata(sysdata):
+    global globalsysdata
+    globalsysdata = sysdata
 
-def analyze(frame_list,mode="normal"):
-    if rank == 0:
-        progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False,initial=frame_list[0])
-        print("")
-    for frame_num in frame_list:
-        for solver in solvers_list:
-            solver.update(frame_num);
-            if (mode == "normal"):
-                solver.run();
-            else:
-                solver.run(mode);
-        for logger in loggers_list:
-            logger.save(frame_num);
+def update_sysdata(frame_num):
+    global globalsysdata
+    globalsysdata.update(frame_num)
+
+def get_sysdata():
+    global globalsysdata
+    return globalsysdata
+
+def set_potential(potential):
+    global globalpotential
+    globalpotential = potential
+
+def get_potential():
+    global globalpotential
+    return globalpotential
+
+from pyglasstools import utils;
+
+def analyze(frame_list):
+    global globalsysdata
+
+    frame_list = globalsysdata.setup_checkpoint(frame_list)
+    if not frame_list:
         if rank == 0:
-            progressbar.update(1)
+            print("No more frames to analyze. Check your logfiles/output")
+    else:
+        if rank == 0:
+            progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False,initial=frame_list[0])
             print("")
-    if rank == 0:
-        progressbar.close()
+        
+        for frame_num in frame_list:
+            for solver in solvers_list:
+                solver.update(frame_num);
+                solver.run();
+            
+            for logger in loggers_list:
+                logger.save(frame_num);
+
+            #It's sufficient to go use at least one solver to do the checkpointing
+            if rank == 0 and globalsysdata.checkpointfile is not None:
+                with open(globalsysdata.checkpointfile,"w") as f:
+                    f.write("Frame {}".format(frame_num+1))
+                    f.close()
+            
+            if rank == 0:
+                progressbar.update(1)
+                print("")
+            
+        if rank == 0:
+            progressbar.close()

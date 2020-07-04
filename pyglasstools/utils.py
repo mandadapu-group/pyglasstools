@@ -1,5 +1,7 @@
-from pyglasstools import _pyglasstools
+import pyglasstools
+from pyglasstools import _pyglasstools, comm, rank, size
 import numpy as np
+import os
 import gsd.hoomd
 
 class simbox(object):
@@ -14,58 +16,71 @@ class simbox(object):
             Lz = 1.0;
         #Initialize the box
         if L is not None:
-            self.SimBox = _pyglasstools.SimBox(L,origin,ndim);
+            self.cppsimbox = _pyglasstools.SimBox(L,origin,ndim);
         else:
             boxsize = np.array([Lx,Ly,Lz])#.astype('float64')
-            self.SimBox = _pyglasstools.SimBox(boxsize,origin,ndim);
+            self.cppsimbox = _pyglasstools.SimBox(boxsize,origin,ndim);
     
-    #Redefine attributes so that it directly access SimBox C++ class 
+    #Redefine attributes so that it directly access cppsimbox C++ class 
     #attributes
     def __getattr__(self,attr):
-            orig_attr = self.SimBox.__getattribute__(attr)
+            orig_attr = self.cppsimbox.__getattribute__(attr)
             if callable(orig_attr):
                 def hooked(*args, **kwargs):
                     self.pre()
                     result = orig_attr(*args, **kwargs)
-                    # prevent SimBox from becoming unwrapped
-                    if result == self.SimBox:
+                    # prevent cppsimbox from becoming unwrapped
+                    if result == self.cppsimbox:
                         return self
                     self.post()
                     return result
                 return hooked
             else:
                 return orig_attr
-    
-    ## \internal
-    # \brief Get a C++ boxdim
-    def _getSimBox(self):
-        return self.SimBox
 
-def read_gsd(filename,frame_num = 0):
+def read_gsd(filename,checkpointfile = None,frame_num = 0):
     traj_gsd = gsd.hoomd.open(name=filename,mode='rb')
-    return data_gsd(traj_gsd,frame_num)
+    return data_gsd(traj_gsd, checkpointfile, frame_num)
 
 class data_gsd(object):
+    global globalsysdata
     R""" Object to store particle data based on GSD format
 
     """
-    def __init__(self, traj_gsd,frame_num):
+    def __init__(self, traj_gsd, checkpointfile, frame_num):
         self.frame_num = frame_num
+        self.checkpointfile = checkpointfile
         #Store trajectory data
         self.traj = traj_gsd; 
         #Store simulation box
-        self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
-                                Ly=self.traj[frame_num].configuration.box[1],
-                                Lz=self.traj[frame_num].configuration.box[2],
-                                ndim=2)
+        self.pysimbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
+                                  Ly=self.traj[frame_num].configuration.box[1],
+                                  Lz=self.traj[frame_num].configuration.box[2],
+                                  ndim=2)
         # create the c++ mirror class
-        self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
+        self.cppparticledata = _pyglasstools.ParticleSystem(   self.pysimbox.cppsimbox,
                                                             len(self.traj[frame_num].particles.diameter),
                                                             self.traj[frame_num].particles.diameter,
                                                             self.traj[frame_num].particles.mass,
                                                             self.traj[frame_num].particles.position,
                                                             self.traj[frame_num].particles.velocity 
                                                             );
+        pyglasstools.set_sysdata(self)
+    
+    def setup_checkpoint(self, frame_list):
+        #Setup the checkpoint file, if specified 
+        if self.checkpointfile is not None and not os.path.exists(self.checkpointfile):
+            if rank == 0:
+                with open(self.checkpointfile,"w") as f:
+                    f.write("Frame {}".format(frame_list[0]))
+                    f.close()
+        elif self.checkpointfile is not None and os.path.exists(self.checkpointfile):
+            with open(self.checkpointfile,"r") as f:
+                frame_num = int(f.readline().split(' ')[1])
+                frame_list = [i for i in range(frame_num,frame_list[-1]+1)]
+                f.close()
+        return frame_list
+
     def update(self,frame_num):
         #Store simulation box
         if frame_num != self.frame_num:
@@ -75,16 +90,14 @@ class data_gsd(object):
                                     ndim=2)
             
             # create the c++ mirror class
-            self.particledata = _pyglasstools.ParticleSystem(   self.simbox._getSimBox(), 
-                                                                len(self.traj[frame_num].particles.diameter),
-                                                                self.traj[frame_num].particles.diameter,
-                                                                self.traj[frame_num].particles.mass,
-                                                                self.traj[frame_num].particles.position,
-                                                                self.traj[frame_num].particles.velocity 
-                                                                );
+            self.cppparticledata = _pyglasstools.ParticleSystem(    self.pysimbox.cppsimbox, 
+                                                                    len(self.traj[frame_num].particles.diameter),
+                                                                    self.traj[frame_num].particles.diameter,
+                                                                    self.traj[frame_num].particles.mass,
+                                                                    self.traj[frame_num].particles.position,
+                                                                    self.traj[frame_num].particles.velocity 
+                                                                    );
             self.frame_num = frame_num
-    def _getParticleSystem(self):
-        return self.particledata
     
     def move_particles(self,displacement):
         self.particledata.moveParticles(displacement)

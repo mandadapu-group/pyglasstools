@@ -1,8 +1,10 @@
+import pyglasstools
 from pyglasstools import _pyglasstools
 from pyglasstools import thermo
 from pyglasstools import irvingkirkwood
 from pyglasstools import comm, rank, size, loggers_list
 import numpy as np
+import os
 
 class logfile(object):
     global loggers_list
@@ -39,11 +41,11 @@ class logfile(object):
         self.file = _pyglasstools.MPILogFile(comm, self.filename)
         
         #Then, add observables
-        self.global_obs = thermo.initialize_global(self.__obs_names, self.solver.sysdata.simbox.dim)
+        self.global_obs = thermo.initialize_global(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
        
         self.solver.add_observables(self.global_obs)
         #Create column headers
-        if rank == 0 and savemode =="new":
+        if rank == 0 and not os.path.exists(pyglasstools.get_sysdata().checkpointfile):
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:
@@ -54,7 +56,7 @@ class logfile(object):
         if rank == 0:
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
-                Dim = self.solver.sysdata.simbox.dim
+                Dim = pyglasstools.get_sysdata().pysimbox.dim
                 if "virialstress" in name:
                     i = int(name[-2]) 
                     j = int(name[-1])
@@ -109,12 +111,12 @@ class fieldlogger(object):
 
         #write the initial files
         #Then, add observables
-        self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, self.solver.sysdata.simbox.dim,self.solver.gridpoints)
+        self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim,self.solver.gridpoints)
         self.solver.add_observables(self.field_obs)
         self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+"_"+".xyz")
     
     def save_perrank(self,frame_num):
-        Dim = self.solver.sysdata.simbox.dim
+        Dim = pyglasstools.get_sysdata().simbox.dim
         for index, gridpos in enumerate(self.solver.gridpoints):
             outline = "{} ".format(1)
             outline += "{} ".format(self.solver.gridpoints[index][0])
@@ -132,7 +134,7 @@ class fieldlogger(object):
             self.file.write_shared(outline);
     
     def save_perrank_polar(self,frame_num):
-        Dim = self.solver.sysdata.simbox.dim
+        Dim = pyglasstools.get_sysdata().simbox.dim
         for index, gridpos in enumerate(self.solver.gridpoints):
             outline = "{} ".format(1)
             outline += "{} ".format(int(self.solver.gridid[index]))

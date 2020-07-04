@@ -1,6 +1,7 @@
 R""" Thermodynamic observables.
 """
 from pyglasstools.thermo import _thermo
+import pyglasstools
 from pyglasstools import _pyglasstools, comm, rank, size, solvers_list
 import numpy as np
 
@@ -32,12 +33,11 @@ def initialize_global(names,dim):
 class calculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential):
+    def __init__(self):
         #Initialize system data and pair potential of the system
-        self.sysdata = sysdata;
-        self.potential = potential;
         self.manager = _pyglasstools.Manager();
-        self.thermocalculator = _thermo.ThermoCalculator(sysdata._getParticleSystem(),potential._getPairPotential())#,self.manager,comm)
+        self.thermocalculator = _thermo.ThermoCalculator(   pyglasstools.get_sysdata().cppparticledata,
+                                                            pyglasstools.get_potential().cpppairpotential)
         solvers_list.append(self)
    
     def add_observables(self, observables):
@@ -47,5 +47,5 @@ class calculator(object):
         self.thermocalculator.compute()
     
     def update(self,frame_num):
-        self.sysdata.update(frame_num); #Let's try and move it up? Have it story current frame number . . .
-        self.thermocalculator.setSystemData(self.sysdata._getParticleSystem())
+        pyglasstools.update_sysdata(frame_num); #Let's try and move it up? Have it story current frame number . . .
+        self.thermocalculator.setSystemData(pyglasstools.get_sysdata().cppparticledata)

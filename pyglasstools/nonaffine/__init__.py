@@ -1,3 +1,4 @@
+import pyglasstools
 from pyglasstools.nonaffine import _nonaffine
 from pyglasstools import _pyglasstools, comm, rank, size, loggers_list, solvers_list
 import numpy as np
@@ -50,8 +51,8 @@ def initialize_global(names,dim):
 class fdcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential):
-        self.pyhessian = hessian(sysdata,potential,"petsc");
+    def __init__(self):
+        self.pyhessian = hessian("petsc");
         self.cppcalculator = _nonaffine.PETScForceDipoleCalculator(self.pyhessian.cpphessian)
         solvers_list.append(self)
 
@@ -79,11 +80,11 @@ class fdcalculator(object):
 class eigensolver(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, package = "slepc-petsc"):
+    def __init__(self, package = "slepc-petsc"):
         self.package = package
 
         if package == "slepc-petsc" or package == "slepc-mumps":
-            self.pyhessian = hessian(sysdata,potential,"slepc");
+            self.pyhessian = hessian("slepc");
             self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
         #We need Spectra implementation here as well
         solvers_list.append(self)
@@ -102,24 +103,22 @@ class eigensolver(object):
         self.cppeigensolver.setHessian(self.pyhessian.cpphessian)
 
 class hessian(object):
-    def __init__(self, sysdata,potential, package):
+    def __init__(self,package):
         #Initialize system data and pair potential of the system
         self.package = package;
-        self.sysdata = sysdata;
-        self.potential = potential;
         self.cppmanager = _nonaffine.PETScManager();
         if (package == "petsc"):
-            self.cpphessian = _nonaffine.PETScHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
+            self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         elif (package == "slepc"):
-            self.cpphessian = _nonaffine.SLEPcHessian2D(sysdata.particledata,potential._getPairPotential(),self.cppmanager,comm)
-        self.frame_num = self.sysdata.frame_num
+            self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+        self.frame_num = pyglasstools.get_sysdata().frame_num
         #elif (package == "spectra"):
         #    self.manager = _nonaffine.HessianManager();
-        #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),potential._getPairPotential(),self.manager,comm)
+        #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),pyglasstools.get_potential().cpppairpotential,self.manager,comm)
    
     def update(self,frame_num):
-        self.sysdata.update(frame_num);
-        self.cpphessian.setSystemData(self.sysdata.particledata)
+        pyglasstools.get_sysdata().update(frame_num);
+        self.cpphessian.setSystemData(pyglasstools.get_sysdata().cppparticledata)
        # if self.frame_num != frame_num:
         self.cpphessian.destroyPETScObjects()
         self.cpphessian.assemblePETScObjects()
@@ -128,9 +127,9 @@ class hessian(object):
         #Another way to update the hessian, by deleteing the object and creating it again from scratch
         #del self.cpphessian
         #if (self.package == "petsc"):
-        #    self.cpphessian = _nonaffine.PETScHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
+        #    self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         #elif (self.package == "slepc"):
-        #    self.cpphessian = _nonaffine.SLEPcHessian2D(self.sysdata.particledata,self.potential._getPairPotential(),self.cppmanager,comm)
+        #    self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         #if self.frame_num != frame_num:
         #    self.frame_num = frame_num
     
@@ -142,13 +141,12 @@ class hessian(object):
 class logfile(object):
     global loggers_list
 
-    def __init__(self, filename=None, names = None, solver = None, sysdata = None, savemode="new"):
+    def __init__(self, filename, names, solver, savemode="new"):
         #Save filename
         self.filename = filename
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
         #[s for s in names if "" in s or "eigenvalue" in s];
-        self.sysdata = sysdata
 
         #Initialize a thermoproperty class
         if solver is None:
@@ -174,10 +172,10 @@ class logfile(object):
         self.file = _pyglasstools.MPILogFile(comm, self.filename)
         
         #Then, add observables
-        self.global_obs = initialize_global(self.__obs_names, self.sysdata.simbox.dim)
+        self.global_obs = initialize_global(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
         self.solver.add_observables(self.global_obs)
         
-        Dim = self.sysdata.simbox.dim
+        Dim = pyglasstools.get_sysdata().pysimbox.dim
         
         #Create column headers
         if rank == 0 and savemode =="new":
@@ -195,7 +193,7 @@ class logfile(object):
         if rank == 0 and self.solver.pyhessian.check_diagonals():
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
-                Dim = self.sysdata.simbox.dim
+                Dim = pyglasstools.get_sysdata().pysimbox.dim
                 if "forcedipole" in name:
                     for i in range(Dim):
                         self.global_obs[name].save(self.file, i)
@@ -220,13 +218,11 @@ class logfile(object):
 class fieldlogger(object):
     global loggers_list
 
-    def __init__(self, keyword="dump", names = None, solver = None, sysdata = None):
+    def __init__(self, keyword, names, solver):
         #Save filename
         self.keyword = keyword
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
-        #[s for s in names if "" in s or "eigenvalue" in s];
-        self.sysdata = sysdata;
         #Initialize a thermoproperty class
         if solver is None:
             if rank == 0:
@@ -244,27 +240,27 @@ class fieldlogger(object):
 
         #write the initial files
         #Then, add observables
-        self.field_obs = initialize_field(self.__obs_names, self.sysdata.simbox.dim)
+        self.field_obs = initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
         self.solver.add_observables(self.field_obs)
-        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+"_"+".xyz")
+        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
         
         #Now, we specify the size of particles assigned to a process
         #ends = [sum(counts[:p+1]) for p in range(nprocs)]
 
     def save_perrank(self,frame_num):
-        Dim = self.sysdata.simbox.dim
+        Dim = pyglasstools.get_sysdata().pysimbox.dim
 
-        ave, res = divmod(len(self.sysdata.traj[frame_num].particles.position), size)
+        ave, res = divmod(len(pyglasstools.get_sysdata().traj[frame_num].particles.position), size)
         counts = [ave + 1 if p < res else ave for p in range(size)]
         starts = sum(counts[:rank])
         ends = sum(counts[:rank+1])
         
         for i in range(starts,ends):
             outline = "{} ".format(1)
-            outline += "{} ".format(self.sysdata.traj[frame_num].particles.position[i,0])
-            outline += "{} ".format(self.sysdata.traj[frame_num].particles.position[i,1])
+            outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,0])
+            outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,1])
             if Dim == 3:
-                outline += "{} ".format(self.sysdata.traj[frame_num].particles.position[i,2])
+                outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,2])
             for name in self.__obs_names:
                 flattenindex = 0;
                 if "forcedipole" in name:
@@ -276,7 +272,7 @@ class fieldlogger(object):
     
     def get_vectorfield(self, name,frame_num):
         vector = []
-        ave, res = divmod(len(self.sysdata.traj[frame_num].particles.position), size)
+        ave, res = divmod(len(pyglasstools.get_sysdata().traj[frame_num].particles.position), size)
         counts = [ave + 1 if p < res else ave for p in range(size)]
         starts = sum(counts[:rank])
         ends = sum(counts[:rank+1])
@@ -285,14 +281,14 @@ class fieldlogger(object):
         #Next, we gather all of these vectors
         newvector = comm.all_gather_v(vector)
         vector = [item for sublist in newvector for item in sublist]
-        #vector = np.reshape(newvector,(len(self.sysdata.traj[frame_num].particles.position),3));
+        #vector = np.reshape(newvector,(len(pyglasstools.get_sysdata().traj[frame_num].particles.position),3));
         del newvector;
         return vector#Reshape
         
     def save(self,frame_num):
         if self.solver.pyhessian.check_diagonals():
             if rank == 0:
-                self.file.write_shared("{:d} \n".format(len(self.sysdata.traj[frame_num].particles.position)))
+                self.file.write_shared("{:d} \n".format(len(pyglasstools.get_sysdata().traj[frame_num].particles.position)))
                 self.file.write_shared("#Frame {:d}  \n".format(frame_num))
             comm.barrier()
             self.save_perrank(frame_num)

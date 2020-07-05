@@ -1,6 +1,7 @@
 R""" Irving-Kirkwood coarse-grained fields.
 """
 from pyglasstools.irvingkirkwood import _irvingkirkwood
+import pyglasstools
 from pyglasstools import _pyglasstools, comm, rank, size, solvers_list
 import numpy as np
 
@@ -33,18 +34,17 @@ def initialize_field(names,dim,gridpoints):
 class ikcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, cgfunc, dx):
-        #Initialize system data and pair potential of the system
-        self.sysdata = sysdata;
-        self.potential = potential;
+    def __init__(self, cgfunc, dx):
+        
         self.cgfunc = cgfunc
         self.manager = _pyglasstools.Manager();
+        self.coordmode = "cartesian"
         
         #Maybe move it to C++ side . . . .
         globalsize = 0
         if rank == 0:
-            nmax = int(sysdata.simbox.boxsize[0]/dx)
-            points = np.linspace(-sysdata.simbox.boxsize[0]/2.0,+sysdata.simbox.boxsize[0]/2.0,nmax)
+            nmax = int(pyglasstools.get_sysdata().pysimbox.boxsize[0]/dx)
+            points = np.linspace(-pyglasstools.get_sysdata().pysimbox.boxsize[0]/2.0,+pyglasstools.get_sysdata().pysimbox.boxsize[0]/2.0,nmax)
             gridpoints = []
             for i in range(len(points)): 
                 for j in range(len(points)):
@@ -61,7 +61,9 @@ class ikcalculator(object):
         
         #Broadcast the true size
         self.gridsize =  comm.bcast(globalsize,0); 
-        self.calculator = _irvingkirkwood.IrvingKirkwood(sysdata._getParticleSystem(),potential._getPairPotential(),cgfunc._getCGFunc(),comm)
+        self.calculator = _irvingkirkwood.IrvingKirkwood(   pyglasstools.get_sysdata().cppparticledata,
+                                                            pyglasstools.get_potential().cpppairpotential,
+                                                            cgfunc._getCGFunc(),comm)
         solvers_list.append(self)
    
     def add_observables(self, observables):
@@ -71,20 +73,18 @@ class ikcalculator(object):
         self.calculator.compute(self.gridpoints)
     
     def update(self,frame_num):
-        self.sysdata.update(frame_num); #Let's try and move it up? Have it story current frame number . . .
-        self.calculator.setSystemData(self.sysdata._getParticleSystem())
+        pyglasstools.update_sysdata(frame_num)
+        self.calculator.setSystemData(pyglasstools.get_sysdata().cppparticledata)
 
 
 class radialcalculator(object):
     global solvers_list
 
-    def __init__(self, sysdata, potential, cgfunc, center=np.array([0,0,0]),spacingtype="normal",rmax=10,rmin=0,dr=0.1,dlnr=0.05):
-        #Initialize system data and pair potential of the system
-        self.sysdata = sysdata;
-        self.potential = potential;
+    def __init__(self, cgfunc, center=np.array([0,0,0]),spacingtype="normal",rmax=10,rmin=0,dr=0.1,dlnr=0.05):
+        
         self.cgfunc = cgfunc
         self.manager = _pyglasstools.Manager();
-
+        self.coordmode = "polar"
         #TO DO: Move all of this hassle to C++ side . . . .
         globalsize = 0
         self.center = center
@@ -145,7 +145,9 @@ class radialcalculator(object):
         
         #Broadcast the true size
         self.gridsize =  comm.bcast(globalsize,0); #del globalsize
-        self.calculator = _irvingkirkwood.IrvingKirkwood(sysdata._getParticleSystem(),potential._getPairPotential(),cgfunc._getCGFunc(),comm)
+        self.calculator = _irvingkirkwood.IrvingKirkwood(   pyglasstools.get_sysdata().cppparticledata,
+                                                            pyglasstools.get_potential().cpppairpotential,
+                                                            cgfunc._getCGFunc(),comm)
         solvers_list.append(self)
 
     def set_center(self,center):
@@ -160,5 +162,5 @@ class radialcalculator(object):
         self.calculator.compute(self.gridpoints)
     
     def update(self,frame_num):
-        self.sysdata.update(frame_num); #Let's try and move it up? Have it story current frame number . . .
-        self.calculator.setSystemData(self.sysdata._getParticleSystem())
+        pyglasstools.update_sysdata(frame_num)
+        self.calculator.setSystemData(pyglasstools.get_sysdata().cppparticledata)

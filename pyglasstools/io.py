@@ -8,7 +8,7 @@ import os
 
 class logfile(object):
     global loggers_list
-
+    
     def __init__(self, filename=None, names = None, solver = None,savemode="new"):
         
         #Save filename
@@ -80,16 +80,8 @@ class logfile(object):
 class fieldlogger(object):
     global loggers_list
 
-    def __init__(self, keyword=None, names = None, solver = None, coordmode="cartesian"):
-        #Save filename
-        if (keyword == None):
-            self.keyword = ""
-        else:
-            self.keyword = keyword
-
-        #Save whether you want polar or Cartesian coordinates
-        self.coordmode = coordmode
-
+    def __init__(self, keyword, names, solver):
+        
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
         #[s for s in names if "" in s or "eigenvalue" in s];
@@ -113,7 +105,7 @@ class fieldlogger(object):
         #Then, add observables
         self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim,self.solver.gridpoints)
         self.solver.add_observables(self.field_obs)
-        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+"_"+".xyz")
+        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
     
     def save_perrank(self,frame_num):
         Dim = pyglasstools.get_sysdata().simbox.dim
@@ -150,16 +142,13 @@ class fieldlogger(object):
             outline += "\n"
             self.file.write_shared(outline);
     
-    def set_coordmode(inmode):
-        self.coordmode = inmode
-    
     def save(self,frame_num):
         if rank == 0:
             self.file.write_shared("{:d} \n".format(self.solver.gridsize))
             self.file.write_shared("#Frame {:d}  \n".format(frame_num))
         comm.barrier()
         
-        if self.savemode == "cartesian":
+        if self.solver.coordmode == "cartesian":
             self.save_perrank(frame_num)
-        elif self.savemode == "polar":
+        elif self.solver.coordmode == "polar":
             self.save_perrank_polar(frame_num)

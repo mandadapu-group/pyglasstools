@@ -30,19 +30,10 @@ def _pyglasstools_sys_excepthook(type, value, traceback):
 sys.excepthook = _pyglasstools_sys_excepthook
 
 #The module should save more than one logger, which analyzes various observables
-globalsysdata = None
-globalpotential = None
-
 loggers_list = [];
 solvers_list = [];
-
-import atexit
-#This is an important function for anyone who wants to tinker with how the analysis is run and also for "cleanly" exiting the module
-def reset():
-    global loggers_list, solvers_list
-    loggers_list.clear()
-    solvers_list.clear()
-atexit.register(reset)
+globalsysdata = None
+globalpotential = None
 
 def set_sysdata(sysdata):
     global globalsysdata
@@ -64,6 +55,48 @@ def get_potential():
     global globalpotential
     return globalpotential
 
+
+import atexit
+#This is an important function for anyone who wants to tinker with how the analysis is run and also for "cleanly" exiting the module
+def reset():
+    global loggers_list, solvers_list
+    loggers_list.clear()
+    solvers_list.clear()
+atexit.register(reset)
+
+import time
+def wait_until(timeout, period=0.25):
+    global ioflag
+    mustend = time.time() + timeout
+    while time.time() < mustend:
+        if ioflag: 
+            return True
+        time.sleep(period)
+    return False
+
+import signal
+import logging
+import logging.handlers
+log = logging.getLogger()
+
+# class based on: http://stackoverflow.com/a/21919644/487556
+class DelayedInterrupt(object):
+    def __enter__(self):
+        self.signal_received = False
+        self.old_handler = {}
+        self.old_handler[signal.SIGINT] = signal.signal(signal.SIGINT, self.handler)
+        self.old_handler[signal.SIGTERM] = signal.signal(signal.SIGTERM, self.handler)
+
+    def handler(self, sig, frame):
+        self.signal_received = (sig, frame)
+        print(f'Signal {sig} received by Process [{rank}]. Delaying KeyboardInterrupt.')
+        comm.barrier()
+    def __exit__(self, type, value, traceback):
+        for sig in [signal.SIGINT, signal.SIGTERM]: 
+            signal.signal(sig, self.old_handler[sig])
+            if self.signal_received:
+                self.old_handler[sig](*self.signal_received)
+
 from pyglasstools import utils;
 
 def analyze(frame_list):
@@ -82,19 +115,19 @@ def analyze(frame_list):
             for solver in solvers_list:
                 solver.update(frame_num);
                 solver.run();
-            
-            for logger in loggers_list:
-                logger.save(frame_num);
-
-            #It's sufficient to go use at least one solver to do the checkpointing
-            if rank == 0 and globalsysdata.checkpointfile is not None:
-                with open(globalsysdata.checkpointfile,"w") as f:
-                    f.write("Frame {}".format(frame_num+1))
-                    f.close()
-            
-            if rank == 0:
-                progressbar.update(1)
-                print("")
-            
+            with DelayedInterrupt():
+                for logger in loggers_list:
+                    logger.save(frame_num);
+                #It's sufficient to go use at least one solver to do the checkpointing
+                if rank == 0 and globalsysdata.checkpointfile is not None:
+                    with open(globalsysdata.checkpointfile,"w") as f:
+                        f.write("Frame {}".format(frame_num+1))
+                        f.close()
+                if rank == 0:
+                    progressbar.update(1)
+                    print("")
+                #Barrier for consistent update
+                comm.barrier()
+                pass 
         if rank == 0:
             progressbar.close()

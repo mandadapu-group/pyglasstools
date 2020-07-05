@@ -2,11 +2,13 @@
 
 PyGlassTools is a Python module that compiles a couple of calculations that I routinely do when analyzing atomistic trajectories, particularly supercooled liquids and glasses. Flexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
 
-This is a (highly) experimental version and still in-development. **Do not git pull/clone** unless you are confident with what you're doing!
+In-progress is development for dynamical analysis (beyond autocorrelation analysis). More will come soon. 
+
+This is a **(highly) experimental** version and still in-development. **Do not git pull/clone** unless you are confident with what you're doing!
 
 ## **Announcements**
 
-(06/07/2020): Currently performing lots of test calculations. Will try to move functions and class methods to separate implementation files to reduce (re)compilation time.
+(07/05/2020): Still performing lots of test calculations. Will try to move functions and class methods to separate implementation files to reduce (re)compilation time.
 
 ## **Contents** 
 
@@ -39,7 +41,8 @@ Coming soon . . .
 
 
 ## **To-Do List**
-1. (*Optional*) Implement stress and density auto-correlation functions
-2. (*Optional*) Interface for 'quick' plotting and movie generation. 
+1. Implement parallelized excitation analysis (in the context of Dynamical Facilitation Theory) 
+2. (*Optional*) Implement stress and density auto-correlation functions
+3. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
 Current eigensolver uses [Spectra](https://spectralib.org/) and.or [SLEPc](https://slepc.upv.es/)

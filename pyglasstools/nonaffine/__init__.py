@@ -252,10 +252,16 @@ class fieldlogger(object):
 
         ave, res = divmod(len(pyglasstools.get_sysdata().traj[frame_num].particles.position), size)
         counts = [ave + 1 if p < res else ave for p in range(size)]
-        starts = sum(counts[:rank])
-        ends = sum(counts[:rank+1])
-        
-        for i in range(starts,ends):
+        # determine the starting and ending indices of each sub-task
+        starts = [sum(counts[:p]) for p in range(size)]
+        ends = [sum(counts[:p+1]) for p in range(size)]
+
+        # converts data into a list of arrays 
+        #Do scatter for each held eigenvectors
+        for name in self.__obs_names:
+            if "eigenvector" in name:
+                self.field_obs[name].scatterVector(starts[rank],counts[rank])
+        for i in range(starts[rank],ends[rank]):
             outline = "{} ".format(1)
             outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,0])
             outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,1])
@@ -266,7 +272,7 @@ class fieldlogger(object):
                 if "forcedipole" in name:
                     outline += self.field_obs["forcedipole"].gettostring(i)
                 if "eigenvector" in name:
-                    outline += self.field_obs[name].gettostring(i)
+                    outline += self.field_obs[name].gettostring(i-starts[rank])
             outline += "\n"
             self.file.write_shared(outline);
     

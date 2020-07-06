@@ -20,9 +20,9 @@ class PYBIND11_EXPORT ParticleSystem
                         :   simbox(simbox), particles(numparticles) 
         {
             setParticleSystemData(numparticles, atomdiameter, atommass, atomposition, atomvelocity);
-            abr::vdouble3 boxmax = abr::vdouble3(simbox->getUpperBound(0), simbox->getUpperBound(1), simbox->getUpperBound(2));
-            abr::vdouble3 boxmin = abr::vdouble3(simbox->getLowerBound(0), simbox->getLowerBound(1), simbox->getLowerBound(2));
-            abr::vbool3 periodic = abr::vbool3((bool)simbox->getPeriodic(0),(bool)simbox->getPeriodic(1),(bool)simbox->getPeriodic(2));
+            abr::vdouble3 boxmax = abr::vdouble3(simbox->upperbound[0], simbox->upperbound[1], simbox->upperbound[2]);
+            abr::vdouble3 boxmin = abr::vdouble3(simbox->lowerbound[0], simbox->lowerbound[1], simbox->lowerbound[2]);
+            abr::vbool3 periodic = abr::vbool3((bool)simbox->periodic[0],(bool)simbox->periodic[1],(bool)simbox->periodic[2]);
             particles.init_neighbour_search(boxmin, boxmax, periodic);
         };
         ~ParticleSystem(){};

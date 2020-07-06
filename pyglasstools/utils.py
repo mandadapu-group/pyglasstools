@@ -18,7 +18,7 @@ class simbox(object):
         if L is not None:
             self.cppsimbox = _pyglasstools.SimBox(L,origin,ndim);
         else:
-            boxsize = np.array([Lx,Ly,Lz])#.astype('float64')
+            boxsize = np.array([Lx,Ly,Lz]).astype('float64')
             self.cppsimbox = _pyglasstools.SimBox(boxsize,origin,ndim);
     
     #Redefine attributes so that it directly access cppsimbox C++ class 

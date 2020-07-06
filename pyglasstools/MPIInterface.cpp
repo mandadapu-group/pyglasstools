@@ -27,7 +27,21 @@ MPI::Communicator::Communicator()
     m_rank = rank;
 }
 
+//! Returns the MPI communicator
+MPI_Comm MPI::Communicator::getCommunicator() const
+{
+    return m_comm;
+}
 
+//! Returns the World MPI communicator
+MPI_Comm MPI::Communicator::getWorldCommunicator() const
+{
+    return m_comm_world;
+}
+
+//!< Partition the communicator
+/*! \param nrank Number of ranks per partition
+*/
 void MPI::Communicator::splitPartitions(unsigned int nrank)
 {
     int num_total_ranks;
@@ -58,11 +72,71 @@ void MPI::Communicator::splitPartitions(unsigned int nrank)
     m_rank = rank;
 }
 
+//! Return the rank of this processor in the partition
+unsigned int MPI::Communicator::getRank() const
+{
+    return m_rank;
+}
+
+//! Return the global rank of this processor
+unsigned int MPI::Communicator::getRankGlobal() const
+{
+    // get rank on world communicator
+    int rank;
+    MPI_Comm_rank(m_comm_world, &rank);
+    return rank;
+}
+
+//! Return the number of ranks in this partition
 unsigned int MPI::Communicator::getNRanks() const
 {
     int size;
     MPI_Comm_size(m_comm, &size);
     return size;
+}
+
+//! Return the global communicator size
+unsigned int MPI::Communicator::getSizeGlobal() const
+{
+    int size;
+    MPI_Comm_size(m_comm_world, &size);
+    return size;
+}
+
+//! Returns the partition number of this processor
+unsigned int MPI::Communicator::getPartition() const
+{
+    return getRankGlobal()/m_n_rank;
+}
+
+//! Returns the number of partitions
+unsigned int MPI::Communicator::getNPartitions() const
+{
+    return getSizeGlobal()/m_n_rank;
+}
+
+//! Returns true if this is the root processor
+bool MPI::Communicator::isRoot() const
+{
+    return getRank() == 0;
+}
+
+//! Perform a job-wide MPI barrier
+void MPI::Communicator::barrier()
+{
+    MPI_Barrier(m_comm);
+}
+
+//! Perform a job-wide MPI Abort
+void MPI::Communicator::mpiabort(int error_code)
+{
+    if( getSizeGlobal() > 1)
+    {
+        // delay for a moment to give time for error messages to print
+        int msec = 1000;
+        usleep(msec*1000);
+        MPI_Abort(m_comm, error_code);
+    }
 }
 
 void export_MPICommunicator(pybind11::module& m)

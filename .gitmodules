@@ -19,3 +19,6 @@
 [submodule "pyglasstools/extern/eigen"]
 	path = pyglasstools/extern/eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "pyglasstools/extern/gsd"]
+	path = pyglasstools/extern/gsd
+	url = https://github.com/glotzerlab/gsd.git

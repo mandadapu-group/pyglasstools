@@ -216,7 +216,7 @@ void PETScForceDipoleCalculator::solveForceDipoleProblem()
         center <<  0.5*(2*abr::get<position>(m_hessian->m_sysdata->particles[id_i])[0]-rij[0]),
                    0.5*(2*abr::get<position>(m_hessian->m_sysdata->particles[id_i])[1]-rij[1]),
                    0.5*(2*abr::get<position>(m_hessian->m_sysdata->particles[id_i])[2]-rij[2]);
-        center = m_hessian->m_sysdata->simbox->minImageEigen(center);
+        center = m_hessian->m_sysdata->simbox->minImage(center);
         for (int i = 0; i < center.size(); ++i)
         {
             if (m_observables.count("forcedipole_center") > 0) m_observables["forcedipole_center"]->setValue(center[i],i);

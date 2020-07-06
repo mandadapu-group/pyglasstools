@@ -3,6 +3,7 @@ set(COMPONENT_NAME pyglasstools)
 #### Add C++ Source Files
 set(_${COMPONENT_NAME}_sources
     MPIInterface.cpp
+    SimBox.cc
     module-pyglasstools.cpp
     )
 
@@ -16,25 +17,23 @@ list(APPEND INCLUDES extern/eigen/unsupported/)
 find_package(Boost 1.50.0 REQUIRED serialization)
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 list(APPEND INCLUDES ${Boost_INCLUDE_DIRS})
-
 #Find GSL
 find_package(GSL REQUIRED)   
-
 #Find MPI
 find_package(MPI REQUIRED)
 list(APPEND LIBRARIES ${MPI_CXX_LIBRARIES})
-
 #Find Aboria
 set(Aboria_LOG_LEVEL 1 CACHE STRING "Logging level (1 = least, 3 = most)")
 add_definitions(-DABORIA_LOG_LEVEL=${Aboria_LOG_LEVEL})
 list(APPEND INCLUDES extern/Aboria/src)
 list(APPEND INCLUDES extern/Aboria/third-party)
 
-#Find Spectra
+#Add spectra header files
 list(APPEND INCLUDES extern/spectra/include)
-
-#Cereal
+#Add cereal header files
 list(APPEND INCLUDES extern/cereal/include)
+#Add gsd header files
+list(APPEND INCLUDES extern/gsd/gsd)
 
 #Add OpenMP flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")

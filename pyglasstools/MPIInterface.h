@@ -56,7 +56,7 @@ namespace cereal
 namespace MPI
 {
     class PYBIND11_EXPORT Communicator
-        {
+    {
         public:
             //! Constructor with externally provided MPI communicator (only in MPI enabled builds)
             /*! \param mpi_comm world MPI communicator
@@ -67,26 +67,10 @@ namespace MPI
             virtual ~Communicator() {};
 
             //! Returns the MPI communicator
-            MPI_Comm getCommunicator() const
-            {
-                return m_comm;
-            }
-            //! Returns the World MPI communicator
-            MPI_Comm getWorldCommunicator() const
-            {
-                return m_comm_world;
-            }
+            MPI_Comm getCommunicator() const;
 
-            void mpiabort(int error_code)
-            {
-                if( getSizeGlobal() > 1)
-                {
-                    // delay for a moment to give time for error messages to print
-                    int msec = 1000;
-                    usleep(msec*1000);
-                    MPI_Abort(m_comm, error_code);
-                }
-            }
+            //! Returns the World MPI communicator
+            MPI_Comm getWorldCommunicator() const;
 
             //!< Partition the communicator
             /*! \param nrank Number of ranks per partition
@@ -94,69 +78,36 @@ namespace MPI
             void splitPartitions(unsigned int nrank);
 
             //! Return the rank of this processor in the partition
-            unsigned int getRank() const
-            {
-                return m_rank;
-            }
-
+            unsigned int getRank() const;
+            
             //! Return the global rank of this processor
-            unsigned int getRankGlobal() const
-            {
-                // get rank on world communicator
-                int rank;
-                MPI_Comm_rank(m_comm_world, &rank);
-                return rank;
-            }
-
-            //! Return the global communicator size
-            unsigned int getSizeGlobal() const
-            {
-                int size;
-                MPI_Comm_size(m_comm_world, &size);
-                return size;
-            }
-
-            //! Returns the partition number of this processor
-            unsigned int getPartition() const
-            {
-                return getRankGlobal()/m_n_rank;
-            }
-
-            //! Returns the number of partitions
-            unsigned int getNPartitions() const
-            {
-                return getSizeGlobal()/m_n_rank;
-            }
-
+            unsigned int getRankGlobal() const;
+            
             //! Return the number of ranks in this partition
             unsigned int getNRanks() const;
+            
+            //! Return the global communicator size
+            unsigned int getSizeGlobal() const;
+
+            //! Returns the partition number of this processor
+            unsigned int getPartition() const;
+
+            //! Returns the number of partitions
+            unsigned int getNPartitions() const;
 
             //! Returns true if this is the root processor
-            bool isRoot() const
-            {
-                return getRank() == 0;
-            }
+            bool isRoot() const;
 
             //! Perform a job-wide MPI barrier
-            void barrier()
-            {
-                MPI_Barrier(m_comm);
-            }
+            void barrier();
+
+            //! Perform a job-wide MPI Abort
+            void mpiabort(int error_code);
             
-            //! Abort MPI runs
-            void abort(unsigned int milliseconds)
-            {
-                if(getSizeGlobal() > 1)
-                {
-                    // delay for a moment to give time for error messages to print
-                    usleep(1000 * milliseconds);
-                    MPI_Abort(m_comm_world, MPI_ERR_OTHER);
-                }
-            }
             //! Wrapper around MPI_Bcast that handles any serializable object
             template<typename T>
-            void bcast(T& val, unsigned int root)
-                {
+            inline void bcast(T& val, unsigned int root)
+            {
                 int rank;
                 MPI_Comm_rank(m_comm, &rank);
 
@@ -196,10 +147,11 @@ namespace MPI
                     }
 
                 delete[] buf;
-                }
+            }
 
+            //! Wrapper around bcast that works from the Python side
             template<typename T>
-            T pybcast(T& val, unsigned int root)
+            inline T pybcast(T& val, unsigned int root)
             {
                 T new_val = val;
                 bcast(new_val,root);
@@ -207,8 +159,8 @@ namespace MPI
             }
             //! Wrapper around MPI_Scatterv that scatters a vector of serializable objects
             template<typename T>
-            void scatter_v(const std::vector<T>& in_values, T& out_value, unsigned int root)
-                {
+            inline void scatter_v(const std::vector<T>& in_values, T& out_value, unsigned int root)
+            {
                 int rank;
                 int size;
                 MPI_Comm_rank(m_comm, &rank);
@@ -273,8 +225,9 @@ namespace MPI
                     delete[] sbuf;
                     }
                 delete[] rbuf;
-                }
+            }
 
+            //! Wrapper around scatter_v that works from the Python side
             template<typename T>
             T pyscatter_v(const std::vector<T>& in_values, unsigned int root)
             {
@@ -282,10 +235,11 @@ namespace MPI
                 scatter_v(in_values,out_value,root);
                 return out_value;
             }
+            
             //! Wrapper around MPI_Gatherv
             template<typename T>
-            void gather_v(const T& in_value, std::vector<T> & out_values, unsigned int root)
-                {
+            inline void gather_v(const T& in_value, std::vector<T> & out_values, unsigned int root)
+            {
                 int rank;
                 int size;
                 MPI_Comm_rank(m_comm, &rank);
@@ -344,12 +298,12 @@ namespace MPI
                     delete[] recv_counts;
                     delete[] rbuf;
                     }
-                }
+            }
 
             //! Wrapper around MPI_Allgatherv
             template<typename T>
-            void all_gather_v(const T& in_value, std::vector<T> & out_values)
-                {
+            inline void all_gather_v(const T& in_value, std::vector<T> & out_values)
+            {
                 int rank;
                 int size;
                 MPI_Comm_rank(m_comm, &rank);
@@ -398,11 +352,11 @@ namespace MPI
                 delete[] displs;
                 delete[] recv_counts;
                 delete[] rbuf;
-                }
+            }
             
-            //! Wrapper around MPI_Allgatherv
+            //! Wrapper around all_gatherv that works from the Python side
             template<typename T>
-            std::vector<T> pyall_gather_v(const T& in_value)
+            inline std::vector<T> pyall_gather_v(const T& in_value)
             {
                 std::vector<T> out_values;
                 all_gather_v(in_value, out_values);
@@ -410,8 +364,8 @@ namespace MPI
             }
             //! Wrapper around MPI_Send that handles any serializable object
             template<typename T>
-            void send(const T& val,const unsigned int dest, const unsigned int tag)
-                {
+            inline void send(const T& val,const unsigned int dest, const unsigned int tag)
+            {
                 int rank;
                 MPI_Comm_rank(m_comm, &rank);
                 if(rank == static_cast<int>(dest) ) //Quick exit, if dest is src
@@ -439,12 +393,12 @@ namespace MPI
                 MPI_Send(buf, recv_count, MPI_BYTE, dest, tag , m_comm);
 
                 delete[] buf;
-                }
+            }
 
             //! Wrapper around MPI_Recv that handles any serializable object
             template<typename T>
-            void recv(T& val,const unsigned int src, const unsigned int tag)
-                {
+            inline void recv(T& val,const unsigned int src, const unsigned int tag)
+            {
                 int rank;
                 MPI_Comm_rank(m_comm, &rank);
                 if( rank == static_cast<int>(src) ) //Quick exit if src is dest.
@@ -465,15 +419,16 @@ namespace MPI
                 ar >> val;
 
                 delete[] buf;
-                }
+            }
             
+            //!Wrapper around recv that works from the Python side
             template<typename T>
-            T pyrecv(const unsigned int src, const unsigned int tag)
-                {
-                    T val;
-                    recv(val,src,tag);
-                    return val;
-                }
+            inline T pyrecv(const unsigned int src, const unsigned int tag)
+            {
+                T val;
+                recv(val,src,tag);
+                return val;
+            }
 
         protected:
             MPI_Comm m_comm;                    //!< The MPI communicator
@@ -481,7 +436,7 @@ namespace MPI
             
             unsigned int m_rank;                //!< Rank of this processor (0 if running in single-processor mode)
             unsigned int m_n_rank;              //!< Ranks per partition
-        };
+    };
 }
 
 //! Exports Communicator to python

@@ -101,14 +101,14 @@ from random import randint, uniform
 
 def analyze(frame_list):
     global globalsysdata
-
+    totallength = len(frame_list)
     frame_list = globalsysdata.setup_checkpoint(frame_list)
     if not frame_list:
         if rank == 0:
             print("No more frames to analyze. Check your logfiles/output")
     else:
         if rank == 0:
-            progressbar = tqdm(total=len(frame_list),file=sys.stdout,leave=False,initial=frame_list[0])
+            progressbar = tqdm(total=totallength,file=sys.stdout,leave=False,initial=frame_list[0])
             print("")
         
         for frame_num in frame_list:
@@ -116,8 +116,6 @@ def analyze(frame_list):
                 solver.update(frame_num);
                 solver.run();
             with DelayedInterrupt():
-                if uniform(0,1) > 0.995:
-                    os.kill(os.getpid(),signal.SIGTERM)
                 for logger in loggers_list:
                     logger.save(frame_num);
                 #It's sufficient to go use at least one solver to do the checkpointing

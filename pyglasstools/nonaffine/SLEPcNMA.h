@@ -239,7 +239,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         {
             ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon());
+            ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon()*m_hessian->m_manager->pivot_tol);
             ierr = PCFactorSetShiftType(pc, MAT_SHIFT_NONZERO);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PCFactorSetShiftAmount(pc, PETSC_DECIDE);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         }

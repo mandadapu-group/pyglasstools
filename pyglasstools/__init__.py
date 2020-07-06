@@ -90,7 +90,6 @@ class DelayedInterrupt(object):
     def handler(self, sig, frame):
         self.signal_received = (sig, frame)
         print(f'Signal {sig} received by Process [{rank}]. Delaying KeyboardInterrupt.')
-        comm.barrier()
     def __exit__(self, type, value, traceback):
         for sig in [signal.SIGINT, signal.SIGTERM]: 
             signal.signal(sig, self.old_handler[sig])
@@ -98,6 +97,7 @@ class DelayedInterrupt(object):
                 self.old_handler[sig](*self.signal_received)
 
 from pyglasstools import utils;
+from random import randint, uniform
 
 def analyze(frame_list):
     global globalsysdata
@@ -116,6 +116,8 @@ def analyze(frame_list):
                 solver.update(frame_num);
                 solver.run();
             with DelayedInterrupt():
+                if uniform(0,1) > 0.995:
+                    os.kill(os.getpid(),signal.SIGTERM)
                 for logger in loggers_list:
                     logger.save(frame_num);
                 #It's sufficient to go use at least one solver to do the checkpointing

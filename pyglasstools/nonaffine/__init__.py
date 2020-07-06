@@ -2,6 +2,7 @@ import pyglasstools
 from pyglasstools.nonaffine import _nonaffine
 from pyglasstools import _pyglasstools, comm, rank, size, loggers_list, solvers_list
 import numpy as np
+import os
 
 def initialize_field(names,dim):
     list_obs = {}
@@ -178,7 +179,7 @@ class logfile(object):
         Dim = pyglasstools.get_sysdata().pysimbox.dim
         
         #Create column headers
-        if rank == 0 and savemode =="new":
+        if rank == 0 and not os.path.exists(pyglasstools.get_sysdata().checkpointfile):
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:

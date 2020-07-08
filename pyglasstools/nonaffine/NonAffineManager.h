@@ -36,14 +36,16 @@ class PYBIND11_EXPORT PETScManager : public Manager
 {
     public:
         PetscErrorCode ierr; 
-        double pinv_tol, lowerbound_tol, pivot_tol; 
+        double pinv_tol, lowerbound_tol, upperbound_tol, pivot_tol; 
         double fd_random_min, fd_random_max; 
         std::string fd_mode; 
         
-        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), pivot_tol(1), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("random")  
+        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), upperbound_tol(1e-6), pivot_tol(1), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("random")  
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
             detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
+            py::print(lowerbound_tol);
+            detail::argparser<double>("-upperbound_tol",upperbound_tol, "[ERROR] Invalid value for upperbound_tol", argv);
             detail::argparser<double>("-pivot_tol", pivot_tol, "[ERROR] Invalid value for pivot_tol",argv);
             detail::argparser<double>("-fd_random_min", fd_random_min, "[ERROR] Invalid value for fd_random_min", argv);
             detail::argparser<double>("-fd_random_max", fd_random_max, "[ERROR] Invalid value for fd_random_max", argv);
@@ -105,6 +107,7 @@ void export_PETScManager(py::module& m)
     .def(py::init<>())
     .def_readwrite("pinv_tol", &PETScManager::pinv_tol)
     .def_readwrite("lowerbound_tol", &PETScManager::lowerbound_tol)
+    .def_readwrite("upperbound_tol", &PETScManager::upperbound_tol)
     ;
 };
 

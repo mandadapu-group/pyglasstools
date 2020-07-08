@@ -102,7 +102,7 @@ class polydisperse18(object):
         c0 =  -55.0*v0/rcut**18;
         c1 =  99.0*v0/rcut**20;
         c2 =  -45.0*v0/rcut**22;
-        self.cpppairpotential = _potential.PairPotentialPoly12(rcut,[v0,eps,c0,c1,c2])
+        self.cpppairpotential = _potential.PairPotentialPoly18(rcut,[v0,eps,c0,c1,c2])
         pyglasstools.set_potential(self)
         
     def _getPairPotential(self):
@@ -145,7 +145,7 @@ class polydisperselj(object):
         c0 =  -28.0*v0/rcut**12+10.0/rcut**6;
         c1 =  48.0*v0/rcut**14-15.0/rcut**8;
         c2 =  -21.0*v0/rcut**16+6.0/rcut**10;
-        self.cpppairpotential = _potential.PairPotentialPoly12(rcut,[v0,eps,c0,c1,c2])
+        self.cpppairpotential = _potential.PairPotentialPolyLJ(rcut,[v0,eps,c0,c1,c2])
         pyglasstools.set_potential(self)
         
     def _getPairPotential(self):

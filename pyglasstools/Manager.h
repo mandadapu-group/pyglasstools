@@ -94,11 +94,11 @@ namespace detail
             if (s1.at(0) == '-')
             {
                 std::string val = std::string(py::str(*std::next(test,1)));
-                if (val.at(0) != '-')
-                {
-                    argv_list.insert(std::pair<std::string, std::string >(s1, val));
-                    cmd_line_options += s1+" "+val+" ";
-                }
+                //if (val.at(0) != '-')
+                //{
+                argv_list.insert(std::pair<std::string, std::string >(s1, val));
+                cmd_line_options += s1+" "+val+" ";
+                //}
             }
         }
     }

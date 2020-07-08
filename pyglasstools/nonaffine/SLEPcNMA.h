@@ -221,7 +221,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         //   Set interval for spectrum slicing
         //
         inta = m_hessian->m_manager->lowerbound_tol; //tol;
-        intb = m_maxeigval*(1+inta);//PETSC_MAX_REAL;
+        intb = m_maxeigval*(1+m_hessian->m_manager->upperbound_tol);//PETSC_MAX_REAL;
         ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         m_hessian->m_manager->printPetscNotice(5,"Search interval is: ["+detail::to_string_sci(inta)+", "+ detail::to_string_sci(intb)+"]\n");
         
@@ -263,7 +263,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
                 std::string cntl_3 = "-mat_mumps_cntl_3 ";
-                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*inta);
+                cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
                 ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
             #endif
         }

@@ -9,7 +9,7 @@ import os
 class logfile(object):
     global loggers_list
     
-    def __init__(self, filename=None, names = None, solver = None,savemode="new"):
+    def __init__(self, filename, names, solver):
         
         #Save filename
         self.filename = filename
@@ -45,7 +45,7 @@ class logfile(object):
        
         self.solver.add_observables(self.global_obs)
         #Create column headers
-        if rank == 0 and not os.path.exists(pyglasstools.get_sysdata().checkpointfile):
+        if rank == 0 and (not os.path.exists(pyglasstools.get_sysdata().checkpointfile) or (os.path.exists(pyglasstools.get_sysdata().checkpointfile) and os.path.getsize(pyglasstools.get_sysdata().checkpointfile) == 0)):
             self.file.write_shared("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:

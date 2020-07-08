@@ -4,6 +4,7 @@ set(COMPONENT_NAME pyglasstools)
 set(_${COMPONENT_NAME}_sources
     MPIInterface.cpp
     SimBox.cc
+    ParticleSystem.cc
     module-pyglasstools.cpp
     )
 

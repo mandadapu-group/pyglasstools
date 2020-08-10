@@ -181,3 +181,47 @@ class polydisperselj(object):
     
     def get_pairforce(self):
         return self.cpppairpotential.getPairForce()
+
+class polydisperse10(object):
+    def __init__(self, v0 =1.0, eps=0.0416667, rcut=1.25, name="polydisperse-10"):
+        self.name = name
+        c0 =  -(56.0)*v0/(rcut**10);
+        c1 =  (140.0)*v0/(rcut**12);
+        c2 =  -(120.0)*v0/(rcut**14);
+        c3 =  (35.0)*v0/(rcut**16);
+        self.cpppairpotential = _potential.PairPotentialPoly10(rcut,[v0,eps,c0,c1,c2,c3])
+        pyglasstools.set_potential(self)
+        
+    def _getPairPotential(self):
+        return self.cpppairpotential
+    def get_potentialname(self):
+        return self.name
+    def set_diameters(self,diameter_i, diameter_j):
+        self.cpppairpotential.di = diameter_i
+        self.cpppairpotential.di = diameter_j
+    
+    def get_diameters(self):
+        return [self.cpppairpotential.di, self.cpppairpotential.dj]
+    
+    def set_rij(self,r_ij):
+        self.cpppairpotential.rij = r_ij.astype('float64')
+    
+    def get_rij(self):
+        return self.cpppairpotential.rij
+    def set_scaledrcut(self, rcut):
+        self.cpppairpotential.scaledrcut = rcut
+    def get_scaledrcut(self):
+        return self.cpppairpotential.scaledrcut
+    
+    def set_v0(self, v0):
+        self.cpppairpotential.params = [v0,self.cpppairpotential.param[1]]
+    def get_v0(self):
+        return self.cpppairpotential.params[0]
+    
+    def set_eps(self, eps):
+        self.cpppairpotential.params = [self.cpppairpotential.param[0],eps]
+    def get_eps(self):
+        return self.cpppairpotential.params[1]
+    
+    def get_pairforce(self):
+        return self.cpppairpotential.getPairForce()

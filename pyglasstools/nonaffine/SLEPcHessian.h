@@ -197,20 +197,20 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
     //x-component of the row 
     if (Dim*id_i == real_id)
     { 
-        //The main diagonal term
+        //The off diagonal term
         MatSetValue(hessian,Dim*id_i, Dim*id_j, offdiag_ij(0,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i, Dim*id_j+1, offdiag_ij(0,1),ADD_VALUES);
-        //The off diagonal term
+        //The main diagonal term
         MatSetValue(hessian,Dim*id_i, Dim*id_i, -offdiag_ij(0,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i, Dim*id_i+1, -offdiag_ij(0,1),ADD_VALUES);
     }
     //y-component of the row
     else if (Dim*id_i+1 == real_id)
     {
-        //the main diagonal term    
+        //The off diagonal term
         MatSetValue(hessian,Dim*id_i+1, Dim*id_j, offdiag_ij(1,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i+1, Dim*id_j+1, offdiag_ij(1,1),ADD_VALUES);
-        //The off diagonal term
+        //the main diagonal term    
         MatSetValue(hessian,Dim*id_i+1, Dim*id_i, -offdiag_ij(1,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i+1, Dim*id_i+1, -offdiag_ij(1,1),ADD_VALUES);
     }

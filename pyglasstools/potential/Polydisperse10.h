@@ -15,6 +15,24 @@ class Polydisperse10
             {                
             }
         ~Polydisperse10(){}; 
+        //! Evaluate energy
+        virtual double computeEnergy(const double& d_i, const double& d_j) const
+        {
+            double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
+            double actualrcutsq = rcutsq*sigma*sigma;
+            
+            // compute the force divided by r in force_divr
+            if (rsq < actualrcutsq)
+                {
+                    double r2inv = 1.0/rsq;
+                    r2inv *= sigma*sigma;
+                    double _rsq = rsq/(sigma*sigma);
+                    double r10inv = r2inv * r2inv * r2inv * r2inv *r2inv;
+                    return v0*r10inv+c0+c1*_rsq + c2*_rsq*_rsq+c3*_rsq*_rsq*_rsq;
+                }
+            else
+                return 0.0;
+        }
         //! Evaluate the force and energy
         virtual double computeForce(const double& d_i, const double& d_j) const
         {

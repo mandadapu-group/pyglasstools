@@ -3,9 +3,10 @@
 
 #include <Eigen/Dense>
 #include <cmath>
-#include "../extern/pybind11/include/pybind11/pybind11.h"
-#include "../extern/pybind11/include/pybind11/eigen.h"
-#include "../extern/pybind11/include/pybind11/stl.h"
+#include <pybind11/pybind11.h>
+#include <pybind11/eigen.h>
+#include <pybind11/stl.h>
+
 namespace py = pybind11;
 using namespace Eigen;
 
@@ -36,8 +37,22 @@ class PYBIND11_EXPORT PairPotential
         {
            return 0;
         }
+        virtual void setParams(double val, int num)
+        {
+            params[num] = val;
+        }
+        virtual std::vector<double> getParams()
+        {
+            return params;
+        }
         //! Evaluate the force and energy
         virtual double getPairForce(Eigen::Vector3d rij, double di, double dj)
+        {
+           return 0;
+        }
+        
+        //! Evaluate the force and energy
+        virtual double getPairEnergy(Eigen::Vector3d rij, double di, double dj)
         {
            return 0;
         }
@@ -78,6 +93,7 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
             ShortRangeModel model(rsq_ij, rsq_cut, params);
             return model.computeRcut(di,dj);
         };
+        
         //! Evaluate the force and energy
         double getPairForce(Eigen::Vector3d rij, double di, double dj)
         {
@@ -85,6 +101,15 @@ class PYBIND11_EXPORT ShortRangePairPotential : public PairPotential
             double rsq_cut = scaled_rcut*scaled_rcut;
             ShortRangeModel model(rsq_ij, rsq_cut, params);
             return model.computeForce(di,dj);
+        };
+        
+        //! Evaluate the force and energy
+        double getPairEnergy(Eigen::Vector3d rij, double di, double dj)
+        {
+            double rsq_ij = rij.dot(rij);
+            double rsq_cut = scaled_rcut*scaled_rcut;
+            ShortRangeModel model(rsq_ij, rsq_cut, params);
+            return model.computeEnergy(di,dj);
         };
         
         //! Evaluate the force and energy
@@ -104,8 +129,10 @@ void export_PairPotential(py::module& m)
     .def(py::init<double, std::vector<double> >())
     .def("getRcut", &PairPotential::getRcut)
     .def("getPairForce", &PairPotential::getPairForce)
+    .def("getPairEnergy", &PairPotential::getPairEnergy)
+    .def("getParams", &PairPotential::getParams)
+    .def("setParams", &PairPotential::setParams)
     .def_readwrite("scaled_rcut", &PairPotential::scaled_rcut)
-    .def_readwrite("params", &PairPotential::params)
     ;
 };
 
@@ -115,6 +142,12 @@ void export_ShortRangePairPotential(py::module& m, const std::string& name)
     py::class_<T, PairPotential, std::shared_ptr<T> >(m, name.c_str())
     .def(py::init<std::vector<double> >())
     .def(py::init<double, std::vector<double> >())
+    .def("getRcut", &T::getRcut)
+    .def("getPairForce", &T::getPairForce)
+    .def("getPairEnergy", &T::getPairEnergy)
+    .def("getParams", &T::getParams)
+    .def("setParams", &T::setParams)
+    .def_readwrite("scaled_rcut", &T::scaled_rcut)
     ;
 };
 

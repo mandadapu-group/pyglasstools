@@ -50,7 +50,7 @@ class LennardJones
                 double r2inv = 1.0/rsq;
                 r2inv *= sigma*sigma;
                 double r6inv = r2inv * r2inv * r2inv;
-                return 4*eps*r2inv * r6inv * (12.0*r6inv - 6.0);
+                return (4*eps*r2inv * r6inv * (12.0*r6inv - 6.0))/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -68,7 +68,7 @@ class LennardJones
                 double r2inv = 1.0/rsq;
                 r2inv *= sigma*sigma;
                 double r6inv = r2inv * r2inv * r2inv;
-                return 4*eps*r2inv * r6inv * (13.0*12.0*r6inv - 6.0*7.0);
+                return (4*eps*r2inv * r6inv * (13.0*12.0*r6inv - 6.0*7.0))/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -116,7 +116,7 @@ class ForceShiftedLennardJones : public LennardJones
                 r2inv = 1.0/rcutsq;
                 r6inv = r2inv * r2inv * r2inv;
                 force_divr -= 4*eps*r2inv * r6inv * (12.0*r6inv - 6.0);
-                return force_divr;
+                return force_divr/(sigma*sigma);
             }
             else
                 return 0.0;

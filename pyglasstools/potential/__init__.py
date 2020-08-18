@@ -112,7 +112,7 @@ class polydisperselj(pairpotential):
         pyglasstools.set_potential(self)
 
 class polydisperse10(pairpotential):
-    def __init__(self, v0 =1.0, eps=0.0416667, rcut=1.25):
+    def __init__(self, v0 =1.0, eps=0.0416667, rcut=1.48):
         self.name = "polydisperse-10"
         c0 =  -(56.0)*v0/(rcut**10);
         c1 =  (140.0)*v0/(rcut**12);
@@ -120,4 +120,24 @@ class polydisperse10(pairpotential):
         c3 =  (35.0)*v0/(rcut**16);
         self.cpppairpotential = _potential.PairPotentialPoly10(rcut,[v0,eps,c0,c1,c2,c3])
         self.dict_params = {'v0': 0, 'eps': 1, 'c0': 2, 'c1': 3,'c2': 4,'c3': 5}
+        pyglasstools.set_potential(self)
+
+class polydisperse106(pairpotential):
+    def __init__(self, v0 =1.0, eps=0.1, rcut=3.0):
+        self.name = "polydisperse-106"
+        c0 = (-21 + 10*rcut**4)*v0/rcut**10
+        c1 =  -((5*(-7 + 3*rcut**4)*v0)/rcut**12)
+        c2 = (3*(-5 + 2*rcut**4)*v0)/rcut**14
+        self.cpppairpotential = _potential.PairPotentialPoly106(rcut,[v0,eps,c0,c1,c2])
+        self.dict_params = {'v0': 0, 'eps': 1, 'c0': 2, 'c1': 3,'c2': 4}
+        pyglasstools.set_potential(self)
+
+class polydisperseyukawa(pairpotential):
+    def __init__(self, v0=10.0, eps=0.0, rcut=4.0, kappa=1.0):
+        self.name = "polydisperse-yukawa"
+        c0 = -((np.exp(-kappa*rcut)*(15 + 7*kappa*rcut + kappa**2*rcut**2)*v0)/(8*rcut))
+        c1 = (np.exp(-kappa*rcut)*(5 + 5*kappa*rcut + kappa**2*rcut**2)*v0)/(4*rcut**3)
+        c2 = -((np.exp(-kappa*rcut)*(3 + 3*kappa*rcut + kappa**2*rcut**2)*v0)/(8*rcut**5))
+        self.cpppairpotential = _potential.PairPotentialPolyYukawa(rcut,[v0,kappa,eps,c0,c1,c2])
+        self.dict_params = {'v0': 0, 'kappa': 1, 'eps': 2, 'c0': 3, 'c1': 4,'c2': 5}
         pyglasstools.set_potential(self)

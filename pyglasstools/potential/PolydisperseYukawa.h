@@ -1,8 +1,8 @@
-#ifndef __POLYDISPERSE_12_H__
-#define __POLYDISPERSE_12_H__
+#ifndef __POLYDISPERSE_YUKAWA_H__
+#define __POLYDISPERSE_YUKAWA_H__
 #include <vector>
 
-class Polydisperse12
+class PolydisperseYukawa
 {
     public:
         //! Constructs the pair potential evaluator
@@ -10,11 +10,11 @@ class Polydisperse12
             \param _rcutsq Squared distance at which the potential goes to 0
             \param _params Per type pair parameters of this potential
         */
-        Polydisperse12(const double& _rsq, const double& _rcutsq, const std::vector<double>& _params)
-            : rsq(_rsq), rcutsq(_rcutsq), v0(_params[0]), eps(_params[1]), c0(_params[2]), c1(_params[3]), c2(_params[4])
+        PolydisperseYukawa(const double& _rsq, const double& _rcutsq, const std::vector<double>& _params)
+            : rsq(_rsq), rcutsq(_rcutsq), v0(_params[0]), kappa(_params[1]), eps(_params[2]), c0(_params[3]), c1(_params[4]), c2(_params[5])
             {                
             }
-        ~Polydisperse12(){}; 
+        ~PolydisperseYukawa(){}; 
         //! Evaluate energy
         virtual double computeEnergy(const double& d_i, const double& d_j) const
         {
@@ -27,8 +27,9 @@ class Polydisperse12
                     double r2inv = 1.0/rsq;
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
-                    double r6inv = r2inv * r2inv * r2inv;
-                    return v0*r6inv*r6inv+c0+c1*_rsq + c2*_rsq*_rsq;
+                    double rinv = sqrt(r2inv);
+                    double rroot = sqrt(_rsq);
+                    return v0*exp(-rroot*kappa)*rinv+c0+c1*_rsq + c2*_rsq*_rsq;
                 }
             else
                 return 0.0;
@@ -46,8 +47,9 @@ class Polydisperse12
                     double r2inv = 1.0/rsq;
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
-                    double r6inv = r2inv * r2inv * r2inv;
-                    return (12.0*v0*r2inv*r6inv*r6inv-2.0*c1 -4.0*c2*_rsq)/(sigma*sigma);
+                    double rinv = sqrt(r2inv);
+                    double rroot = sqrt(_rsq);
+                    return ((exp(-kappa*rroot)*(rinv + kappa)*v0)*r2inv - 2*c1 - 4*c2*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -65,8 +67,9 @@ class Polydisperse12
                     double r2inv = 1.0/rsq;
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
-                    double r6inv = r2inv * r2inv * r2inv;
-                    return (156.0*v0*r2inv*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq)/(sigma*sigma);
+                    double rinv = sqrt(r2inv);
+                    double rroot = sqrt(_rsq);
+                    return (v0*exp(-kappa*rroot)*(2*r2inv + 2*kappa*rinv + kappa*kappa)*rinv + 2*c1 + 12*c2*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -82,6 +85,7 @@ class Polydisperse12
         double rsq;     //!< Stored rsq from the constructor
         double rcutsq;  //!< Stored rcutsq from the constructor
         double v0;
+        double kappa;
         double eps;     //!< epsilon_parameter
         double c0;
         double c1;

@@ -46,7 +46,7 @@ class Polydisperse10
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
                     double r10inv = r2inv * r2inv * r2inv * r2inv *r2inv;
-                    return 10.0*v0*r2inv*r10inv-2.0*c1 -4.0*c2*_rsq-6.0*c3*_rsq*_rsq;
+                    return (10.0*v0*r2inv*r10inv-2.0*c1 -4.0*c2*_rsq-6.0*c3*_rsq*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -65,7 +65,7 @@ class Polydisperse10
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
                     double r6inv = r2inv * r2inv * r2inv;
-                    return 110.0*v0*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq+30.0*c3*_rsq*_rsq;
+                    return (110.0*v0*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq+30.0*c3*_rsq*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;

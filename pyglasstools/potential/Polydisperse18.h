@@ -46,7 +46,7 @@ class Polydisperse18
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
                     double r6inv = r2inv * r2inv * r2inv;
-                    return 18.0*v0*r2inv*r6inv*r6inv*r6inv-2.0*c1 -4.0*c2*_rsq;
+                    return (18.0*v0*r2inv*r6inv*r6inv*r6inv-2.0*c1 -4.0*c2*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;
@@ -65,7 +65,7 @@ class Polydisperse18
                     r2inv *= sigma*sigma;
                     double _rsq = rsq/(sigma*sigma);
                     double r6inv = r2inv * r2inv * r2inv;
-                    return 342.0*v0*r2inv*r6inv*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq;
+                    return (342.0*v0*r2inv*r6inv*r6inv*r6inv+2.0*c1 +12.0*c2*_rsq)/(sigma*sigma);
                 }
             else
                 return 0.0;

@@ -222,6 +222,10 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         //
         inta = m_hessian->m_manager->lowerbound_tol; //tol;
         intb = m_maxeigval*(1+m_hessian->m_manager->upperbound_tol);//PETSC_MAX_REAL;
+        if (m_hessian->m_manager->upperbound > 0.0)
+        {
+            intb = m_hessian->m_manager->upperbound*(1+m_hessian->m_manager->upperbound_tol);
+        }
         ierr = EPSSetInterval(eps,inta,intb);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         m_hessian->m_manager->printPetscNotice(5,"Search interval is: ["+detail::to_string_sci(inta)+", "+ detail::to_string_sci(intb)+"]\n");
         
@@ -373,7 +377,18 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
     }
     else
     {
-        m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
+        if (nconv <= 0)
+        {
+            m_hessian->m_manager->printPetscNotice(0,"[WARNING] No converged eigenpairs available \n");
+        }
+        if (m_observables.count("nonaffinetensor") == 0)
+        {
+            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Not calculating non-affine elasticity tensor \n");
+        }
+        if (!m_hessian->areDiagonalsNonZero())
+        {
+            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
+        } 
     }
 };
 

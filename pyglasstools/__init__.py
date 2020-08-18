@@ -17,6 +17,11 @@ comm = _pyglasstools.Communicator()
 rank = comm.getRank()
 size = comm.getSizeGlobal()
 
+#Save mode
+savemode = "unordered"
+def set_savemode(name):
+    savemode = name
+
 ## \internal
 _default_excepthook = sys.excepthook;
 

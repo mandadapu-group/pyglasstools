@@ -2,7 +2,7 @@ import pyglasstools
 from pyglasstools import _pyglasstools
 from pyglasstools import thermo
 from pyglasstools import irvingkirkwood
-from pyglasstools import comm, rank, size, loggers_list
+from pyglasstools import savemode, comm, rank, size, loggers_list
 import numpy as np
 import os
 
@@ -108,7 +108,7 @@ class fieldlogger(object):
         self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
     
     def save_perrank(self,frame_num):
-        Dim = pyglasstools.get_sysdata().simbox.dim
+        Dim = pyglasstools.get_sysdata().pysimbox.dim
         for index, gridpos in enumerate(self.solver.gridpoints):
             outline = "{} ".format(1)
             outline += "{} ".format(self.solver.gridpoints[index][0])
@@ -126,7 +126,7 @@ class fieldlogger(object):
             self.file.write_shared(outline);
     
     def save_perrank_polar(self,frame_num):
-        Dim = pyglasstools.get_sysdata().simbox.dim
+        Dim = pyglasstools.get_sysdata().pysimbox.dim
         for index, gridpos in enumerate(self.solver.gridpoints):
             outline = "{} ".format(1)
             outline += "{} ".format(int(self.solver.gridid[index]))
@@ -149,6 +149,19 @@ class fieldlogger(object):
         comm.barrier()
         
         if self.solver.coordmode == "cartesian":
-            self.save_perrank(frame_num)
+            if savemode == "unordered":
+                self.save_perrank(frame_num)
+            elif savemode == "ordered":
+                signal = False
+                if rank == 0:
+                    self.save_perrank(frame_num)
+                    signal = True
+                    comm.send(signal, rank+1,rank+frame_num)
+                else:
+                    signal = comm.recv(rank-1,rank-1+frame_num)
+                    self.save_perrank(frame_num)
+                    if rank+1 < size:
+                        comm.send(signal, rank+1,rank+frame_num)
+
         elif self.solver.coordmode == "polar":
             self.save_perrank_polar(frame_num)

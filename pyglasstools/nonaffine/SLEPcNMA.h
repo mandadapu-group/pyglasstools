@@ -1,7 +1,7 @@
 #ifndef __SLEPC_NMA_H__
 #define __SLEPC_NMA_H__
 
-#include "PETScHessianBase.h"
+#include "HessianBase.h"
 #include <slepceps.h>
 
 class PYBIND11_EXPORT SLEPcNMA
@@ -356,7 +356,22 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
                                     int index = l+Dim*(k+Dim*(j+Dim*i));
                                     int id_i = i+j;
                                     int id_j = k+l;
-                                    m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                    if (Dim == 3 && (id_i == 2 || id_j == 2))
+                                    {
+                                        if (i == 0 && j == 2)
+                                        {
+                                            id_i = 5;
+                                        }
+                                        if (k == 0 && l == 2)
+                                        {
+                                            id_j = 5;
+                                        }
+                                        m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                    }
+                                    else
+                                    {
+                                        m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                    }
                                 }
                             }
                         }

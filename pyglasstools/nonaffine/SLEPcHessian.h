@@ -1,7 +1,7 @@
 #ifndef __SLEPC_HESSIAN_H__
 #define __SLEPC_HESSIAN_H__
 
-#include "PETScHessianBase.h"
+#include "HessianBase.h"
 
 template<int Dim >
 class SLEPcHessian : public PETScHessianBase
@@ -141,7 +141,7 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
         //std::vector< std::vector< double > > totalparticleid_nonneigh;        
         if (diagonalsarenonzero < 1)
         {
-            m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
+            m_manager->printPetscNotice(5,"Begin Assembling the null space of PETSc matrix\n");
             
             for (int i = 0; i < Dim; ++i)
             {
@@ -156,6 +156,7 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
                 setNullSpaceBasis(id_i, Istart, Iend, i);
             }
             
+            m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
             for (int i = 0; i < Dim; ++i)
             {
                 VecAssemblyBegin(nullvec[i]);
@@ -203,6 +204,11 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
         //The main diagonal term
         MatSetValue(hessian,Dim*id_i, Dim*id_i, -offdiag_ij(0,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i, Dim*id_i+1, -offdiag_ij(0,1),ADD_VALUES);
+        if (Dim == 3)
+        {
+            MatSetValue(hessian,Dim*id_i, Dim*id_j+2, offdiag_ij(0,2),ADD_VALUES);
+            MatSetValue(hessian,Dim*id_i, Dim*id_i+2, -offdiag_ij(0,2),ADD_VALUES);
+        }
     }
     //y-component of the row
     else if (Dim*id_i+1 == real_id)
@@ -213,6 +219,24 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
         //the main diagonal term    
         MatSetValue(hessian,Dim*id_i+1, Dim*id_i, -offdiag_ij(1,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i+1, Dim*id_i+1, -offdiag_ij(1,1),ADD_VALUES);
+        if (Dim == 3)
+        {
+            MatSetValue(hessian,Dim*id_i+1, Dim*id_j+2, offdiag_ij(1,2),ADD_VALUES);
+            MatSetValue(hessian,Dim*id_i+1, Dim*id_i+2, -offdiag_ij(1,2),ADD_VALUES);
+        }
+    }
+    //y-component of the row
+    else if (Dim*id_i+2 == real_id && Dim == 3)
+    {
+        //The off diagonal term
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_j, offdiag_ij(2,0),ADD_VALUES);
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_j+1, offdiag_ij(2,1),ADD_VALUES);
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_j+2, offdiag_ij(2,2),ADD_VALUES);
+        
+        //the main diagonal term    
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_i, -offdiag_ij(2,0),ADD_VALUES);
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_i+1, -offdiag_ij(2,1),ADD_VALUES);
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_i+2, offdiag_ij(2,2),ADD_VALUES);
     }
 };
 
@@ -224,14 +248,39 @@ void SLEPcHessian<Dim>::setMisforceVectorValues(PetscInt id_i, int real_id, doub
         MatSetValue(misforce,Dim*id_i,0, -factor*rij[0]*nij[0]*nij[0],ADD_VALUES); 
         MatSetValue(misforce,Dim*id_i,1, -factor*rij[0]*nij[1]*nij[0],ADD_VALUES); 
         MatSetValue(misforce,Dim*id_i,2, -factor*rij[1]*nij[1]*nij[0],ADD_VALUES); 
+
+        if (Dim == 3)
+        {
+            MatSetValue(misforce,Dim*id_i,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
+        }
     }
+    
     //y-component of the row
     else if (Dim*id_i+1 == real_id)
     {
         MatSetValue(misforce,Dim*id_i+1,0, -factor*rij[0]*nij[0]*nij[1],ADD_VALUES); 
         MatSetValue(misforce,Dim*id_i+1,1, -factor*rij[0]*nij[1]*nij[1],ADD_VALUES); 
         MatSetValue(misforce,Dim*id_i+1,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
+        if (Dim == 3)
+        {
+            MatSetValue(misforce,Dim*id_i+1,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i+1,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i+1,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
+        }
     }
+    //y-component of the row
+    else if (Dim*id_i+2 == real_id && Dim == 3)
+    {
+        MatSetValue(misforce,Dim*id_i+2,0, -factor*rij[0]*nij[0]*nij[1],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,1, -factor*rij[0]*nij[1]*nij[1],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
+    }
+    
 }
 
 template< int Dim >
@@ -242,15 +291,24 @@ void SLEPcHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscI
         VecSetValue(nullvec[0],Dim*id_i,1, INSERT_VALUES);
         VecSetValue(nullvec[1],Dim*id_i,0, INSERT_VALUES);
         if (Dim == 3)
-            VecSetValue(nullvec[Dim],Dim*id_i,0, INSERT_VALUES);
+            VecSetValue(nullvec[Dim-1],Dim*id_i,0, INSERT_VALUES);
     }
     //y-component of the row
     else if (Dim*id_i+1 == real_id)
     {
-        VecSetValue(nullvec[1],Dim*id_i+1,0, INSERT_VALUES);
+        VecSetValue(nullvec[0],Dim*id_i+1,0, INSERT_VALUES);
         VecSetValue(nullvec[1],Dim*id_i+1,1, INSERT_VALUES);
         if (Dim == 3)
-            VecSetValue(nullvec[Dim],Dim*id_i,0, INSERT_VALUES);
+            VecSetValue(nullvec[Dim-1],Dim*id_i+1,0, INSERT_VALUES);
+    }
+    
+    //y-component of the row
+    else if (Dim*id_i+2 == real_id && Dim == 3)
+    {
+        VecSetValue(nullvec[0],Dim*id_i+2,0, INSERT_VALUES);
+        VecSetValue(nullvec[1],Dim*id_i+2,0, INSERT_VALUES);
+        if (Dim == 3)
+            VecSetValue(nullvec[Dim-1],Dim*id_i+2,1, INSERT_VALUES);
     }
 };
 

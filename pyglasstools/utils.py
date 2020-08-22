@@ -56,7 +56,7 @@ class data_gsd(object):
         self.pysimbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
                                   Ly=self.traj[frame_num].configuration.box[1],
                                   Lz=self.traj[frame_num].configuration.box[2],
-                                  ndim=2)
+                                  ndim=self.traj[frame_num].configuration.dimensions)
         # create the c++ mirror class
         self.cppparticledata = _pyglasstools.ParticleSystem(   self.pysimbox.cppsimbox,
                                                             len(self.traj[frame_num].particles.diameter),
@@ -87,7 +87,7 @@ class data_gsd(object):
             self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
                                     Ly=self.traj[frame_num].configuration.box[1],
                                     Lz=self.traj[frame_num].configuration.box[2],
-                                    ndim=2)
+                                    ndim=self.traj[frame_num].configuration.dimensions)
             
             # create the c++ mirror class
             self.cppparticledata = _pyglasstools.ParticleSystem(    self.pysimbox.cppsimbox, 

@@ -1,7 +1,7 @@
 #ifndef __PETSC_HESSIAN_H__
 #define __PETSC_HESSIAN_H__
 
-#include "PETScHessianBase.h"
+#include "HessianBase.h"
 
 template< int Dim >
 class PETScHessian : public PETScHessianBase

@@ -108,10 +108,17 @@ class hessian(object):
         #Initialize system data and pair potential of the system
         self.package = package;
         self.cppmanager = _nonaffine.PETScManager();
+        dimensions = pyglasstools.get_sysdata().pysimbox.dim
         if (package == "petsc"):
-            self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+            if dimensions == 2:
+                self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+            else:
+                self.cpphessian = _nonaffine.PETScHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         elif (package == "slepc"):
-            self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+            if dimensions == 2:
+                self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+            else:
+                self.cpphessian = _nonaffine.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         self.frame_num = pyglasstools.get_sysdata().frame_num
         #elif (package == "spectra"):
         #    self.manager = _nonaffine.HessianManager();

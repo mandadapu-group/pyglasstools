@@ -36,6 +36,7 @@ typedef PETScVectorField<3> PETScVectorField3D;
 typedef PETScGlobalProperty<1,2> GlobalVector2D;   
 typedef PETScGlobalProperty<1,3> GlobalVector3D;   
 typedef PETScGlobalProperty<4,2> NonAffineTensor2D;   
+typedef PETScGlobalProperty<4,3> NonAffineTensor3D;   
 //typedef PETScGlobalProperty<1,3> GlobalVector3D;   
 
 PYBIND11_MODULE(_nonaffine, m)
@@ -59,12 +60,14 @@ PYBIND11_MODULE(_nonaffine, m)
     export_PETScGlobalProperty< GlobalVector2D >(m,"GlobalVector2D");    
     export_PETScGlobalProperty< GlobalVector3D >(m,"GlobalVector3D");    
     export_PETScGlobalProperty< NonAffineTensor2D >(m,"NonAffineTensor2D");    
+    export_PETScGlobalProperty< NonAffineTensor3D >(m,"NonAffineTensor3D");    
     export_PETScGlobalProperty< PETScGlobalScalar >(m,"GlobalScalar");    
     
     //Export PETSc Hessian Objects
     export_PETScHessianBase(m);
     export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
     export_SLEPcHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
+    export_SLEPcHessian< SLEPcHessian<3> >(m, "SLEPcHessian3D");
     //export_PETScHessian< PETScFDHessian3D>(m, "PETScFDHessian3D");
     
     //Export PETSc Calculators

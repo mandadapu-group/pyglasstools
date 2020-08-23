@@ -236,7 +236,7 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
         //the main diagonal term    
         MatSetValue(hessian,Dim*id_i+2, Dim*id_i, -offdiag_ij(2,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i+2, Dim*id_i+1, -offdiag_ij(2,1),ADD_VALUES);
-        MatSetValue(hessian,Dim*id_i+2, Dim*id_i+2, offdiag_ij(2,2),ADD_VALUES);
+        MatSetValue(hessian,Dim*id_i+2, Dim*id_i+2, -offdiag_ij(2,2),ADD_VALUES);
     }
 };
 

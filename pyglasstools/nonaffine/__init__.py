@@ -39,6 +39,8 @@ def initialize_global(names,dim):
     if any("nonaffinetensor" in s for s in names):
         if dim == 2:
             list_obs['nonaffinetensor'] = _nonaffine.NonAffineTensor2D("nonaffinetensor", "4-TENSOR", False,comm)
+        elif dim == 3:
+            list_obs['nonaffinetensor'] = _nonaffine.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False,comm)
     if any("eigenvalue" in s for s in names):
         for s in [name for name in names if "eigenvalue" in name]:
             list_obs[s] = _nonaffine.GlobalScalar(s, "SCALAR", False,comm)

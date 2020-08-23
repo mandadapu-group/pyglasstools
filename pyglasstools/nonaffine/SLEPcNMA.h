@@ -340,38 +340,35 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
                 VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
                 
                 int Dim = m_hessian->m_sysdata->simbox->dim; 
-                if (Dim == 2)
+                for(int l = 0; l < m_observables["nonaffinetensor"]->getDimension(3); ++l)
                 {
-                    for(int l = 0; l < m_observables["nonaffinetensor"]->getDimension(3); ++l)
+                    for(int k = 0; k < m_observables["nonaffinetensor"]->getDimension(2); ++k)
                     {
-                        for(int k = 0; k < m_observables["nonaffinetensor"]->getDimension(2); ++k)
+                        for(int j = 0; j < m_observables["nonaffinetensor"]->getDimension(1); ++j)
                         {
-                            for(int j = 0; j < m_observables["nonaffinetensor"]->getDimension(1); ++j)
+                            for (int i = 0; i < m_observables["nonaffinetensor"]->getDimension(0); ++i)
                             {
-                                for (int i = 0; i < m_observables["nonaffinetensor"]->getDimension(0); ++i)
+                                //if i,j or k,l  is 0,0 ---> 0
+                                //if i,j or k,l  is 0,1 ---> 1
+                                //if i,j or k,l  is 1,1 ---> 1
+                                int index = l+Dim*(k+Dim*(j+Dim*i));
+                                int id_i = i+j;
+                                int id_j = k+l;
+                                if (Dim == 3 && (id_i == 2 || id_j == 2))
                                 {
-                                    //if i,j or k,l  is 0,0 ---> 0
-                                    //if i,j or k,l  is 0,1 ---> 1
-                                    //if i,j or k,l  is 1,1 ---> 1
-                                    int index = l+Dim*(k+Dim*(j+Dim*i));
-                                    int id_i = i+j;
-                                    int id_j = k+l;
-                                    if (Dim == 3 && (id_i == 2 || id_j == 2))
+                                    if ((i == 0 && j == 2) || (i == 2 && j == 0) )
                                     {
-                                        if (i == 0 && j == 2)
-                                        {
-                                            id_i = 5;
-                                        }
-                                        if (k == 0 && l == 2)
-                                        {
-                                            id_j = 5;
-                                        }
-                                        m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                        id_i = 5;
                                     }
-                                    else
+                                    if ((k == 0 && l == 2) || (k == 2 && l == 0))
                                     {
-                                        m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                        id_j = 5;
                                     }
+                                    m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
+                                }
+                                else
+                                {
+                                    m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
                                 }
                             }
                         }

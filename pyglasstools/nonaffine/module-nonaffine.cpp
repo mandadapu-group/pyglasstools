@@ -1,12 +1,13 @@
 #include "NonAffineManager.h"
 
-#include "PETScHessian.h"
+//#include "PETScHessian.h"
 #include "SLEPcHessian.h"
+#include "SpectraHessian.h"
 
 #include "PETScGlobalProperty.h"
 #include "PETScVectorField.h"
 
-#include "PETScForceDipole.h"
+//#include "PETScForceDipole.h"
 #include "SLEPcNMA.h"
 
 #include <slepceps.h>
@@ -47,7 +48,7 @@ PYBIND11_MODULE(_nonaffine, m)
         Py_AtExit(slepc::finalize);
     }
     //Export PETSc Managers
-    export_HessianManager(m);
+    export_EigenManager(m);
     export_PETScManager(m);
     
     //Export PETScObservables
@@ -63,14 +64,17 @@ PYBIND11_MODULE(_nonaffine, m)
     export_PETScGlobalProperty< PETScGlobalScalar >(m,"GlobalScalar");    
     
     //Export PETSc Hessian Objects
+    export_HessianBase(m);
     export_PETScHessianBase(m);
-    export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
-    export_PETScHessian< PETScHessian<3> >(m, "PETScHessian3D");
+    export_EigenHessianBase(m);
+    //export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
+    //export_PETScHessian< PETScHessian<3> >(m, "PETScHessian3D");
     export_SLEPcHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
     export_SLEPcHessian< SLEPcHessian<3> >(m, "SLEPcHessian3D");
+    export_SpectraHessian< SpectraHessian<2> >(m, "SpectraHessian2D");
     
     //Export PETSc Calculators
-    export_PETScForceDipoleCalculator(m);
+    //export_PETScForceDipoleCalculator(m);
     export_SLEPcNMA(m);
     //export_SLEPcHessian(m);
     //export_SpectraHessian(m);

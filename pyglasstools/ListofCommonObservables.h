@@ -23,7 +23,7 @@ class VirialStress
             double dj = abr::get<diameter>(p_j);
 
             //Compute pair-force!
-            double forceval = potential->getPairForce(rij, di, dj);
+            double forceval = potential->getPairForceDivR(rij, di, dj);
             Eigen::Vector3d F =  (forceval)*(rij);
             
             //Compute virial stress going through component-by-component
@@ -72,8 +72,8 @@ class ElasticVirialStress : public VirialStress
                        abr::get<displacement>(p_j)[2]-abr::get<displacement>(p_i)[2];
             //py::print(newrij,abr::get<displacement>(p_j)[0],abr::get<displacement>(p_i)[0],abr::get<displacement>(p_j)[1],abr::get<displacement>(p_i)[1],
                        //abr::get<displacement>(p_j)[2],abr::get<displacement>(p_i)[2]);
-            double forceval = potential->getPairForce(rij, di, dj);
-            double forceval1 = potential->getPairForce(uij+rij, di, dj);
+            double forceval = potential->getPairForceDivR(rij, di, dj);
+            double forceval1 = potential->getPairForceDivR(uij+rij, di, dj);
             Eigen::Vector3d F =  forceval*rij;//(urij);
             Eigen::Vector3d F1 =  forceval1*(uij+rij);//(urij);
             
@@ -130,7 +130,7 @@ class BornStiffnessTensor
             //Compute pair-force!
             double di = abr::get<diameter>(p_i);
             double dj = abr::get<diameter>(p_j);
-            double forceval = potential->getPairForce(rij, di, dj);
+            double forceval = potential->getPairForceDivR(rij, di, dj);
             double stiffnessval = potential->getBondStiffness(rij, di, dj);
             Eigen::Vector3d F =  (forceval)*(rij);
             Eigen::Vector3d nij = rij.normalized();

@@ -1,10 +1,14 @@
 #ifndef __SPECTRA_NMA_H__
 #define __SPECTRA_NMA_H__
 
-#include "PETScHessianBase.h"
-#include <slepceps.h>
+#include "HessianBase.h"
 
-class PYBIND11_EXPORT SLEPcNMA
+#include <Spectra/SymEigsSolver.h>
+#include <Spectra/SymEigsShiftSolver.h>
+#include <Spectra/MatOp/SparseGenMatProd.h>
+#include <Spectra/MatOp/SparseSymShiftSolve.h>
+
+class PYBIND11_EXPORT SpectraNMA
 {
     protected:
         std::shared_ptr< PETScHessianBase > m_hessian; 

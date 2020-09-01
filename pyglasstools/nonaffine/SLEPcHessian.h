@@ -9,15 +9,15 @@ class SLEPcHessian : public PETScHessianBase
     public:
         MatNullSpace constant;
         Vec nullvec[Dim];
-        int diagonalsarenonzero;
 
         SLEPcHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
                         std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
         ~SLEPcHessian()
         {
-            destroyPETScObjects();
+            destroyObjects();
         }        
-        virtual void destroyPETScObjects()
+        
+        void destroyObjects()
         {
             MatNullSpaceDestroy(&constant);
             for(int i = 0; i < Dim; ++i)
@@ -28,19 +28,8 @@ class SLEPcHessian : public PETScHessianBase
             MatDestroy(&misforce);
         };
         
-        bool areDiagonalsNonZero()
-        {
-            if (diagonalsarenonzero < 1)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
+        void assembleObjects();
         
-        void assemblePETScObjects();
         void setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt Istart, PetscInt Iend, PetscInt real_id,Eigen::Matrix3d offdiag_ij);
         void setMisforceVectorValues(PetscInt id_i,PetscInt real_id,double factor,Eigen::Vector3d rij, Eigen::Vector3d nij);
         void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
@@ -51,12 +40,12 @@ SLEPcHessian<Dim>::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::
                                 std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm)
     : PETScHessianBase(sysdata, potential, manager, comm)
 {
-    assemblePETScObjects();
+    assembleObjects();
 };
 
 //Implementation is still specific to 2D!!!
 template< int Dim >
-void SLEPcHessian<Dim>::assemblePETScObjects()
+void SLEPcHessian<Dim>::assembleObjects()
 {
         //Add command line options
         ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -115,9 +104,9 @@ void SLEPcHessian<Dim>::assemblePETScObjects()
                     //Make sure the particle is unique
                     if (m_potential->getRcut(rij, di, dj) > rij.dot(rij)) 
                     {
-                        double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForce(rij, di, dj);
+                        double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
                         Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
-                                                     +Eigen::Matrix3d::Identity()*m_potential->getPairForce(rij, di, dj);
+                                                     +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
                         setHessianValues(id_i, id_j, Istart, Iend, i, offdiag_ij);
                         setMisforceVectorValues(id_i,i,factor,rij,nij);
                         neighbors_count += 1;
@@ -265,20 +254,20 @@ void SLEPcHessian<Dim>::setMisforceVectorValues(PetscInt id_i, int real_id, doub
         MatSetValue(misforce,Dim*id_i+1,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
         if (Dim == 3)
         {
-            MatSetValue(misforce,Dim*id_i+1,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i+1,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i+1,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i+1,3, -factor*rij[1]*nij[2]*nij[1],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i+1,4, -factor*rij[2]*nij[2]*nij[1],ADD_VALUES); 
+            MatSetValue(misforce,Dim*id_i+1,5, -factor*rij[0]*nij[2]*nij[1],ADD_VALUES); 
         }
     }
     //y-component of the row
     else if (Dim*id_i+2 == real_id && Dim == 3)
     {
-        MatSetValue(misforce,Dim*id_i+2,0, -factor*rij[0]*nij[0]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,1, -factor*rij[0]*nij[1]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,0, -factor*rij[0]*nij[0]*nij[2],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,1, -factor*rij[0]*nij[1]*nij[2],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,2, -factor*rij[1]*nij[1]*nij[2],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,3, -factor*rij[1]*nij[2]*nij[2],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,4, -factor*rij[2]*nij[2]*nij[2],ADD_VALUES); 
+        MatSetValue(misforce,Dim*id_i+2,5, -factor*rij[0]*nij[2]*nij[2],ADD_VALUES); 
     }
     
 }
@@ -317,8 +306,8 @@ void export_SLEPcHessian(py::module& m, const std::string& name)
 {
     py::class_<T, PETScHessianBase, std::shared_ptr<T> >(m,name.c_str())
     .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::Communicator > >())
-    .def("destroyPETScObjects", &T::destroyPETScObjects)
-    .def("assemblePETScObjects", &T::assemblePETScObjects)
+    .def("destroyObjects", &T::destroyObjects)
+    .def("assembleObjects", &T::assembleObjects)
     .def("setSystemData", &T::setSystemData)
     .def("areDiagonalsNonZero", &T::areDiagonalsNonZero)
     ;

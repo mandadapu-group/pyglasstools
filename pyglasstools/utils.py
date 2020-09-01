@@ -38,25 +38,26 @@ class simbox(object):
             else:
                 return orig_attr
 
-def read_gsd(filename,checkpointfile = None,frame_num = 0):
+def read_gsd(filename,checkpointfile = None,frame_num = 0,ndim=2):
     traj_gsd = gsd.hoomd.open(name=filename,mode='rb')
-    return data_gsd(traj_gsd, checkpointfile, frame_num)
+    return data_gsd(traj_gsd, checkpointfile, frame_num,ndim)
 
 class data_gsd(object):
     global globalsysdata
     R""" Object to store particle data based on GSD format
 
     """
-    def __init__(self, traj_gsd, checkpointfile, frame_num):
+    def __init__(self, traj_gsd, checkpointfile, frame_num,ndim=2):
         self.frame_num = frame_num
         self.checkpointfile = checkpointfile
         #Store trajectory data
         self.traj = traj_gsd; 
+        self.ndim = ndim;
         #Store simulation box
         self.pysimbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
                                   Ly=self.traj[frame_num].configuration.box[1],
                                   Lz=self.traj[frame_num].configuration.box[2],
-                                  ndim=self.traj[frame_num].configuration.dimensions)
+                                  ndim=ndim)
         # create the c++ mirror class
         self.cppparticledata = _pyglasstools.ParticleSystem(   self.pysimbox.cppsimbox,
                                                             len(self.traj[frame_num].particles.diameter),
@@ -87,7 +88,7 @@ class data_gsd(object):
             self.simbox = simbox(   Lx=self.traj[frame_num].configuration.box[0],
                                     Ly=self.traj[frame_num].configuration.box[1],
                                     Lz=self.traj[frame_num].configuration.box[2],
-                                    ndim=self.traj[frame_num].configuration.dimensions)
+                                    ndim=ndim)
             
             # create the c++ mirror class
             self.cppparticledata = _pyglasstools.ParticleSystem(    self.pysimbox.cppsimbox, 

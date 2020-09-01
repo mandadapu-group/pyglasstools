@@ -12,14 +12,14 @@ namespace py = pybind11;
 #include <petscvec.h>
 
 
-class PYBIND11_EXPORT HessianManager : public Manager
+class PYBIND11_EXPORT EigenManager : public Manager
 {
     public:
         double pinv_tol, lowerbound_tol;  
         int nev, ncv, maxiter;
         std::string selrule;     
         
-        HessianManager() : pinv_tol(1e-12), lowerbound_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
+        EigenManager() : pinv_tol(1e-12), lowerbound_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
             detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
@@ -28,7 +28,7 @@ class PYBIND11_EXPORT HessianManager : public Manager
             detail::argparser<int>("-spectra_maxiter",maxiter, "[ERROR] Invalid value for maxier", argv);
             detail::argparser<std::string>("-spectra_selrule",selrule, "[ERROR] Invalid value for spectra selrule", argv);
         };
-        ~HessianManager(){};
+        ~EigenManager(){};
 };
 
 
@@ -94,9 +94,9 @@ class PYBIND11_EXPORT PETScManager : public Manager
         }
 };
 
-void export_HessianManager(py::module& m)
+void export_EigenManager(py::module& m)
 {
-    py::class_<HessianManager, std::shared_ptr<HessianManager> >(m,"HessianManager")
+    py::class_<EigenManager, std::shared_ptr<EigenManager> >(m,"EigenManager")
     .def(py::init<>())
     ;
 };

@@ -107,11 +107,11 @@ void PETScForceDipoleCalculator::findMinimumPairForce()
                     double dj =  abr::get<diameter>(*p_j);
                     
                     //Make sure the particle is unique
-                    //if (m_hessian->m_potential->getRcut() > rij.dot(rij) && abs(m_hessian->m_potential->getPairForce()) < abs(force_threshold))
-                    double testdipole = abs(m_hessian->m_potential->getPairForce(bar_rij,di,dj));
+                    //if (m_hessian->m_potential->getRcut() > rij.dot(rij) && abs(m_hessian->m_potential->getPairForceDivR()) < abs(force_threshold))
+                    double testdipole = abs(m_hessian->m_potential->getPairForceDivR(bar_rij,di,dj));
                     if (m_hessian->m_potential->getRcut(bar_rij,di,dj) > bar_rij.dot(bar_rij) && abs(forcedipole) > testdipole && testdipole > 0 )
                     {
-                        forcedipole = m_hessian->m_potential->getPairForce(bar_rij,di,dj);
+                        forcedipole = m_hessian->m_potential->getPairForceDivR(bar_rij,di,dj);
                         rij = bar_rij;
                         id_i = tempid_i; 
                         id_j = tempid_j; 
@@ -163,15 +163,15 @@ void PETScForceDipoleCalculator::findRandomPairForce()
                     double dj =  abr::get<diameter>(*p_j);
                     
                     //Make sure the particle is unique
-                    //if (m_hessian->m_potential->getRcut() > rij.dot(rij) && abs(m_hessian->m_potential->getPairForce()) < abs(force_threshold))
-                    double testdipole = abs(m_hessian->m_potential->getPairForce(bar_rij,di,dj));
+                    //if (m_hessian->m_potential->getRcut() > rij.dot(rij) && abs(m_hessian->m_potential->getPairForceDivR()) < abs(force_threshold))
+                    double testdipole = abs(m_hessian->m_potential->getPairForceDivR(bar_rij,di,dj));
                     if (    m_hessian->m_potential->getRcut(bar_rij,di,dj) > bar_rij.dot(bar_rij) && 
                             testdipole*bar_rij.norm() > m_hessian->m_manager->fd_random_min 
                             && testdipole*bar_rij.norm() < m_hessian->m_manager->fd_random_max)
                     {
                         m_hessian->m_manager->notice(5) << "Found it!" << std::endl;
                         m_hessian->m_manager->notice(5) << "Force min: " << m_hessian->m_manager->fd_random_min << " and Force max: " << m_hessian->m_manager->fd_random_max << " distance is " << bar_rij[0] << " " << bar_rij[1] << std::endl;
-                        forcedipole = m_hessian->m_potential->getPairForce(bar_rij,di,dj);
+                        forcedipole = m_hessian->m_potential->getPairForceDivR(bar_rij,di,dj);
                         rij = bar_rij;
                         id_i = tempid_i; 
                         id_j = tempid_j;

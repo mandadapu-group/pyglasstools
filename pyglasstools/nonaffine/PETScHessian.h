@@ -98,9 +98,9 @@ void PETScHessian<Dim>::assemblePETScObjects()
                     //Make sure the particle is unique
                     if (m_potential->getRcut(rij, di, dj) > rij.dot(rij)) 
                     {
-                        double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForce(rij, di, dj);
+                        double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
                         Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
-                                                     +Eigen::Matrix3d::Identity()*m_potential->getPairForce(rij, di, dj);
+                                                     +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
                         setHessianValues(id_i, id_j, Istart, Iend, i, offdiag_ij);
                     }
                 }

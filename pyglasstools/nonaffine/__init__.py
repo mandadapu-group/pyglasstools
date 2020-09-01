@@ -89,6 +89,9 @@ class eigensolver(object):
         if package == "slepc-petsc" or package == "slepc-mumps":
             self.pyhessian = hessian("slepc");
             self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
+        elif package == "spectra":
+            self.pyhessian = hessian("spectra");
+            self.cppeigensolver = _nonaffine.SpectraNMA(self.pyhessian.cpphessian)
         #We need Spectra implementation here as well
         solvers_list.append(self)
 
@@ -121,17 +124,22 @@ class hessian(object):
                 self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
             else:
                 self.cpphessian = _nonaffine.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+        elif (package == "spectra"):
+            if dimensions == 2:
+                self.cpphessian = _nonaffine.SpectraHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+            else:
+                self.cpphessian = _nonaffine.SpectraHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         self.frame_num = pyglasstools.get_sysdata().frame_num
         #elif (package == "spectra"):
-        #    self.manager = _nonaffine.HessianManager();
+        #    self.manager = _nonaffine.EigenManager();
         #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),pyglasstools.get_potential().cpppairpotential,self.manager,comm)
    
     def update(self,frame_num):
         pyglasstools.get_sysdata().update(frame_num);
         self.cpphessian.setSystemData(pyglasstools.get_sysdata().cppparticledata)
        # if self.frame_num != frame_num:
-        self.cpphessian.destroyPETScObjects()
-        self.cpphessian.assemblePETScObjects()
+        self.cpphessian.destroyObjects()
+        self.cpphessian.assembleObjects()
         self.frame_num = frame_num
 
         #Another way to update the hessian, by deleteing the object and creating it again from scratch

@@ -39,7 +39,7 @@ class LennardJones
         }
 
        //! Evaluate the force and energy
-        virtual double computeForce(double d_i, double d_j) const
+        virtual double computeForceDivR(double d_i, double d_j) const
         {
             double sigma = 0.5*(d_i+d_j);
             double actualrcutsq = rcutsq*sigma*sigma;
@@ -101,7 +101,7 @@ class ForceShiftedLennardJones : public LennardJones
             }
         ~ForceShiftedLennardJones(){};        
         //! Evaluate the force and energy
-        virtual double computeForce(double d_i, double d_j)
+        virtual double computeForceDivR(double d_i, double d_j)
         {
             double sigma = 0.5*(d_i+d_j);
             double actualrcutsq = rcutsq*sigma*sigma;

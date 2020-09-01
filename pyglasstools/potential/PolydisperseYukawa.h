@@ -36,7 +36,7 @@ class PolydisperseYukawa
         }
         
         //! Evaluate the force and energy
-        virtual double computeForce(const double& d_i, const double& d_j) const
+        virtual double computeForceDivR(const double& d_i, const double& d_j) const
         {
             double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
             double actualrcutsq = rcutsq*sigma*sigma;

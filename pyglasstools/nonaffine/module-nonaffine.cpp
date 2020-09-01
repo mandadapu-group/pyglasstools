@@ -2,7 +2,7 @@
 
 //#include "PETScHessian.h"
 #include "SLEPcHessian.h"
-#include "SpectraHessian.h"
+//#include "SpectraHessian.h"
 
 #include "PETScGlobalProperty.h"
 #include "PETScVectorField.h"
@@ -66,12 +66,12 @@ PYBIND11_MODULE(_nonaffine, m)
     //Export PETSc Hessian Objects
     export_HessianBase(m);
     export_PETScHessianBase(m);
-    export_EigenHessianBase(m);
+    //export_EigenHessianBase(m);
     //export_PETScHessian< PETScHessian<2> >(m, "PETScHessian2D");
     //export_PETScHessian< PETScHessian<3> >(m, "PETScHessian3D");
     export_SLEPcHessian< SLEPcHessian<2> >(m, "SLEPcHessian2D");
     export_SLEPcHessian< SLEPcHessian<3> >(m, "SLEPcHessian3D");
-    export_SpectraHessian< SpectraHessian<2> >(m, "SpectraHessian2D");
+    //export_SpectraHessian< SpectraHessian<2> >(m, "SpectraHessian2D");
     
     //Export PETSc Calculators
     //export_PETScForceDipoleCalculator(m);

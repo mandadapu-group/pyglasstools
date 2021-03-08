@@ -101,39 +101,41 @@ class data_gsd(object):
             self.frame_num = frame_num
     
     def move_particles(self,displacement):
-        self.particledata.moveParticles(displacement)
+        self.cppparticledata.moveParticles(displacement)
     def move_particles(self):
-        self.particledata.moveParticles()
+        self.cppparticledata.moveParticles()
     
     def set_displacement(self,displacement):
-        self.particledata.setDisplacement(displacement)
+        self.cppparticledata.setDisplacement(displacement)
     
     def get_displacement(self):
-        return self.particledata.getDisplacement()
+        return self.cppparticledata.getDisplacement()
 
     def set_diameters(self,diameter):
-        self.particledata.setDiameter(diameter.astype('float64'))
+        self.cppparticledata.setDiameter(diameter.astype('float64'))
     
     def get_diameters(self):
-        return self.particledata.getDiameter()
+        return self.cppparticledata.getDiameter()
     
     def set_mass(self,mass):
-        self.particledata.setMass(mass.astype('float64'))
+        self.cppparticledata.setMass(mass.astype('float64'))
     
     def get_mass(self):
-        return self.particledata.getMass()
+        return self.cppparticledata.getMass()
     
     def set_position(self,position):
-        self.particledata.setAtomPosition(position.astype('float64'))
+        self.cppparticledata.setAtomPosition(position.astype('float64'))
     
     def get_position(self):
-        return self.particledata.getAtomPosition()
+        return self.cppparticledata.getAtomPosition()
     
     def set_velocity(self,velocity):
-        self.particledata.setAtomVelocity(velocity.astype('float64'))
+        self.cppparticledata.setAtomVelocity(velocity.astype('float64'))
     
     def get_velocity(self):
-        return self.particledata.getAtomVelocity()
+        return self.cppparticledata.getAtomVelocity()
     
     def get_neighbors(self, point, radius):
-        return self.particledata.getNeighbors(point,radius)
+        return self.cppparticledata.getNeighbors(point,radius)
+    def get_neighborsdistance(self, tag, radius):
+        return self.cppparticledata.getNeighborsDistance(tag,radius)

@@ -43,11 +43,11 @@ class pairpotential(object):
         if len(rij) == 2:
             rij = np.append(np.array(rij),0)
             sigmasq = self.cpppairpotential.getRcut(rij,di,dj)/self.cpppairpotential.scaled_rcut**2
-            return self.cpppairpotential.getPairForceDivR(rij,di,dj)*np.linalg.norm(rij)/sigmasq**(1/2)
+            return self.cpppairpotential.getPairForceDivR(rij,di,dj)*np.linalg.norm(rij)#/sigmasq**(1/2)
         else:
             rij = np.array(rij)
             sigmasq = self.cpppairpotential.getRcut(rij,di,dj)/self.cpppairpotential.scaled_rcut**2
-            return self.cpppairpotential.getPairForceDivR(rij,di,dj)*np.linalg.norm(rij)/sigmasq**(1/2)
+            return self.cpppairpotential.getPairForceDivR(rij,di,dj)*np.linalg.norm(rij)#/sigmasq**(1/2)
     def get_pairenergy(self,rij,di,dj):
         if len(rij) == 2:
             return self.cpppairpotential.getPairEnergy(np.append(np.array(rij),0),di,dj)

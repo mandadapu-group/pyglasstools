@@ -104,6 +104,7 @@ void SLEPcHessian<Dim>::assembleObjects()
                     //Make sure the particle is unique
                     if (m_potential->getRcut(rij, di, dj) > rij.dot(rij)) 
                     {
+                        //Note PairForce is - Phi_r(r), hence the negative sign is encoded inside factor
                         double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
                         Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
                                                      +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
@@ -159,7 +160,7 @@ void SLEPcHessian<Dim>::assembleObjects()
             MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
             MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
             
-            MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,2,nullvec,&constant);
+            MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,Dim,nullvec,&constant);
             MatSetNullSpace(hessian,constant);
         }
         else

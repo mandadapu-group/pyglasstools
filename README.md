@@ -1,14 +1,14 @@
 # **PyGlassTools**
 
-PyGlassTools is a Python module that compiles a couple of calculations that I routinely do when analyzing atomistic trajectories, particularly supercooled liquids and glasses. Flexibility is important as I deal not just with one type of potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
+PyGlassTools is a Python module that compiles a couple of calculations for analyzing atomistic trajectories that are routinely done in our group, particularly supercooled liquids and glasses. Flexibility is important we don't deal not just with one type of pair potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
 
 In-progress is development for dynamical analysis (beyond autocorrelation analysis). More will come soon. 
 
-This is a **(highly) experimental** version and still in-development. **Do not git pull/clone** unless you are confident with what you're doing!
+This is an **experimental** version and still in-development! More detailed instructions and tutorials will come soon. 
 
 ## **Announcements**
 
-(07/05/2020): Still performing lots of test calculations. Will try to move functions and class methods to separate implementation files to reduce (re)compilation time.
+(03/08/2021): Currently in the process of re-factoring as well as moving functions and class methods to separate implementation files to reduce (re)compilation time.
 
 ## **Contents** 
 
@@ -18,7 +18,7 @@ Files that come with this module:
  - SetupPybind11.cmake      : CMake file for setting Python build using [pybind11](https://pybind11.readthedocs.io/en/stable/)
  - README.md                : This file
  - pyglasstools             : Directory containing C++ and Python source codes that make up the module
- - setup.py                 : Python script to install PyGlassTools as a module. *DO NOT RUN IT*. Special instructions will come.
+ - setup.py                 : Python script to install PyGlassTools as a module. *DO NOT RUN IT* on the source directory. 
 
 ## **Requirements**
 
@@ -41,8 +41,9 @@ Coming soon . . .
 
 
 ## **To-Do List**
+Features that are relatively desirable, but not in high demand at the moment:
 1. Implement parallelized excitation analysis (in the context of Dynamical Facilitation Theory) 
 2. (*Optional*) Implement stress and density auto-correlation functions
 3. (*Optional*) Interface for 'quick' plotting and movie generation. 
 
-Current eigensolver uses [Spectra](https://spectralib.org/) and.or [SLEPc](https://slepc.upv.es/)
+Current eigensolver uses [Spectra](https://spectralib.org/).

@@ -103,6 +103,7 @@ void export_ParticleSystem(py::module& m)
     .def("moveParticles", (void (ParticleSystem::*)(std::vector< std::vector<double> >)) &ParticleSystem::moveParticles)
     .def("moveParticles", (void (ParticleSystem::*)( )) &ParticleSystem::moveParticles)
     .def("getNeighbors", &ParticleSystem::getNeighbors)
+    .def("getNeighborsDistance", &ParticleSystem::getNeighborsDistance)
     .def("update", &ParticleSystem::updateParticleSystem) 
     ;
 };

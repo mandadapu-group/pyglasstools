@@ -15,14 +15,14 @@ namespace py = pybind11;
 class PYBIND11_EXPORT EigenManager : public Manager
 {
     public:
-        double pinv_tol, lowerbound_tol;  
+        double pinv_tol, eigen_tol;  
         int nev, ncv, maxiter;
         std::string selrule;     
         
-        EigenManager() : pinv_tol(1e-12), lowerbound_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
+        EigenManager() : pinv_tol(1e-12), eigen_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
-            detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
+            detail::argparser<double>("-eigen_tol",eigen_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
             detail::argparser<int>("-spectra_nev",nev, "[ERROR] Invalid value spectra_nev", argv);
             detail::argparser<int>("-spectra_ncv",ncv, "[ERROR] Invalid value spectra_ncv", argv);
             detail::argparser<int>("-spectra_maxiter",maxiter, "[ERROR] Invalid value for maxier", argv);

@@ -5,6 +5,8 @@
 #include <omp.h>
 #include "MathAndTypes.h"
 #include "SimBox.h"
+#include <pybind11/stl.h>
+#include <pybind11/eigen.h>
 
 #include <Aboria.h>
 namespace py = pybind11;
@@ -126,6 +128,20 @@ class PYBIND11_EXPORT ParticleSystem
                 particleID.push_back(abr::get<abr::id>(*particle));
             }
             return particleID;
+        };
+        
+        std::vector< Eigen::Vector3d > getNeighborsDistance(int tag, double radius)
+        {
+
+            std::vector< Eigen::Vector3d > rij_list;
+            auto p_i = particles.begin()+tag;
+            for( auto p_j = abr::euclidean_search(particles.get_query(), 
+                        abr::get<position>(*p_i), radius); p_j != false; ++p_j)
+            {
+                Eigen::Vector3d dr(-p_j.dx()[0], -p_j.dx()[1],-p_j.dx()[2]);
+                rij_list.push_back(dr);
+            }
+            return rij_list;
         };
         
         std::shared_ptr<SimBox> simbox;

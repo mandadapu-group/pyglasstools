@@ -4,7 +4,7 @@
 #include "SLEPcHessian.h"
 //#include "SpectraHessian.h"
 
-#include "PETScGlobalProperty.h"
+#include "GlobalProperty.h"
 #include "PETScVectorField.h"
 
 //#include "PETScForceDipole.h"
@@ -34,12 +34,12 @@ namespace slepc
 
 typedef PETScVectorField<2> PETScVectorField2D;
 typedef PETScVectorField<3> PETScVectorField3D;
-typedef PETScGlobalProperty<1,2> GlobalVector2D;   
-typedef PETScGlobalProperty<1,3> GlobalVector3D;   
-typedef PETScGlobalProperty<4,2> NonAffineTensor2D;   
-typedef PETScGlobalProperty<4,3> NonAffineTensor3D;   
+typedef GlobalProperty<1,2> GlobalVector2D;   
+typedef GlobalProperty<1,3> GlobalVector3D;   
+typedef GlobalProperty<4,2> NonAffineTensor2D;   
+typedef GlobalProperty<4,3> NonAffineTensor3D;   
 
-PYBIND11_MODULE(_nonaffine, m)
+PYBIND11_MODULE(_elasticity, m)
 {
     int external_init = slepc::initialize();
 
@@ -56,12 +56,12 @@ PYBIND11_MODULE(_nonaffine, m)
     export_PETScVectorField< PETScVectorField2D >(m,"PETScVectorField2D");
     export_PETScVectorField< PETScVectorField3D >(m,"PETScVectorField3D");
     
-    export_PETScGlobalPropertyBase(m);
-    export_PETScGlobalProperty< GlobalVector2D >(m,"GlobalVector2D");    
-    export_PETScGlobalProperty< GlobalVector3D >(m,"GlobalVector3D");    
-    export_PETScGlobalProperty< NonAffineTensor2D >(m,"NonAffineTensor2D");    
-    export_PETScGlobalProperty< NonAffineTensor3D >(m,"NonAffineTensor3D");    
-    export_PETScGlobalProperty< PETScGlobalScalar >(m,"GlobalScalar");    
+    export_GlobalPropertyBase(m);
+    export_GlobalProperty< GlobalVector2D >(m,"GlobalVector2D");    
+    export_GlobalProperty< GlobalVector3D >(m,"GlobalVector3D");    
+    export_GlobalProperty< NonAffineTensor2D >(m,"NonAffineTensor2D");    
+    export_GlobalProperty< NonAffineTensor3D >(m,"NonAffineTensor3D");    
+    export_GlobalScalar(m,"GlobalScalar");    
     
     //Export PETSc Hessian Objects
     export_HessianBase(m);

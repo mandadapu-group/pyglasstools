@@ -151,7 +151,4 @@ void export_ShortRangePairPotential(py::module& m, const std::string& name)
     ;
 };
 
-
-
-
 #endif // __PAIR_POTENTIAL_H__

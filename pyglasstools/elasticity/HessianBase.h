@@ -13,7 +13,7 @@
 #include <pyglasstools/potential/PairPotential.h>
 
 #include "NonAffineManager.h"
-#include "PETScGlobalProperty.h"
+#include "GlobalProperty.h"
 #include "PETScVectorField.h"
 
 #include <pybind11/pybind11.h>

@@ -11,7 +11,7 @@ class PYBIND11_EXPORT SLEPcNMA
         
         //List of observables to be computed!
         std::map<std::string, std::shared_ptr< PETScVectorFieldBase > > m_vectorfields;
-        std::map<std::string, std::shared_ptr< PETScGlobalPropertyBase > > m_observables;
+        std::map<std::string, std::shared_ptr< GlobalPropertyBase > > m_observables;
         
         int nconv; 
         double m_maxeigval;
@@ -34,9 +34,9 @@ class PYBIND11_EXPORT SLEPcNMA
             m_vectorfields.insert(std::pair<std::string, std::shared_ptr< PETScVectorFieldBase > >(obs->name, obs));
         }
 
-        virtual void addGlobalProperty(const std::shared_ptr< PETScGlobalPropertyBase >& obs)
+        virtual void addGlobalProperty(const std::shared_ptr< GlobalPropertyBase >& obs)
         {
-            m_observables.insert(std::pair<std::string, std::shared_ptr< PETScGlobalPropertyBase > >(obs->name, obs));
+            m_observables.insert(std::pair<std::string, std::shared_ptr< GlobalPropertyBase > >(obs->name, obs));
         }
         
         void getAllEigenPairs(std::string package);
@@ -243,7 +243,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         {
             ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<double>::epsilon()*m_hessian->m_manager->pivot_tol);
+            ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
             ierr = PCFactorSetShiftType(pc, MAT_SHIFT_NONZERO);CHKERRABORT(PETSC_COMM_WORLD,ierr);
             ierr = PCFactorSetShiftAmount(pc, PETSC_DECIDE);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         }

@@ -2,9 +2,7 @@
 
 PyGlassTools is a Python module that compiles a couple of calculations for analyzing atomistic trajectories that are routinely done in our group, particularly supercooled liquids and glasses. Flexibility is important we don't deal not just with one type of pair potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
 
-In-progress is development for dynamical analysis (beyond autocorrelation analysis). More will come soon. 
-
-This is an **experimental** version and still in-development! More detailed instructions and tutorials will come soon. 
+The package is ready to use, but bear with us until more detailed instructions on installation and tutorials will come! 
 
 ## **Announcements**
 
@@ -32,7 +30,7 @@ For general use:
 For irvingkirkwood module
 - [GSL](https://www.gnu.org/software/gsl/) >= 2.0 (required for Irving-Kirkwood calculations)
 
-For nonaffine module
+For elasticity module
 - [PETSc](https://www.mcs.anl.gov/petsc/) (with [ScaLAPACK](http://www.netlib.org/scalapack/), [MUMPS](http://mumps.enseeiht.fr/), PETSc's bundled [BLAS/LAPACK](https://bitbucket.org/petsc/pkg-fblaslapack/src/master/) installed "internally").
 - [SLEPc](https://slepc.upv.es/)
 
@@ -45,5 +43,3 @@ Features that are relatively desirable, but not in high demand at the moment:
 1. Implement parallelized excitation analysis (in the context of Dynamical Facilitation Theory) 
 2. (*Optional*) Implement stress and density auto-correlation functions
 3. (*Optional*) Interface for 'quick' plotting and movie generation. 
-
-Current eigensolver uses [Spectra](https://spectralib.org/).

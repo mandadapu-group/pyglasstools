@@ -4,20 +4,28 @@
 #include "HessianBase.h"
 #include <slepceps.h>
 
+
+/*
+ * A class for performing normal mode analysis and computing non-affine elasticity tensors
+ * using the parallel eigensolver, SLEPc.
+ * 
+ * This class is the workhorse of the elasticity module. Any calculations of interest 
+ * pertaining to normal mode analysis is contained within this class. 
+ */
 class PYBIND11_EXPORT SLEPcNMA
 {
     protected:
-        std::shared_ptr< PETScHessianBase > m_hessian; 
+
+        std::shared_ptr< PETScHessianBase > m_hessian; //<! pointer to the Hessian base class.
         
-        //List of observables to be computed!
-        std::map<std::string, std::shared_ptr< PETScVectorFieldBase > > m_vectorfields;
-        std::map<std::string, std::shared_ptr< GlobalPropertyBase > > m_observables;
+        std::map<std::string, std::shared_ptr< PETScVectorFieldBase > > m_vectorfields; //<! list of vector-field observables to compute
+        std::map<std::string, std::shared_ptr< GlobalPropertyBase > > m_observables; //<! list of global observables to compute
         
-        int nconv; 
-        double m_maxeigval;
-        double m_mineigval;
+        int nconv; //<! number of converged eigenmodes 
+        double m_maxeigval; //<! maximum detected eigenvalue 
+        double m_mineigval; //<! minimum detected eigenvalue
         
-        //PETSc objects for all computation 
+        //PETSc error code 
         PetscErrorCode ierr; 
     
     public:
@@ -25,38 +33,67 @@ class PYBIND11_EXPORT SLEPcNMA
         virtual ~SLEPcNMA()
         {
         };
+        
+        /* Set the stored Hessian with another Hessian. Args:
+         * hessian: a Hessian class 
+         */
         void setHessian(std::shared_ptr< PETScHessianBase > hessian)
         {
             m_hessian = hessian;
         }
+
+        /* Add a new vector field observable to a list of existing ones. Args:
+         * obs: the new vector field observable
+         */
         virtual void addVectorField(const std::shared_ptr< PETScVectorFieldBase >& obs)
         {
             m_vectorfields.insert(std::pair<std::string, std::shared_ptr< PETScVectorFieldBase > >(obs->name, obs));
         }
-
+        
+        /* Add a new global observable/property toa  list of existing ones. Args:
+         * obs: the new global observable
+         */
         virtual void addGlobalProperty(const std::shared_ptr< GlobalPropertyBase >& obs)
         {
             m_observables.insert(std::pair<std::string, std::shared_ptr< GlobalPropertyBase > >(obs->name, obs));
         }
-        
+       
+        /* Obtain all possible eigenpairs, i.e., eigenvectors +eigenvalues. 
+         * This is the routine that gets called whenever before we compute
+         * the non-affine part of the elasticity tensor calculated. Args:
+         * package: name of linear algebra package to use as a backend. 
+         */ 
         void getAllEigenPairs(std::string package);
-        void getEigenPairs(std::string package);
-        //Another function for getting some eigenpairs
-        void getMaxEigenvalue();
 
+        /* Obtain subset of eigenpairs, i.e., eigenvectors +eigenvalues. Args:
+         * package: name of linear algebra package to use as a backend.
+         */ 
+        void getEigenPairs(std::string package);
+        
+        /* Get the maximum eigenvalue of the system
+         */
+        void getMaxEigenvalue();
+        
+        /* Save the results of all computations. Gets called by 
+         * getAllEigenPairs routine at the end. Args:
+         * eps: class holding all computed eigenmodes
+         */
         void saveResults(EPS& eps)
         {
+            //To save the number of converged eigenmodes
             if (m_observables.count("nconv") > 0)
             {
                 m_observables["nconv"]->setValue((double)nconv);
             }
-            //Save Solution
+            
+            //To save and compute results dependent on eigenmodes
             if(nconv >0)
             {
                 calculateNonAffineTensor(eps);
 
                 m_hessian->m_manager->printPetscNotice(5,"Storing selected eigenpairs \n");
                 
+                //See if we want to save eigenvector, eigenvalue, and/or the relative error of the computation
                 std::string prefix = "eigenvector_";
                 std::string prefix1 = "eigenvalue_";
                 std::string prefix2 = "eigenrelerror_";
@@ -92,44 +129,55 @@ class PYBIND11_EXPORT SLEPcNMA
             }
         }
         
-        //void getEigenPairs();
+        /* Computing the non-affine part of the elasticity tensor. Args:
+         * eps: class holding all eigenmodes.
+         */
         void calculateNonAffineTensor(const EPS& eps); 
-        
-        //double getEigenvalue(unsigned int index); 
-        //std::vector<double> getEigenvector(unsigned int index, bool forall); 
-
-        //void saveNonAffineTensor(unsigned int i, unsigned int j, std::shared_ptr<MPI::LogFile> logfile); 
 };
 
+/* Parametrized constructor. Args:
+ * hessian: the input Hessian matrix
+ */
 SLEPcNMA::SLEPcNMA( std::shared_ptr< PETScHessianBase > hessian) 
     : m_hessian(hessian), nconv(0), m_maxeigval(std::numeric_limits<double>::max()), m_mineigval(-std::numeric_limits<double>::max())
 {
+    //Add any relevant command-line options for the PETSc linear algebra solver.
     ierr = PetscOptionsInsertString(NULL,m_hessian->m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
 };
 
+
+/* Get the maximum eigenvalue of the system
+ */
 void SLEPcNMA::getMaxEigenvalue()
 {
-    EPS eps;
-    ST st;
-    KSP ksp;
-    PC pc;
-
+    EPS eps; //<! the EPS object, holding all normal-mode analysis routines
+    ST st; //<! the ST object, used for applying spectral transformation to the Hessian matrix
+    KSP ksp; //<! the KSP object, holding basic linear algebra routines
+    PC pc; //<! the PC object, holding informatino on pre-conditioners
+    
+    //Set up the EPS object
     ierr = EPSCreate(PETSC_COMM_WORLD,&eps);
     ierr = EPSSetProblemType(eps,EPS_HEP); CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSSetOperators(eps,m_hessian->hessian,NULL);
     
     m_hessian->m_manager->printPetscNotice(6,"Computing Maximum Eigenvalue \n");
+
+    //Maximum eigenvalue is efficiently computed using default setting of PETSc. 
     EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
     EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
     EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
     
+    //Additional setup for ST, KSP, and PC objects 
     ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
     ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     
+    //Final setup of the EPS object
     EPSSetUp(eps);
+    
+    //Solve for the maximum eigenvalue!
     EPSSolve(eps);
     
     ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -139,6 +187,9 @@ void SLEPcNMA::getMaxEigenvalue()
     EPSDestroy(&eps);
 };
 
+/* Obtain subset of eigenpairs, i.e., eigenvectors +eigenvalues. Args:
+ * package: name of linear algebra package to use as a backend.
+ */ 
 void SLEPcNMA::getEigenPairs(std::string package)
 {
     // Set solver parameters at runtime
@@ -186,6 +237,11 @@ void SLEPcNMA::getEigenPairs(std::string package)
     EPSDestroy(&eps);
 };
 
+/* Obtain all possible eigenpairs, i.e., eigenvectors +eigenvalues. 
+ * This is the routine that gets called whenever before we compute
+ * the non-affine part of the elasticity tensor calculated. Args:
+ * package: name of linear algebra package to use as a backend. 
+ */ 
 void SLEPcNMA::getAllEigenPairs(std::string package)
 {
     if (m_hessian->areDiagonalsNonZero())
@@ -196,7 +252,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         // Set solver parameters at runtime
         EPS eps;
         
-        //A bunch of objects for solving eigenpairs
+        //A bunch of PETSc objects for solving eigenpairs
         EPSType type;
         ST             st;           
         KSP            ksp;
@@ -217,6 +273,7 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         
         ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         m_hessian->m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
+        
         //
         //   Set interval for spectrum slicing
         //
@@ -239,6 +296,8 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
         ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
         
         ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
+        
+        //Depending on the solver backend, we will choose yet an additional set of settings to ensure numerics are done correctly
         if (package == "slepc-petsc")
         {
             ierr = PCSetType(pc,PCCHOLESKY);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -304,24 +363,32 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
     }
 };
 
+
+/* Computing the non-affine part of the elasticity tensor. Args:
+ * eps: class holding all eigenmodes.
+ */
 void SLEPcNMA::calculateNonAffineTensor(const EPS& eps) 
 {
     if (nconv > 0 && m_observables.count("nonaffinetensor") && m_hessian->areDiagonalsNonZero())
     {
-        m_observables["nonaffinetensor"]->clear();
         m_hessian->m_manager->printPetscNotice(5,"Computing the nonaffine elasticity tensor \n");
-        double cond = m_hessian->m_manager->pinv_tol;//tol;
+        
+        m_observables["nonaffinetensor"]->clear();
+        double cond = m_hessian->m_manager->pinv_tol;
         Vec xr, mult, seqmult;
         VecScatter ctx;
         
         PetscReal kr,re;
+
+        //We need a bit of prep because the layout may or may not be compatible between hessian and misforce
         MatCreateVecs(m_hessian->hessian,NULL,&xr);
         MatCreateVecs(m_hessian->misforce,&mult,NULL);
         
-        //Create A Scatterrer and the resulting sequential vector holding temporary values 
+        //In addition, we need to a temporary array, tempvecp, to store the resulting dot product between mismatch force vector
+        //and the eigenvector. 
         VecScatterCreateToAll(mult,&ctx,&seqmult);
         PetscInt colsize; MatGetSize(m_hessian->misforce,NULL,&colsize); 
-        double *tempvecp = new double[colsize];//tempvec.data();
+        double *tempvecp = new double[colsize];
         VecGetArray(seqmult,&tempvecp);
 
         for (int I = 0; I < nconv; ++I)
@@ -335,11 +402,17 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
             if (re > cond)
             {
                 double laminv = 1/re;
+                //Dot product of mismatch force vector with an eigenvector
                 ierr = MatMultTranspose(m_hessian->misforce,xr,mult); CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                
+                //Scatter and gather the resulting dot products, so that each process actually possess all values
                 VecScatterBegin(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
                 VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
                 
                 int Dim = m_hessian->m_sysdata->simbox->dim; 
+                
+                //Although the non-affine tensor is stores as a proper 4-th rank tensor, the mismatch force vector, i.e., misforce
+                //is stored as a flattened array. There is a specific mapping between the flattened array to the 4-th rank tensor. 
                 for(int l = 0; l < m_observables["nonaffinetensor"]->getDimension(3); ++l)
                 {
                     for(int k = 0; k < m_observables["nonaffinetensor"]->getDimension(2); ++k)
@@ -385,6 +458,8 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
         VecDestroy(&seqmult);
         VecDestroy(&mult);
         VecDestroy(&xr);
+
+        //Don't forget to divide by the system volume!
         m_observables["nonaffinetensor"]->multiplyBy(1/m_hessian->m_sysdata->simbox->vol);
     }
     else
@@ -405,141 +480,8 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
 };
 
 /*
-double SLEPcNMA::getEigenvalue(unsigned int index) 
-{
-    PetscReal lambda_r;//Vec xr,global_xr;
-    ierr = EPSGetEigenvalue(eps,index,&lambda_r,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    return lambda_r;
-};
-
-std::vector<double> SLEPcNMA::getEigenvector(unsigned int index, bool forall) 
-{
-    int globsize;
-    Vec xr,global_xr;
-    VecScatter ctx;
-    MatCreateVecs(m_hessian->hessian,NULL,&xr);
-    VecGetSize(xr,&globsize);
-    std::vector<double> eigenvector;
-    
-    if (forall)
-        VecScatterCreateToAll(xr,&ctx,&global_xr);
-    else 
-        VecScatterCreateToZero(xr,&ctx,&global_xr);
-    
-    double *tempvecp = new double[globsize];
-    VecGetArray(global_xr,&tempvecp);
-    VecScatterBegin(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
-    VecScatterEnd(ctx,xr,global_xr,INSERT_VALUES,SCATTER_FORWARD);
-    if (forall)
-    {
-        std::copy(tempvecp, tempvecp+globsize, std::back_inserter(eigenvector));
-    } 
-    else
-    {
-        if (m_hessian->m_comm->isRoot())
-        {
-            std::copy(tempvecp, tempvecp+globsize, std::back_inserter(eigenvector));
-        }
-        else
-        {
-            eigenvector.resize(globsize);
-        }
-    }
-    
-    //Destroy all objects
-    VecRestoreArray(global_xr,&tempvecp);
-    delete [] tempvecp;
-    VecScatterDestroy(&ctx);
-    VecDestroy(&global_xr);
-    VecDestroy(&xr);
-    
-    return eigenvector;
-};
-*/
-
-/*
-template<int Dim>
-void SLEPcNMA<Dim>::getEigenPairs()
-{
-    //This should only be done when computing a small amount of eigenvalues
-    //and setting the which to anything other than EPS_ALL
-    EPSType type;
-    Vec            xr,xi;
-    PetscReal      tol;
-    PetscInt       nev,maxit,its;
-    EPSWhich whicheig;
-    
-    EPSSetFromOptions(eps);
-    EPSGetWhichEigenpairs(eps, &whicheig);
-    if (whicheig == EPS_ALL)
-    {
-        m_hessian->m_manager->printPetscNotice(5,"Performing spectrum slicing! Make sure all options are configured correctly \n");
-    }
-    
-    EPSSetUp(eps);
-    EPSSolve(eps);
-    //Optional: Get some information from the solver and display it
-    ierr = EPSGetIterationNumber(eps,&its);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Number of iterations of the method: "+std::to_string(its)+"\n");
-    ierr = EPSGetType(eps,&type);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Solution method: "+std::string(type)+"\n");
-    ierr = EPSGetDimensions(eps,&nev,NULL,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Number of requested eigenvalues: "+std::to_string(nev)+"\n");
-    ierr = EPSGetTolerances(eps,&tol,&maxit);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Stopping condition: tol="+detail::to_string_sci(tol)+", maxit="+std::to_string(maxit)+"\n");
-    
-    ierr = MatCreateVecs(m_hessian->hessian,NULL,&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = MatCreateVecs(m_hessian->hessian,NULL,&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    //                Display solution and clean up
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-    //
-    // Get number of converged approximate eigenpairs
-    //
-    ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Number of converged eigenpairs: "+std::to_string(nconv)+"\n");
-    if (m_hessian->m_manager->getNoticeLevel() >= 6)
-    {
-        m_hessian->m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
-        ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    }
-    ierr = VecDestroy(&xr);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = VecDestroy(&xi);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-};
-
-void SLEPcNMA::checkSmallestEigenvalue_forMumps()
-{
-    //This should only be done when computing a small amount of eigenvalues
-    m_hessian->m_manager->printPetscNotice(5,"Computing Smallest Eigenvalue \n");
-    //and setting the which to anything other than EPS_ALL
-    EPSSetDimensions(eps,1,m_hessian->m_sysdata->particles.size(),m_hessian->m_sysdata->particles.size());
-    EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
-    EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL);
-    EPSSetUp(eps);
-    EPSSolve(eps);
-    
-    PetscReal vr;
-    ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    ierr = EPSGetEigenvalue(eps,0,&vr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    m_hessian->m_manager->printPetscNotice(5,"Smallest Eigenvalue: "+detail::to_string_sci(vr)+"\n");
-    m_mineigval = vr;
-    if (m_hessian->m_manager->getNoticeLevel() >= 6)
-    {
-        m_hessian->m_manager->printPetscNotice(6,"Summary of Normal Mode Analysis: \n");
-        ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSReasonView(eps,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    }
-};
-*/
-
+ * Helper function to exprot SLEPcNMA to Python
+ */
 void export_SLEPcNMA(py::module& m)
 {
     py::class_<SLEPcNMA, std::shared_ptr<SLEPcNMA> >(m,"SLEPcNMA")
@@ -548,13 +490,6 @@ void export_SLEPcNMA(py::module& m)
     .def("addVectorField", &SLEPcNMA::addVectorField)
     .def("addGlobalProperty", &SLEPcNMA::addGlobalProperty)
     .def("getAllEigenPairs", &SLEPcNMA::getAllEigenPairs)
-    //.def("calculateNonAffineTensor", &T::calculateNonAffineTensor)
-    //.def("getEigenPairs", &T::getEigenPairs)
-    //.def("saveNonAffineTensor", &T::saveNonAffineTensor)
-    //.def("saveEigenvector", &T::saveEigenvector)
-    //.def("getEigenvalue", &T::getEigenvalue)
-    //.def("saveEigenvalue", &T::saveEigenvalue)
-    //.def("getPETScMatRange", &T::getPETScMatRange)
     ;
 };
 

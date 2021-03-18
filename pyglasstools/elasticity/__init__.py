@@ -43,12 +43,12 @@ def initialize_global(names,dim):
             list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False,comm)
     if any("eigenvalue" in s for s in names):
         for s in [name for name in names if "eigenvalue" in name]:
-            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False,comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim, comm)
     if any("eigenrelerror" in s for s in names):
         for s in [name for name in names if "eigenrelerror" in name]:
-            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False,comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim, comm)
     if any("nconv" in s for s in names):
-        list_obs["nconv"] = _elasticity.GlobalScalar("nconv", "SCALAR", False,comm)
+        list_obs["nconv"] = _elasticity.GlobalScalar("nconv", "SCALAR", False, dim, comm)
     return list_obs
 
 class fdcalculator(object):

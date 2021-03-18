@@ -8,47 +8,47 @@ def initialize_field(names,dim):
     list_obs = {}
     if any("forcedipole" in s for s in names):
         if dim == 2:
-            list_obs['forcedipole'] = _nonaffine.PETScVectorField2D("forcedipole", False,comm)
+            list_obs['forcedipole'] = _elasticity.PETScVectorField2D("forcedipole", False,comm)
         elif dim == 3:
-            list_obs['forcedipole'] = _nonaffine.PETScVectorField3D("forcedipole", False,comm)
+            list_obs['forcedipole'] = _elasticity.PETScVectorField3D("forcedipole", False,comm)
     if any("eigenvector" in s for s in names):
         for s in [name for name in names if "eigenvector" in name]:
             if dim == 2:
-                list_obs[s] = _nonaffine.PETScVectorField2D(s, False,comm)
+                list_obs[s] = _elasticity.PETScVectorField2D(s, False,comm)
             elif dim == 3:
-                list_obs[s] = _nonaffine.PETScVectorField3D(s, False,comm)
+                list_obs[s] = _elasticity.PETScVectorField3D(s, False,comm)
     return list_obs
 
 def initialize_global(names,dim):
     list_obs = {}
     if any("forcedipole_center" in s for s in names):
         if dim == 2:
-            list_obs['forcedipole_center'] = _nonaffine.GlobalVector2D("forcedipole_center", "VECTOR", False,comm)
+            list_obs['forcedipole_center'] = _elasticity.GlobalVector2D("forcedipole_center", "VECTOR", False,comm)
         elif dim == 3:
-            list_obs['forcedipole_center'] = _nonaffine.GlobalVector3D("forcedipole_center", "VECTOR", False,comm)
+            list_obs['forcedipole_center'] = _elasticity.GlobalVector3D("forcedipole_center", "VECTOR", False,comm)
     if any("forcedipole_pj" in s for s in names):
         if dim == 2:
-            list_obs['forcedipole_pj'] = _nonaffine.GlobalVector2D("forcedipole_pj", "VECTOR", False,comm)
+            list_obs['forcedipole_pj'] = _elasticity.GlobalVector2D("forcedipole_pj", "VECTOR", False,comm)
         elif dim == 3:
-            list_obs['forcedipole_pj'] = _nonaffine.GlobalVector3D("forcedipole_pj", "VECTOR", False,comm)
+            list_obs['forcedipole_pj'] = _elasticity.GlobalVector3D("forcedipole_pj", "VECTOR", False,comm)
     if any("forcedipole_pi" in s for s in names):
         if dim == 2:
-            list_obs['forcedipole_pi'] = _nonaffine.GlobalVector2D("forcedipole_pi", "VECTOR", False,comm)
+            list_obs['forcedipole_pi'] = _elasticity.GlobalVector2D("forcedipole_pi", "VECTOR", False,comm)
         elif dim == 3:
-            list_obs['forcedipole_pi'] = _nonaffine.GlobalVector3D("forcedipole_pi", "VECTOR", False,comm)
+            list_obs['forcedipole_pi'] = _elasticity.GlobalVector3D("forcedipole_pi", "VECTOR", False,comm)
     if any("nonaffinetensor" in s for s in names):
         if dim == 2:
-            list_obs['nonaffinetensor'] = _nonaffine.NonAffineTensor2D("nonaffinetensor", "4-TENSOR", False,comm)
+            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor2D("nonaffinetensor", "4-TENSOR", False,comm)
         elif dim == 3:
-            list_obs['nonaffinetensor'] = _nonaffine.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False,comm)
+            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False,comm)
     if any("eigenvalue" in s for s in names):
         for s in [name for name in names if "eigenvalue" in name]:
-            list_obs[s] = _nonaffine.GlobalScalar(s, "SCALAR", False,comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False,comm)
     if any("eigenrelerror" in s for s in names):
         for s in [name for name in names if "eigenrelerror" in name]:
-            list_obs[s] = _nonaffine.GlobalScalar(s, "SCALAR", False,comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False,comm)
     if any("nconv" in s for s in names):
-        list_obs["nconv"] = _nonaffine.GlobalScalar("nconv", "SCALAR", False,comm)
+        list_obs["nconv"] = _elasticity.GlobalScalar("nconv", "SCALAR", False,comm)
     return list_obs
 
 class fdcalculator(object):
@@ -56,7 +56,7 @@ class fdcalculator(object):
 
     def __init__(self):
         self.pyhessian = hessian("petsc");
-        self.cppcalculator = _nonaffine.PETScForceDipoleCalculator(self.pyhessian.cpphessian)
+        self.cppcalculator = _elasticity.PETScForceDipoleCalculator(self.pyhessian.cpphessian)
         solvers_list.append(self)
 
     def add_observables(self, observables):
@@ -88,10 +88,10 @@ class eigensolver(object):
 
         if package == "slepc-petsc" or package == "slepc-mumps":
             self.pyhessian = hessian("slepc");
-            self.cppeigensolver = _nonaffine.SLEPcNMA(self.pyhessian.cpphessian)
+            self.cppeigensolver = _elasticity.SLEPcNMA(self.pyhessian.cpphessian)
         elif package == "spectra":
             self.pyhessian = hessian("spectra");
-            self.cppeigensolver = _nonaffine.SpectraNMA(self.pyhessian.cpphessian)
+            self.cppeigensolver = _elasticity.SpectraNMA(self.pyhessian.cpphessian)
         #We need Spectra implementation here as well
         solvers_list.append(self)
 
@@ -112,27 +112,27 @@ class hessian(object):
     def __init__(self,package):
         #Initialize system data and pair potential of the system
         self.package = package;
-        self.cppmanager = _nonaffine.PETScManager();
+        self.cppmanager = _elasticity.PETScManager();
         dimensions = pyglasstools.get_sysdata().pysimbox.dim
         if (package == "petsc"):
             if dimensions == 2:
-                self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
             else:
-                self.cpphessian = _nonaffine.PETScHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.PETScHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         elif (package == "slepc"):
             if dimensions == 2:
-                self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
             else:
-                self.cpphessian = _nonaffine.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         elif (package == "spectra"):
             if dimensions == 2:
-                self.cpphessian = _nonaffine.SpectraHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.SpectraHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
             else:
-                self.cpphessian = _nonaffine.SpectraHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticity.SpectraHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         self.frame_num = pyglasstools.get_sysdata().frame_num
         #elif (package == "spectra"):
-        #    self.manager = _nonaffine.EigenManager();
-        #    self.hessian = _nonaffine.SpectraHessian(sysdata._getParticleSystem(),pyglasstools.get_potential().cpppairpotential,self.manager,comm)
+        #    self.manager = _elasticity.EigenManager();
+        #    self.hessian = _elasticity.SpectraHessian(sysdata._getParticleSystem(),pyglasstools.get_potential().cpppairpotential,self.manager,comm)
    
     def update(self,frame_num):
         pyglasstools.get_sysdata().update(frame_num);
@@ -145,9 +145,9 @@ class hessian(object):
         #Another way to update the hessian, by deleteing the object and creating it again from scratch
         #del self.cpphessian
         #if (self.package == "petsc"):
-        #    self.cpphessian = _nonaffine.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+        #    self.cpphessian = _elasticity.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         #elif (self.package == "slepc"):
-        #    self.cpphessian = _nonaffine.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+        #    self.cpphessian = _elasticity.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         #if self.frame_num != frame_num:
         #    self.frame_num = frame_num
     

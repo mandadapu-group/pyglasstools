@@ -1,7 +1,7 @@
-set(SUBCOMPONENT_NAME nonaffine)
+set(SUBCOMPONENT_NAME elasticity)
 
 set(_${SUBCOMPONENT_NAME}_sources
-    module-nonaffine.cpp
+    module-elasticity.cpp
     )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

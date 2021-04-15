@@ -282,9 +282,6 @@ names = ['borntensor_0000','borntensor_0011','borntensor_0001','borntensor_1111'
 mylogger1 = io.logfile(filename="newborntensor.log",names=names,solver=mythermocalculator)  
   
 names = ['virialstress_00','virialstress_11','virialstress_01']  
-"test-elasticity-module.py" 41L, 2046C 1,1 Top  
-  
-names = ['virialstress_00','virialstress_11','virialstress_01']  
 mylogger2 = io.logfile(filename="inherent-virialstress.log",names=names,solver=mythermocalculator)  
   
 #Let's analyze the first two frames for now!  

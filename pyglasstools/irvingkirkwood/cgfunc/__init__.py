@@ -44,7 +44,7 @@ class octic(basecgfunc):
             self.cgfunc = _cgfunc.CGFuncOcticAdaptive(maxiter,relerr,abserr,rcut);
 
 class rect(basecgfunc):
-    R""" A truncated 8-th order polynomial coarse grain function.
+    R""" A truncated radial heaviside coarse grain function.
 
     """
     def __init__(self, rcut=2.5, mode=None,**kwargs):
@@ -63,7 +63,7 @@ class rect(basecgfunc):
             self.cgfunc = _cgfunc.CGFuncRectAdaptive(maxiter,relerr,abserr,rcut);
 
 class mollifier(basecgfunc):
-    R""" A truncated 8-th order polynomial coarse grain function.
+    R""" THe bump/mollifier function
 
     """
     def __init__(self, rcut=2.5, mode=None,**kwargs):

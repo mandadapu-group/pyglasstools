@@ -1,4 +1,5 @@
 
+
 # **PyGlassTools**
 
 PyGlassTools is a Python module that compiles a couple of calculations for analyzing atomistic trajectories that are routinely done in our group, particularly supercooled liquids and glasses. Flexibility is important we don't deal not just with one type of pair potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
@@ -231,7 +232,108 @@ For all three coarse graining functions, we can choose two different integration
 | 'fixedpoint' |  Gauss-Legendre integration | _order_:  the order of quadrature |
 | 'adaptive' | QAG adaptive integration | _relerr_: relative error, _abserr_: absolute error, _maxiter_: maximum iterations |
 
-For more details, see GSL's documentation [here](https://www.gnu.org/software/gsl/doc/html/integration.html)
+For more details, see GSL's documentation [here](https://www.gnu.org/software/gsl/doc/html/integration.html). Note that 'fixedpoint' requires no iteration when computing the integral, and thus it is the fastest method of computing the integral. 
+
+### **pyglasstools.elasticity**
+
+Despite its name, this module is targeted specifically for the computation of the non-affine part of the elasticity tensor (the Born part is already handled by the __pyglasstools.thermo__  module). Because its computation requires the computation of all normal modes of the system, it also gives us information about vibrational density of states in the process.  
+
+The work-horse of this module is SLEPc, the parallel eigensolver library. In fact, one may think of this module as a small wrapper to SLEPc. Thus, familiarity with how SLEPc is used in a simpler code will be a huge help (see the manual [here](https://slepc.upv.es/documentation/slepc.pdf]) )
+
+In the example script below, we demonstrate how this module can be used in conjunction with __pyglasstools.thermo__ to compute both the Born and non-affine part of the elasticity tensor!
+
+script name: _test-elasticity-module.py_
+```python
+import pyglasstools.utils as utils  
+import pyglasstools.io as io  
+import pyglasstools.potential as pot  
+import pyglasstools as pglass  
+import pyglasstools.elasticity as els  
+import pyglasstools.thermo as thermo  
+import numpy as np  
+  
+poly12 = pot.polydisperse12(v0=1.0,eps=0.2,rcut=1.25)  
+mysystem = utils.read_gsd(filename='../polydisperse12.gsd',checkpointfile="restart.log",ndim=2)  
+  
+#Construct the eigensolver and choose which package to use as backend for sigensolver  
+myeigensolver = els.eigensolver(package='slepc-mumps')  
+  
+#We want to compute the non-affine part of the elasticity tensor  
+names = ['nonaffinetensor_0000','nonaffinetensor_0011','nonaffinetensor_0001','nonaffinetensor_1111','nonaffinetensor_1101','nonaffinetensor_0101']  
+mylogger = els.logfile(filename="newnonaffine.log",names=names,solver=myeigensolver)  
+  
+#In addition, we want to store the total number of converged eigenmodes 'nconv',  
+#the first 10 eigenvalues found during the computation and their relative error  
+names = ['nconv']  
+for i in range(10):  
+names.append('eigenvalue_{}'.format(i))  
+names.append('eigenrelerror_{}'.format(i))  
+mylogger = els.logfile(filename="eigensummary.log",names=names,solver=myeigensolver)  
+  
+#We can also store the first four eigenmodes found by this package  
+names_list = ['eigenvector_0','eigenvector_1','eigenvector_2','eigenvector_3']  
+mylogger1 = els.fieldlogger(keyword="eigen", names=names_list,solver=myeigensolver)  
+  
+#Next, we construct the calculator used to compute global observables like the Born elasticity tensor and virial stress.  
+mythermocalculator = thermo.calculator()  
+  
+names = ['borntensor_0000','borntensor_0011','borntensor_0001','borntensor_1111','borntensor_1101','borntensor_0101']  
+mylogger1 = io.logfile(filename="newborntensor.log",names=names,solver=mythermocalculator)  
+  
+names = ['virialstress_00','virialstress_11','virialstress_01']  
+"test-elasticity-module.py" 41L, 2046C 1,1 Top  
+  
+names = ['virialstress_00','virialstress_11','virialstress_01']  
+mylogger2 = io.logfile(filename="inherent-virialstress.log",names=names,solver=mythermocalculator)  
+  
+#Let's analyze the first two frames for now!  
+pglass.analyze(frame_list = range(2))
+```
+
+To run the script, additional command lines are needed. Here's an example:
+
+```console
+$ mpirun -np 8 python test-elasticity-module.py -lowerbound_tol -1.0 -upperbound_tol 1e-6 -pinv_tol 1e-6 -eps_tol 1e-7 -eps_max_it  
+10000 -notice_level 3
+```
+The following is explanation for every sample:
+| Command Line Option | Description |
+| :---: | :-- |
+| -lowerbound_tol | Tolerance for the lowest eigenvalue we want to compute |
+| -upperbound_tol | Small tolerance above the highest eigenvalue of the system to ensure no false detection |
+| -pinv_tol | Tolerance for the smallest magnitude of detected eigenvalues, before they're considered numerically zero |
+| -eps_tol | Tolerance for convergence of each eigenmode |
+| -eps_max_it | Maximum number iteration for the eigensolver |
+| -notice_level | The level of warnings and print messages during the computation |
+
+To compute the non-affine part of the elasticity tensor, we want to make sure that all eigenmodes are computed. This is why we set the lowest eigenvalue to be a negative value (since the .gsd file contains systems whose Hessian is semi positive definite). 
+
+Among these command-line options, only -eps_tol and -eps_max_it are are used by SLEPc back-end package. The rest are options taking in independently by pyglasstools for configuring the eigensolver. Thus, when running the script, you will encounter the following warning message:
+
+```console
+WARNING! There are options you set that were not used!  
+WARNING! could be spelling mistake, etc!  
+There are 4 unused database options. They are:  
+Option left: name:-lowerbound_tol value: -1.0  
+Option left: name:-notice_level value: 3  
+Option left: name:-pinv_tol value: 1e-6  
+Option left: name:-upperbound_tol value: 1e-6
+``` 
+This warning is an automatic message from SLEPc saying that it did used these options (as they ar not part of SLEPc's database of command-line options). We do, however, use these options. We will fix this issue in the near future so it won't mislead users!
+
+Note that the eigensolver has a 'package' argument, indicating which back-end we use for solver. SLEPc is unique in a sense that it can rely on various linear algebra packages that PETSc has available for you. Currently, we let user to choose two packages:
+
+| Eigensolver Package Name | Description|
+|  :---: | :-- |
+| 'slepc-mumps' | Uses the parallel linear algebra package as [PETSc](https://www.mcs.anl.gov/petsc/) (with [ScaLAPACK](http://www.netlib.org/scalapack/), [MUMPS] |
+| 'slepc-petsc' | Uses PETSc's internal linear algebra solver |
+
+If 'slepc-petsc' is chosen, then the an additional command-line must be given called -eps_krylovschur_partitions. The argument of this option must match the number of MPI processes used:
+```console
+$ mpirun -np 8 python test-elasticity-module.py -lowerbound_tol -1.0 -upperbound_tol 1e-6 -pinv_tol 1e-6 -eps_tol 1e-7 -eps_max_it  
+10000 -notice_level 3 -eps_krylovschur_partitions 8
+```
+The reasoning behing is a bit technical, and it deals with how PETSc's linear algebra solver is parallelized. See again SLEPc manual [here](https://slepc.upv.es/documentation/slepc.pdf]). We typically use the 'slepc-mumps' because it is more robust against a common problem in PETSc known as [the zero pivot problem](https://www.mcs.anl.gov/petsc/documentation/faq.html#zeropivot).
 
 ## **To-Do List**
 

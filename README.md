@@ -85,10 +85,24 @@ The package only reads .gsd trajectory files. This trajectory file is the prefer
 
 Unfortunately, we also have yet to implement pair potentials that can be arbitrarily defined by the user. At the moment, there are pre-compiled pair potentials available to use. Nearly all pair potentials are geared solely for the analysis of atomistic glass formers with continuous poly-dispersity. The model is defined by the following pair potential
 
-![equation](https://latex.codecogs.com/gif.latex?%5Cphi%28r/%5Csigma_%7B%5Calpha%20%5Cbeta%7D%29%20%3D%20%5Cbegin%7Bcases%7D%20v_0%20%5Cleft%5B%5Cleft%28%5Cdfrac%7B%5Csigma_%7B%5Calpha%20%5Cbeta%7D%7D%7Br%7D%5Cright%29%5Em-%5Cleft%28%5Cdfrac%7B%5Csigma_%7B%5Calpha%20%5Cbeta%7D%7D%7Br%7D%5Cright%29%5En%5Cright%5D&plus;F%28r/%5Csigma_%7B%5Calpha%20%5Cbeta%7D%29%20%26%20r/%5Csigma_%7B%5Calpha%20%5Cbeta%7D%20%5Cleq%20%5Ctilde%7Br%7D_c%20%5C%5C%200%20%26%20%5Ctext%7Botherwise%7D%20%5Cend%7Bcases%7D%20%5C%2C%2C) 
+![equation](https://latex.codecogs.com/gif.latex?%5Cphi%28r/%5Csigma_%7B%5Calpha%20%5Cbeta%7D%29%20%3D%20%5Cbegin%7Bcases%7D%20v_0%20%5Cleft%5B%5Cleft%28%5Cdfrac%7B%5Csigma_%7B%5Calpha%20%5Cbeta%7D%7D%7Br%7D%5Cright%29%5Em-%5Cleft%28%5Cdfrac%7B%5Csigma_%7B%5Calpha%20%5Cbeta%7D%7D%7Br%7D%5Cright%29%5En%5Cright%5D&plus;%5Csum_%7Bk%3D0%7D%5Eq%20c_k%20%5Cleft%28%5Cfrac%7Br%5E%7B%5Calpha%20%5Cbeta%7D%7D%7B%5Csigma_%7B%5Calpha%20%5Cbeta%7D%7D%20%5Cright%20%29%5E%7B2k%7D%26%20r/%5Csigma_%7B%5Calpha%20%5Cbeta%7D%20%5Cleq%20%5Ctilde%7Br%7D_c%20%5C%5C%200%20%26%20%5Ctext%7Botherwise%7D%20%5Cend%7Bcases%7D)
+![equation](https://latex.codecogs.com/gif.latex?%5Csigma_%7B%5Calpha%20%5Cbeta%7D%20%3D%20%5Cfrac%7B1%7D%7B2%7D%5Cleft%28%5Csigma_%5Calpha%20&plus;%5Csigma_%5Cbeta%5Cright%29%281-%5Cvarepsilon%7C%5Csigma_%5Calpha%20-%20%5Csigma_%5Cbeta%7C%29)
 
+The first term in the first equation is the standard repulsive and attractive interaction. The second term is an even polynomial ensuring smoothness up to q-th order at the cut off radius. 
 
+The models available to use and currently implemented are as follows:
 
+|   Model Name      |   q       |   m       |   n       | 
+|   :--------       |   :--:    |   :--:    |   :--:    |
+|   polydisperse12  |   2       |   12      |   0       |
+|   polydisperse18  |   2       |   18      |   0       |
+|   polydisperselj  |   2       |   12      |   6       |
+|   polydisperse10  |   3       |   10      |   0       |
+|   polydisperse106 |   2       |   10      |   6       |
+
+You will see in pyglasstools/potential/__init__.py file that there are other pair potentials, but I haven't thoroughly tested them! So be aware. 
+
+(More Coming Soon . . .)
 
 ## **To-Do List**
 

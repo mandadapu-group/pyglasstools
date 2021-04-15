@@ -35,10 +35,52 @@ For elasticity module
 - [SLEPc](https://slepc.upv.es/)
 
 ## **Installation Instructions**
-Coming soon . . .
 
+Before cloning the project, please install all the requirements! At the moment, you need to install all requirements to use the package (even if you are interested in only using one of our submodules). With the exception to PETSc/SLEPc, the installation of most of these requirements are fairly straightforward. 
+
+### **Notes on SLEPc/PETSc Installation**
+
+SLEPc/PETSc/ is a parallel linear algebra (PETSc) and eigensolver (SLEPc) work-horse. Its installation comes with multiple customizing options. Prior to installing SLEPc, you should have PETSc installed first!
+
+For PETSc installation, we ask you to add the following additional flags to their configure file:
+```console
+--download-fblaslapack --download-scalapack --download-mumps
+```
+These are requirements are necessarry for the specific usage of the elasticity module in pyglasstools. (see **Example Scripts** section) 
+
+### **Install Package**
+
+First, git clone the project:
+```console
+$ git --recursive clone https://github.com/mandadapu-group/pyglasstools
+```
+Don't forget the recursive flag since this project utilizes git submodules. 
+
+Next, build the project
+```console
+$ cd pyglasstools
+$ mkdir build
+$ cd build
+$ cmake ../ 
+$ make -j4
+```
+
+Afterwards, install with pip
+```console
+$ pip install .
+```
+
+## **Example Scripts**
+
+We list several examples
 
 ## **To-Do List**
+
+Features that are really should be there, but don't have enough time at the moment:
+1. Implementation of arbitrarily-defined user pair potentials.
+2. Implementation of arbitrarily-defined user observables (both macroscopic and IK fields).
+3. Alternative package for eigendecomposition analysis (besides SLEPc, which may be too hard to use!).
+
 Features that are relatively desirable, but not in high demand at the moment:
 1. Implement parallelized excitation analysis (in the context of Dynamical Facilitation Theory) 
 2. (*Optional*) Implement stress and density auto-correlation functions

@@ -176,6 +176,7 @@ where we see that the Born shear modulus computed in two ways agree by 3 signifi
 This module computes Irving-Kirkwood fields of various observables (the same ones you see in __pyglasstools.thermo__). For example, the virial stress:
 
 ![equation](https://latex.codecogs.com/gif.latex?%5Cmathbf%7BT%7D%28%5Cmathbf%7Bx%7D%29%20%3D%20%5Csum_%7B%5Calpha%20%5Cbeta%7D%5Cmathbf%7BF%7D_%7B%5Calpha%20%5Cbeta%7D%20%5Cotimes%20%5Cmathbf%7Br%7D_%7B%5Calpha%20%5Cbeta%7D%20%5Cint_0%5E1%20%5Ctext%7Bd%7Ds%20%5C%20%5CDelta%28%5Cmathbf%7Bx%7D-%5Cmathbf%7Br%7D_%7B%5Calpha%7D&plus;s%5Cmathbf%7Br%7D_%7B%5Calpha%20%5Cbeta%7D%29)
+
 The module can compute these stress fields with using a selection of coarse graining functions and quadrature methods (to compute the integral).
 
 script name: *test-irvingkirkwood-module.py*

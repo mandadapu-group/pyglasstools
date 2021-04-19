@@ -6,6 +6,40 @@
 #include <Eigen/CXX11/Tensor>
 namespace abr = Aboria;
 
+
+class PotentialEnergy
+{
+    public:
+        PotentialEnergy(){};
+        ~PotentialEnergy(){};
+        
+        virtual void compute(   const AboriaParticles::value_type& p_i, 
+                                const AboriaParticles::value_type& p_j,
+                                const Eigen::Vector3d& rij, 
+                                const std::shared_ptr<PairPotential>& potential,
+                                double& val)
+        {
+            
+            double di = abr::get<diameter>(p_i);
+            double dj = abr::get<diameter>(p_j);
+
+            //Compute pair-potential!
+            val += potential->getPairEnergy(rij, di, dj);
+        }
+
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
+                                const AboriaParticles::value_type& p_j,
+                                Eigen::Vector3d rij, 
+                                const std::shared_ptr<PairPotential>& potential,
+                                double& val, double bondval)
+        {
+            double zeroval;
+            compute(p_i,p_j,rij,potential,zeroval);
+            val += 0.5*bondval*zeroval;
+        }
+        
+};
+
 class VirialStress
 {
     public:

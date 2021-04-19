@@ -7,6 +7,11 @@ import numpy as np
 
 def initialize_global(names,dim):
     list_obs = {}
+    if any("potentialenergy" in s for s in names):
+        if dim == 2:
+            list_obs['potentialenergy'] = _thermo.GlobalPotentialEnergy2D("potentialenergy", "SCALAR", False)
+        elif dim == 3:
+            list_obs['potentialenergy'] = _thermo.GlobalPotentialEnergy3D("potentialenergy", "SCALAR", False)
     if any("virialstress" in s for s in names):
         if any("elastic" in s for s in names) is True:
             if dim == 2:
@@ -20,9 +25,9 @@ def initialize_global(names,dim):
                 list_obs['virialstress'] = _thermo.GlobalVirialStress3D("virialstress", "2-TENSOR", False)
     if any("kineticstress" in s for s in names):
         if dim == 2:
-            list_obs['kineticstress'] = _thermo.GlobalKineticStress2D("kineticstress", "2-TENSOR", False)
+            list_obs['kineticstress'] = _thermo.GlobalKineticStress2D("kineticstress", "2-TENSOR", True)
         elif dim == 3:
-            list_obs['kineticstress'] = _thermo.GlobalKineticStress3D("kineticstress", "2-TENSOR", False)
+            list_obs['kineticstress'] = _thermo.GlobalKineticStress3D("kineticstress", "2-TENSOR", True)
     if any("borntensor" in s for s in names):
         if dim == 2:
             list_obs['borntensor'] = _thermo.GlobalBornTensor2D("borntensor", "4-TENSOR", False)
@@ -47,5 +52,5 @@ class calculator(object):
         self.thermocalculator.compute()
     
     def update(self,frame_num):
-        pyglasstools.update_sysdata(frame_num); #Let's try and move it up? Have it story current frame number . . .
+        pyglasstools.update_sysdata(frame_num); 
         self.thermocalculator.setSystemData(pyglasstools.get_sysdata().cppparticledata)

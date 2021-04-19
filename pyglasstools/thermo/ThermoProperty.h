@@ -88,6 +88,51 @@ class PYBIND11_EXPORT LocalProperty : public ThermoProperty
     
 };
 
+template< int Dim, typename AtomicObs>
+class PYBIND11_EXPORT ForceScalarProperty : public ThermoProperty
+{
+    private:
+        AtomicObs obs;
+        double val;
+    public:
+        
+        ForceScalarProperty()
+        {
+            clear();
+        };
+
+        ForceScalarProperty(std::string _name, std::string _type, bool _islocal) 
+            : ThermoProperty(_name, _type, _islocal, Dim) 
+        {
+            clear();
+        };
+        
+        void accumulate(const AboriaParticles::value_type& particle_i, 
+                        const AboriaParticles::value_type& particle_j,
+                        Eigen::Vector3d rij, 
+                        const std::shared_ptr<PairPotential>& potential)
+        {
+            obs.compute(particle_i,particle_j,rij, potential, val);
+        }
+        
+        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        {
+            logfile->write_shared(std::to_string(val));
+        }
+
+        void clear()
+        {
+            val = 0;
+        }
+        
+        void divideByVolume(double vol)
+        {
+            val = val*(1/vol);
+        }
+    
+};
+
+
 template< int Rank, int Dim, typename AtomicObs>
 class PYBIND11_EXPORT ForceProperty : public ThermoProperty
 {

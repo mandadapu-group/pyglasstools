@@ -15,7 +15,6 @@ class logfile(object):
         self.filename = filename
         #Next, parse the list of names based on what type of obsercables they are
         self.__obs_names = names
-        #[s for s in names if "" in s or "eigenvalue" in s];
 
         #Initialize a thermoproperty class
         if solver is None:
@@ -57,6 +56,9 @@ class logfile(object):
             self.file.write_shared("{} ".format(frame_num))
             for name in self.__obs_names:
                 Dim = pyglasstools.get_sysdata().pysimbox.dim
+                if "potentialenergy" in name:
+                    self.global_obs['potentialenergy'].save(self.file, 0)
+                    self.file.write_shared(" ")
                 if "virialstress" in name:
                     i = int(name[-2]) 
                     j = int(name[-1])

@@ -294,7 +294,7 @@ To run the script, additional command lines are needed. Here's an example:
 $ mpirun -np 8 python test-elasticity-module.py -lowerbound_tol -1.0 -upperbound_tol 1e-6 -pinv_tol 1e-6 -eps_tol 1e-7 -eps_max_it  
 10000 -notice_level 3
 ```
-The following is explanation for every sample:
+The following is explanation for every command-line option:
 | Command Line Option | Description |
 | :---: | :-- |
 | -lowerbound_tol | Tolerance for the lowest eigenvalue we want to compute |
@@ -304,9 +304,9 @@ The following is explanation for every sample:
 | -eps_max_it | Maximum number iteration for the eigensolver |
 | -notice_level | The level of warnings and print messages during the computation |
 
-To compute the non-affine part of the elasticity tensor, we want to make sure that all eigenmodes are computed. This is why we set the lowest eigenvalue to be a negative value (since the .gsd file contains systems whose Hessian is semi positive definite). 
+To compute the non-affine part of the elasticity tensor, we want to make sure that all eigenmodes are computed. This is why we set the lowest eigenvalue to be a negative value (since the .gsd file included by the example_scripts contains configuration of particles whose Hessian is semi-positive definite). 
 
-Among these command-line options, only -eps_tol and -eps_max_it are are used by SLEPc back-end package. The rest are options taking in independently by pyglasstools for configuring the eigensolver. Thus, when running the script, you will encounter the following warning message:
+Among these command-line options, only -eps_tol and -eps_max_it are are used by SLEPc back-end package. The rest are input options taken in independently by pyglasstools for configuring the eigensolver. Thus, when running the script, you will encounter the following warning message:
 
 ```console
 WARNING! There are options you set that were not used!  
@@ -317,13 +317,13 @@ Option left: name:-notice_level value: 3
 Option left: name:-pinv_tol value: 1e-6  
 Option left: name:-upperbound_tol value: 1e-6
 ``` 
-This warning is an automatic message from SLEPc saying that it did used these options (as they ar not part of SLEPc's database of command-line options). We do, however, use these options. We will fix this issue in the near future so it won't mislead users!
+This warning is an automatic message from SLEPc back-end warning messages saying that it did not use these options, i.e., they are not part of SLEPc's database of command-line options. However, in reality, pyglasstools does use these options. We will fix this issue in the near future so it won't mislead users!
 
 Note that the eigensolver has a 'package' argument, indicating which back-end we use for solver. SLEPc is unique in a sense that it can rely on various linear algebra packages that PETSc has available for you. Currently, we let user to choose two packages:
 
 | Eigensolver Package Name | Description|
 |  :---: | :-- |
-| 'slepc-mumps' | Uses the parallel linear algebra package as [PETSc](https://www.mcs.anl.gov/petsc/) (with [ScaLAPACK](http://www.netlib.org/scalapack/), [MUMPS] |
+| 'slepc-mumps' | Uses the parallel linear algebra package as [MUMPS](http://mumps.enseeiht.fr/) and [ScaLAPACK](http://www.netlib.org/scalapack/) |
 | 'slepc-petsc' | Uses PETSc's internal linear algebra solver |
 
 If 'slepc-petsc' is chosen, then the an additional command-line must be given called -eps_krylovschur_partitions. The argument of this option must match the number of MPI processes used:
@@ -331,7 +331,7 @@ If 'slepc-petsc' is chosen, then the an additional command-line must be given ca
 $ mpirun -np 8 python test-elasticity-module.py -lowerbound_tol -1.0 -upperbound_tol 1e-6 -pinv_tol 1e-6 -eps_tol 1e-7 -eps_max_it  
 10000 -notice_level 3 -eps_krylovschur_partitions 8
 ```
-The reasoning behing is a bit technical, and it deals with how PETSc's linear algebra solver is parallelized. See again SLEPc manual [here](https://slepc.upv.es/documentation/slepc.pdf]). We typically use the 'slepc-mumps' because it is more robust against a common problem in PETSc known as [the zero pivot problem](https://www.mcs.anl.gov/petsc/documentation/faq.html#zeropivot).
+The reasoning behind it is a bit technical, and it deals with how PETSc's linear algebra solver is parallelized for the purpose of eigensolving. Details of this can be found in SLEPc manual [here](https://slepc.upv.es/documentation/slepc.pdf]). We recommend using the 'slepc-mumps' because it is more robust against a common problem in PETSc known as [the zero pivot problem](https://www.mcs.anl.gov/petsc/documentation/faq.html#zeropivot).
 
 ## **To-Do List**
 

@@ -59,19 +59,19 @@ class lj(pairpotential):
     R""" A Lennard-Jones pair potential
          It includes both truncated and force-shifted versions
     """
-    def __init__(self, eps, rcut, name="lennard-jones",mode=None):
+    def __init__(self, eps, vareps, rcut, name="lennard-jones",mode=None):
          
         self.name = "{}+{}".format(name,mode)
         # create the c++ mirror class
         if (mode == "truncated"):
-            self.cpppairpotential = _potential.PairPotentialLJ(rcut,[eps]);
+            self.cpppairpotential = _potential.PairPotentialLJ(rcut,[eps, vareps]);
         elif (mode == "force-shifted"):
-            self.cpppairpotential = _potential.PairPotentialForceShiftedLJ(rcut,[eps]);
+            self.cpppairpotential = _potential.PairPotentialForceShiftedLJ(rcut,[eps, vareps]);
         elif (mode == None):
             raise NameError('Please select a Lennard-Jones potential available modes: truncated and force-shifted are available')
         else:
             raise NameError('Lennard jones potential mode not recognized. Only: truncated and force-shifted are available')
-        self.dict_params = {'eps': 0} 
+        self.dict_params = {'eps': 0, 'vareps': 0} 
         pyglasstools.set_potential(self)
     
 

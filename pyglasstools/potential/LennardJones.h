@@ -12,13 +12,13 @@ class LennardJones
             \param _params Per type pair parameters of this potential
         */
         LennardJones(double _rsq, double _rcutsq, std::vector<double> _params)
-            : rsq(_rsq), rcutsq(_rcutsq), eps(_params[0])
+            : rsq(_rsq), rcutsq(_rcutsq), eps(_params[0]), vareps(_params[1])
             {
             }
         ~LennardJones(){}; 
         virtual double computeEnergy(const double& d_i, const double& d_j) const
         {
-            double sigma = 0.5*(d_i+d_j)*(1-eps*fabs(d_i-d_j));
+            double sigma = 0.5*(d_i+d_j)*(1-vareps*fabs(d_i-d_j));
             double actualrcutsq = rcutsq*sigma*sigma;
             
             // compute the force divided by r in force_divr
@@ -41,7 +41,7 @@ class LennardJones
        //! Evaluate the force and energy
         virtual double computeForceDivR(double d_i, double d_j) const
         {
-            double sigma = 0.5*(d_i+d_j);
+            double sigma = 0.5*(d_i+d_j)*(1-vareps*fabs(d_i-d_j));
             double actualrcutsq = rcutsq*sigma*sigma;
             
             // compute the force divided by r in force_divr
@@ -59,7 +59,7 @@ class LennardJones
         //! Evaluate the force and energy
         virtual double computeStiffness(double d_i, double d_j) const
         {
-            double sigma = 0.5*(d_i+d_j);
+            double sigma = 0.5*(d_i+d_j)*(1-vareps*fabs(d_i-d_j));
             double actualrcutsq = rcutsq*sigma*sigma;
             
             // compute the force divided by r in force_divr
@@ -76,14 +76,15 @@ class LennardJones
 
         virtual double computeRcut(double d_i, double d_j) const
         {
-            double sigma = 0.5*(d_i+d_j);
+            double sigma = 0.5*(d_i+d_j)*(1-vareps*fabs(d_i-d_j));
             return rcutsq*sigma*sigma;
         }
 
     protected:
         double rsq;     //!< Stored rsq from the constructor
         double rcutsq;  //!< Stored rcutsq from the constructor
-        double eps;     //!< epsilon_parameter
+        double eps;     //!< energy_scale
+        double vareps;     //!< varepsilon_parameter, controls non-additivity
 };
 
 //(2): 1-parameter Force-Shifted LennardJones

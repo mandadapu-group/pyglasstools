@@ -2,7 +2,7 @@
 
 # **PyGlassTools**
 
-PyGlassTools is a Python module that compiles a couple of calculations for analyzing atomistic trajectories that are routinely done in our group, particularly supercooled liquids and glasses. Flexibility is important we don't deal not just with one type of pair potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
+PyGlassTools is a Python module that compiles a couple of calculations for analyzing atomistic trajectories that are routinely done in our group, particularly ones for supercooled liquids and glasses. Flexibility is important since we don't deal with just with one type of pair potential energy function, but multiple kinds that represent various glass-forming liquids. Most of these calculations are typically Irving-Kirkwood calculations, normal mode analysis, and elasticity tensor calculations. 
 
 The package is primarily used for all the analysis used in this paper:
 - M. R. Hasyim, K. K. Mandadapu, "A Theory of Localized Excitations in Supercooled Liquids" https://arxiv.org/abs/2103.03015 (2021)
@@ -13,7 +13,7 @@ If you do have any issues, bring it up on GitHub or contact me via e-mail (muham
 
 ## **Announcements**
 
-(04/15/2021): Still in the process of re-factoring as well as moving functions and class methods to separate implementation files to reduce (re)compilation time.
+(05/02/2021): Still in the process of re-factoring as well as moving functions and class methods to separate implementation files to reduce (re)compilation time. Elasticity module now works in 3D. 
 
 ## **Contents** 
 
@@ -54,7 +54,7 @@ For PETSc installation, we ask you to add the following additional flags to thei
 ```console
 --download-fblaslapack --download-scalapack --download-mumps
 ```
-These are requirements are necessarry for the specific usage of the elasticity module in pyglasstools. (see **Example Scripts** section) 
+These requirements are necessarry for the specific usage of the elasticity module in pyglasstools. (see **Example Scripts** section) 
 
 ### **Install Package**
 
@@ -105,7 +105,7 @@ The models available to use and currently implemented are as follows:
 
 You will see in pyglasstools/potential/\_\_init\_\_.py file that there are other pair potentials, but I haven't thoroughly tested them! So be aware. 
 
-Lastly, some module only works in 2D while others work both in 2D and 3D. For instance, we have not extended the irvingkirkwood module to 2D but the elasticity module does work in 2D and 3D (althought the 3D case has not been tested as thoroughly).
+Lastly, some module only works in 2D while others work both in 2D and 3D. For instance, we have not extended the irvingkirkwood module to 3D.
 
 All scripts shown here are part of the example_scripts of this project! These test scripts are applied to the polydisperse12 trajectory file. This trajectory consists of 201 energy-minimizing configurations of N=32^2 particles.  
 

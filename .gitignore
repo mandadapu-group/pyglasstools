@@ -6,6 +6,7 @@ dynamics*
 OldSPectra*
 SpectraHessian.h
 *Spectra*
+example_scripts/*
 
 # Any log files crated during test runs
 *.log

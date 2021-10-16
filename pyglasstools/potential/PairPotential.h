@@ -37,6 +37,7 @@ class PYBIND11_EXPORT PairPotential
         {
            return 0;
         }
+        
         virtual void setParams(double val, int num)
         {
             params[num] = val;
@@ -54,12 +55,13 @@ class PYBIND11_EXPORT PairPotential
         //! Evaluate the force and energy
         virtual double getPairEnergy(Eigen::Vector3d rij, double di, double dj)
         {
-           return 0;
+            return 0;
         }
+        
         //! Evaluate the force and energy
         virtual double getBondStiffness(Eigen::Vector3d rij, double di, double dj)
         {
-           return 0;
+            return 0;
         }
         
         double scaled_rcut;

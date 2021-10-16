@@ -1,7 +1,7 @@
 #ifndef __SLEPC_HESSIAN_H__
 #define __SLEPC_HESSIAN_H__
 
-#include "HessianBase.h"
+#include "PETScHessianBase.h"
 
 /*
  * Derived template class for constructing Hessian using PETSc's matrices and arrays.
@@ -245,7 +245,7 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
         //The main diagonal term
         MatSetValue(hessian,Dim*id_i, Dim*id_i, -offdiag_ij(0,0),ADD_VALUES);
         MatSetValue(hessian,Dim*id_i, Dim*id_i+1, -offdiag_ij(0,1),ADD_VALUES);
-        
+         
         if (Dim == 3)
         {
             //The off diagonal term

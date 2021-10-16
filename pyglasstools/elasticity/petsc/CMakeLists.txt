@@ -1,10 +1,13 @@
-set(SUBCOMPONENT_NAME elasticity)
+set(SUBCOMPONENT_NAME elasticitypetsc)
 
 set(_${SUBCOMPONENT_NAME}_sources
-    module-elasticity.cpp
+    module-elasticity-petsc.cpp
     )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(PETSc REQUIRED)
+find_package(SLEPc REQUIRED)
+find_package(MPI REQUIRED)
 
 include_directories(${PETSC_INC} ${SLEPC_INC} ${MPI_CXX_INCLUDE_PATH})
 pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
@@ -27,5 +30,3 @@ foreach(file ${files})
 endforeach()
 
 add_custom_target(copy_${SUBCOMPONENT_NAME} ALL DEPENDS ${files})
-add_subdirectory(petsc)
-add_subdirectory(eigen)

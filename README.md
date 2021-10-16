@@ -13,7 +13,7 @@ If you do have any issues, bring it up on GitHub or contact me via e-mail (muham
 
 ## **Announcements**
 
-(05/02/2021): Still in the process of re-factoring as well as moving functions and class methods to separate implementation files to reduce (re)compilation time. Elasticity module now works in 3D. 
+(10/10/2021): In the process of updating the elasticity module, new instructions will come soon!
 
 ## **Contents** 
 

@@ -123,7 +123,7 @@ class fieldlogger(object):
                     i = int(name[-2]) 
                     j = int(name[-1])
                     flattenindex = i+Dim*j
-                outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
+                    outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
             outline += "\n"
             self.file.write_shared(outline);
     
@@ -140,7 +140,7 @@ class fieldlogger(object):
                     i = int(name[-2]) 
                     j = int(name[-1])
                     flattenindex = i+Dim*j
-                outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
+                    outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
             outline += "\n"
             self.file.write_shared(outline);
     

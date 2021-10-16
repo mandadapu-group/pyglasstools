@@ -1,9 +1,8 @@
 #ifndef __SLEPC_NMA_H__
 #define __SLEPC_NMA_H__
 
-#include "HessianBase.h"
+#include "PETScHessianBase.h"
 #include <slepceps.h>
-
 
 /*
  * A class for performing normal mode analysis and computing non-affine elasticity tensors
@@ -90,6 +89,7 @@ class PYBIND11_EXPORT SLEPcNMA
             if(nconv >0)
             {
                 calculateNonAffineTensor(eps);
+                calculateLocLandscape(eps);
 
                 m_hessian->m_manager->printPetscNotice(5,"Storing selected eigenpairs \n");
                 
@@ -133,6 +133,11 @@ class PYBIND11_EXPORT SLEPcNMA
          * eps: class holding all eigenmodes.
          */
         void calculateNonAffineTensor(const EPS& eps); 
+        
+        /* Computing the localization landscape. Args:
+         * eps: class holding all eigenmodes.
+         */
+        void calculateLocLandscape(const EPS& eps); 
 };
 
 /* Parametrized constructor. Args:
@@ -363,6 +368,66 @@ void SLEPcNMA::getAllEigenPairs(std::string package)
     }
 };
 
+/* Computing the localization landscape. Args:
+ * eps: class holding all eigenmodes.
+ */
+void SLEPcNMA::calculateLocLandscape(const EPS& eps) 
+{
+    if (nconv > 0 && m_vectorfields.count("loclandscape") && m_hessian->areDiagonalsNonZero())
+    {
+        m_hessian->m_manager->printPetscNotice(5,"Computing the localization landscape \n");
+        m_vectorfields["loclandscape"]->createVector(m_hessian->hessian); 
+        double cond = m_hessian->m_manager->pinv_tol;
+        Vec xr;
+        
+        PetscReal kr,re;
+
+        //We need a bit of prep because the layout may or may not be compatible between hessian and misforce
+        MatCreateVecs(m_hessian->hessian,NULL,&xr);
+        
+        //Vector create
+        Vec forcing; //!< a forcing vector, applied in a Hu=f type problem.
+        MatCreateVecs(m_hessian->hessian,NULL,&forcing);
+        VecSet(forcing, 1.0);
+        VecAssemblyBegin(forcing);
+        VecAssemblyEnd(forcing); 
+
+        for (int I = 0; I < nconv; ++I)
+        {   
+            ierr = EPSGetEigenpair(eps,I,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            #if defined(PETSC_USE_COMPLEX)
+                re = PetscRealPart(kr);
+            #else
+                re = kr;
+            #endif
+            if (re > cond)
+            {
+                double laminv = 1/re;
+                double val = 0.0;
+                //Dot product of forcing vector with an eigenvector
+                ierr = VecDot(xr,forcing,&val); CHKERRABORT(PETSC_COMM_WORLD,ierr);
+                VecScale(xr,laminv*val);
+                //Compute the localization landscape by continously adding each eigencomponent  
+                VecAXPY(m_vectorfields["loclandscape"]->vectorobs,1.0,xr);
+            }
+        }
+        
+        m_hessian->m_manager->printPetscNotice(5,"Deconstruct objects \n");
+        VecDestroy(&xr);
+        VecDestroy(&forcing);
+    }
+    else
+    {
+        if (nconv <= 0)
+        {
+            m_hessian->m_manager->printPetscNotice(0,"[WARNING] No converged eigenpairs available \n");
+        }
+        if (!m_hessian->areDiagonalsNonZero())
+        {
+            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
+        } 
+    }
+};
 
 /* Computing the non-affine part of the elasticity tensor. Args:
  * eps: class holding all eigenmodes.
@@ -467,10 +532,6 @@ void SLEPcNMA::calculateNonAffineTensor(const EPS& eps)
         if (nconv <= 0)
         {
             m_hessian->m_manager->printPetscNotice(0,"[WARNING] No converged eigenpairs available \n");
-        }
-        if (m_observables.count("nonaffinetensor") == 0)
-        {
-            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Not calculating non-affine elasticity tensor \n");
         }
         if (!m_hessian->areDiagonalsNonZero())
         {

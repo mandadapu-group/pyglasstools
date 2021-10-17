@@ -22,3 +22,6 @@
 [submodule "pyglasstools/extern/gsd"]
 	path = pyglasstools/extern/gsd
 	url = https://github.com/glotzerlab/gsd.git
+[submodule "pyglasstools/extern/mpl"]
+	path = pyglasstools/extern/mpl
+	url = https://github.com/rabauke/mpl

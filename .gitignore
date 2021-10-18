@@ -6,7 +6,6 @@ dynamics*
 OldSPectra*
 SpectraHessian.h
 *Spectra*
-example_scripts/*
 
 # Any log files crated during test runs
 *.log
@@ -31,8 +30,12 @@ __pycache__/
 #ignore the folder called build anywhere, but not files called build
 build/
 build/*
+build_alt/
+build_alt/*
 test-py/
 test-py/*
+example_scripts
+example_scripts/*
 
 # Python egg metadata, regenerated from source files by setuptools.
 /*.egg

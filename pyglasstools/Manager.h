@@ -6,7 +6,6 @@
 #include <iomanip>
 #include <limits>
 #include <map>
-#include <mpi.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/iostream.h>
@@ -129,17 +128,17 @@ class PYBIND11_EXPORT Manager
     protected:
         std::map<std::string, std::string> argv;
     public:
-        //Basic MPI information
         std::string cmd_line_options;  
-        int proc_rank, nprocs;
+        //Basic MPI information
+        //int proc_rank, nprocs;
         
         Manager()  
         {
             m_notice_prefix  = "notice";
             m_nullstream = std::shared_ptr< detail::nullstream >(new detail::nullstream());
             m_notice_stream = &std::cout;
-            MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
-            MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+            //MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+            ////MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
             //Default value of notice_level is 1
             m_notice_level = 1;        
@@ -162,10 +161,10 @@ class PYBIND11_EXPORT Manager
         {
             return *m_notice_stream;
         } 
-        std::ostream& notice(unsigned int level, int target_rank = 0)
+        std::ostream& notice(unsigned int level)//, int target_rank = 0)
         {
             assert(m_notice_stream);
-            if (level <= m_notice_level && proc_rank == target_rank)
+            if (level <= m_notice_level)// && proc_rank == target_rank)
                 {
                 if (m_notice_prefix != std::string("") && level > 1)
                     *m_notice_stream << m_notice_prefix << "(" << level << "): ";
@@ -179,12 +178,14 @@ class PYBIND11_EXPORT Manager
         void py_notice(unsigned int level, std::string message)
         {
             std::stringstream notice_stream;//assert(m_notice_stream);
-            if (level <= m_notice_level && proc_rank == 0 && m_notice_prefix != std::string("") && level > 1)
+            if (level <= m_notice_level && m_notice_prefix != std::string("") && level > 1)
+            //if (level <= m_notice_level && proc_rank == 0 && m_notice_prefix != std::string("") && level > 1)
             {
                 notice_stream << m_notice_prefix << "(" << level << "): " << message;
                 py::print(notice_stream.str());
             }
         }
+        /*
         std::ostream& widenotice(unsigned int level)
         {
             assert(m_notice_stream);
@@ -199,6 +200,7 @@ class PYBIND11_EXPORT Manager
                 return *m_nullstream;
                 }
         }
+        */
     protected:
         std::string m_notice_prefix;
         std::ostream *m_notice_stream;  //!< notice stream

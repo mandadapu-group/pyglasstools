@@ -6,7 +6,6 @@
 #include <Eigen/CXX11/Tensor>
 namespace abr = Aboria;
 
-
 class PotentialEnergy
 {
     public:

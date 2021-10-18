@@ -6,9 +6,12 @@ set(_${SUBCOMPONENT_NAME}_sources
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-include_directories(${PETSC_INC} ${SLEPC_INC} ${MPI_CXX_INCLUDE_PATH})
-pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
-target_link_libraries(_${SUBCOMPONENT_NAME} PRIVATE ${PETSC_LIB} ${SLEPC_LIB} ${MPI_CXX_LIBRARIES})
+if (ENABLE_MPI)
+    include_directories(${PETSC_INC} ${SLEPC_INC} ${MPI_CXX_INCLUDE_PATH})
+    pybind11_add_module(_${SUBCOMPONENT_NAME} SHARED ${_${SUBCOMPONENT_NAME}_sources} NO_EXTRAS)
+    target_link_libraries(_${SUBCOMPONENT_NAME} PRIVATE ${PETSC_LIB} ${SLEPC_LIB} ${MPI_CXX_LIBRARIES})
+endif (ENABLE_MPI)
+
 #set_target_properties(_${SUBCOMPONENT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/..;\$ORIGIN")
 
 #install(TARGETS _${SUBCOMPONENT_NAME} 
@@ -27,5 +30,7 @@ foreach(file ${files})
 endforeach()
 
 add_custom_target(copy_${SUBCOMPONENT_NAME} ALL DEPENDS ${files})
-add_subdirectory(petsc)
+if (ENABLE_MPI)
+    add_subdirectory(petsc)
+endif (ENABLE_MPI)
 add_subdirectory(eigen)

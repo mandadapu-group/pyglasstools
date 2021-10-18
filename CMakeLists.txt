@@ -12,22 +12,12 @@ include(SetupPybind11.cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/pyglasstools/extern/pybind11/include)
 include(CompilerFlagsSetup.cmake)
 
-
 # plugins must be built as shared libraries
 if (ENABLE_STATIC)
     message(SEND_ERROR "Needs to be built as shared library!")
 endif (ENABLE_STATIC)
 
 set(BUILD_SHARED_LIBS on)
-
-#Set the install directory to be the site-packages folder
-#execute_process(
-#  COMMAND "${PYTHON_EXECUTABLE}" -c "if True:
-#    import site 
-#    print(site.getsitepackages()[0])"
-#  OUTPUT_VARIABLE PYTHON_MODULE_BASE_DIR
-#  OUTPUT_STRIP_TRAILING_WHITESPACE)
-#set(CMAKE_INSTALL_PREFIX ${PYTHON_MODULE_BASE_DIR})
 
 # include current source directory as its own include directory
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

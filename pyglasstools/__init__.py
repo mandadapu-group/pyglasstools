@@ -15,7 +15,7 @@ from pyglasstools import _pyglasstools;
 #Initialize a single communicator during module call
 comm = _pyglasstools.Communicator()
 rank = comm.getRank()
-size = comm.getSizeGlobal()
+size = comm.getNRanks()
 
 #Save mode
 savemode = "unordered"
@@ -132,7 +132,8 @@ def analyze(frame_list):
                     progressbar.update(1)
                     print("")
                 #Barrier for consistent update
-                comm.barrier()
+                if size > 1:
+                    comm.barrier()
                 pass 
         if rank == 0:
             progressbar.close()

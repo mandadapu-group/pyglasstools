@@ -2,7 +2,11 @@
 #define __OBSERVABLES_H__
 
 #include "MathAndTypes.h"
-#include "MPIFile.h"
+#ifdef ENABLE_MPI
+#include "MPILogFile.h"
+#else
+#include "LogFile.h"
+#endif
 #include <pybind11/pybind11.h>
 #include <pyglasstools/potential/PairPotential.h>
 

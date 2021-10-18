@@ -40,7 +40,7 @@ class PYBIND11_EXPORT CoarseGrainedField : public Observable
         {
         };
         
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index){}
+        virtual void save( std::shared_ptr< BaseLogFile > logfile, int index){}
 
         virtual void clear( unsigned int grid_id){}
 };
@@ -69,7 +69,7 @@ class PYBIND11_EXPORT LocalField : public CoarseGrainedField
             obs.compute_cg(particle_i, val[grid_id], cgval);
         };
         
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index, int grid_id)
+        virtual void save( std::shared_ptr< BaseLogFile > logfile, int index, int grid_id)
         {
             //clear the stringstream
             outline.str( std::string() );
@@ -90,7 +90,7 @@ class PYBIND11_EXPORT LocalField : public CoarseGrainedField
             outline << tensorview(index) << " ";
             //end the input
             //outline << std::endl;
-            logfile->write_shared(outline.str());
+            logfile->write(outline.str());
             //}
         }
         
@@ -182,7 +182,7 @@ class PYBIND11_EXPORT ForceField : public CoarseGrainedField
             //}
         }
         
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index, int grid_id)
+        virtual void save( std::shared_ptr< BaseLogFile > logfile, int index, int grid_id)
         {
             //for(unsigned int i = 0; i < val.size(); ++i)
             //{
@@ -200,7 +200,7 @@ class PYBIND11_EXPORT ForceField : public CoarseGrainedField
             outline << tensorview(index) << " ";
             //end the input
             //outline << std::endl;
-            logfile->write_shared(outline.str());
+            logfile->write(outline.str());
             
             //clear the stringstream
             outline.str( std::string() );

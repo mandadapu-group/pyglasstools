@@ -1,12 +1,20 @@
 set(COMPONENT_NAME pyglasstools)
 
 #### Add C++ Source Files
+#if(ENABLE_MPI)
+#set(_${COMPONENT_NAME}_sources
+#    MPICommunicator.cpp
+#    SimBox.cc
+#    ParticleSystem.cc
+#    module-pyglasstools.cpp
+#    )
+#else(ENABLE_MPI)
 set(_${COMPONENT_NAME}_sources
-    MPIInterface.cpp
     SimBox.cc
     ParticleSystem.cc
     module-pyglasstools.cpp
     )
+#endif(ENABLE_MPI)
 
 #### Finding External Packages
 
@@ -18,11 +26,7 @@ list(APPEND INCLUDES extern/eigen/unsupported/)
 find_package(Boost 1.50.0 REQUIRED serialization)
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 list(APPEND INCLUDES ${Boost_INCLUDE_DIRS})
-#Find GSL
-find_package(GSL REQUIRED)   
-#Find MPI
-find_package(MPI REQUIRED)
-list(APPEND LIBRARIES ${MPI_CXX_LIBRARIES})
+
 #Find Aboria
 set(Aboria_LOG_LEVEL 1 CACHE STRING "Logging level (1 = least, 3 = most)")
 add_definitions(-DABORIA_LOG_LEVEL=${Aboria_LOG_LEVEL})
@@ -31,27 +35,48 @@ list(APPEND INCLUDES extern/Aboria/third-party)
 
 #Add spectra header files
 list(APPEND INCLUDES extern/spectra/include)
+
 #Add cereal header files
 list(APPEND INCLUDES extern/cereal/include)
+
 #Add gsd header files
 list(APPEND INCLUDES extern/gsd/gsd)
+
+message(${INCLUDES})
+
+if(ENABLE_IK)
+    #Find GSL
+    find_package(GSL REQUIRED)   
+endif(ENABLE_IK)
+
+#Find MPI
+if(ENABLE_MPI)
+    find_package(MPI REQUIRED)
+    list(APPEND LIBRARIES ${MPI_CXX_LIBRARIES})
+endif(ENABLE_MPI)
+
 
 #Add OpenMP flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
 
 #Add header files from the header-Only Libraries
-include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS} ${GSL_INCLUDE_DIRS})
+include_directories(${INCLUDES})
+
+if(ENABLE_MPI)
+    include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS})
+endif(ENABLE_MPI)
+
+if(ENABLE_IK)
+    include_directories(${INCLUDES} ${GSL_INCLUDE_DIRS})
+endif(ENABLE_IK)
 
 pybind11_add_module(_${COMPONENT_NAME} SHARED ${_${COMPONENT_NAME}_sources} NO_EXTRAS)
 target_link_libraries(_${COMPONENT_NAME} PRIVATE ${LIBRARIES})
-#set_target_properties(_${COMPONENT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/..")
-set_target_properties(_${COMPONENT_NAME} PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
-set_target_properties(_${COMPONENT_NAME} PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
-
-#install(TARGETS _${COMPONENT_NAME} 
-#        LIBRARY DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-#        )
+if(ENABLE_MPI)
+    set_target_properties(_${COMPONENT_NAME} PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+    set_target_properties(_${COMPONENT_NAME} PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+endif(ENABLE_MPI)
 
 add_custom_target(copy_${COMPONENT_NAME} ALL DEPENDS ${files})
 
@@ -61,10 +86,6 @@ set(files   __init__.py
             io.py
     )
 
-#install(FILES ${files}
-#        DESTINATION ${PYTHON_MODULE_BASE_DIR}/${COMPONENT_NAME}
-#       )
-
 foreach(file ${files})
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
 endforeach()
@@ -72,5 +93,9 @@ endforeach()
 ####Add our sub-modules
 add_subdirectory(potential)
 add_subdirectory(thermo)
-add_subdirectory(irvingkirkwood)
-add_subdirectory(elasticity)
+if(ENABLE_IK)
+    add_subdirectory(irvingkirkwood)
+endif(ENABLE_IK)
+if(ENABLE_EL)
+    add_subdirectory(elasticity)
+endif(ENABLE_EL)

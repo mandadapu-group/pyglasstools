@@ -31,7 +31,7 @@ class PYBIND11_EXPORT ThermoProperty : public Observable
         {
         }
 
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index){}
+        virtual void save( std::shared_ptr< BaseLogFile > logfile, int index){}
 
         virtual void clear(){}
         
@@ -70,10 +70,10 @@ class PYBIND11_EXPORT LocalProperty : public ThermoProperty
             obs.compute(particle_i, val);
         }
         
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        void save( std::shared_ptr< BaseLogFile > logfile, int index)
         {
             Eigen::TensorMap< Eigen::Tensor<double, 1> > tensorview(val.data(), val.size());
-            logfile->write_shared(std::to_string(tensorview(index)));
+            logfile->write(std::to_string(tensorview(index)));
         }
 
         void clear()
@@ -115,9 +115,9 @@ class PYBIND11_EXPORT ForceScalarProperty : public ThermoProperty
             obs.compute(particle_i,particle_j,rij, potential, val);
         }
         
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        void save( std::shared_ptr< BaseLogFile > logfile, int index)
         {
-            logfile->write_shared(std::to_string(val));
+            logfile->write(std::to_string(val));
         }
 
         void clear()
@@ -167,7 +167,7 @@ class PYBIND11_EXPORT ForceProperty : public ThermoProperty
             obs.compute(particle_i,particle_j,rij,potential, val);
         }
         
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        void save( std::shared_ptr< BaseLogFile > logfile, int index)
         {
             /*
              * If I need this again, I'll just un-comment it
@@ -193,7 +193,7 @@ class PYBIND11_EXPORT ForceProperty : public ThermoProperty
             }
             */
             Eigen::TensorMap< Eigen::Tensor<double, 1> > tensorview(val.data(), val.size());
-            logfile->write_shared(std::to_string(tensorview(index)));
+            logfile->write(std::to_string(tensorview(index)));
         }
 
         void clear()

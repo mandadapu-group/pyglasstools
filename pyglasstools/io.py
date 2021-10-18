@@ -37,38 +37,40 @@ class logfile(object):
 
         #write the initial files
         #Initialize file to save:
-        self.file = _pyglasstools.MPILogFile(comm, self.filename)
-        
+        if size > 1:
+            self.file = _pyglasstools.MPILogFile(comm, self.filename)
+        else: 
+            self.file = _pyglasstools.LogFile(self.filename)
         #Then, add observables
         self.global_obs = thermo.initialize_global(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
        
         self.solver.add_observables(self.global_obs)
         #Create column headers
         if rank == 0 and (not os.path.exists(pyglasstools.get_sysdata().checkpointfile) or (os.path.exists(pyglasstools.get_sysdata().checkpointfile) and os.path.getsize(pyglasstools.get_sysdata().checkpointfile) == 0)):
-            self.file.write_shared("{} ".format("Frame"))
+            self.file.write("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:
-                    self.file.write_shared("{} ".format(name))
-            self.file.write_shared("\n")
+                    self.file.write("{} ".format(name))
+            self.file.write("\n")
          
     def save(self,frame_num):
         if rank == 0:
-            self.file.write_shared("{} ".format(frame_num))
+            self.file.write("{} ".format(frame_num))
             for name in self.__obs_names:
                 Dim = pyglasstools.get_sysdata().pysimbox.dim
                 if "potentialenergy" in name:
                     self.global_obs['potentialenergy'].save(self.file, 0)
-                    self.file.write_shared(" ")
+                    self.file.write(" ")
                 if "virialstress" in name:
                     i = int(name[-2]) 
                     j = int(name[-1])
                     self.global_obs['virialstress'].save(self.file, i+Dim*j)
-                    self.file.write_shared(" ")
+                    self.file.write(" ")
                 elif "kineticstress" in name:
                     i = int(name[-2]) 
                     j = int(name[-1])
                     self.global_obs['kineticstress'].save(self.file, i+Dim*j)
-                    self.file.write_shared(" ")
+                    self.file.write(" ")
                 elif "borntensor" in name:
                     i = int(name[-4]) 
                     j = int(name[-3])
@@ -76,8 +78,8 @@ class logfile(object):
                     l = int(name[-1])
                     #self.global_obs['borntensor'].save(self.file,i+Dim*(j+Dim*(k+Dim*l)))
                     self.global_obs['borntensor'].save(self.file,l+Dim*(k+Dim*(j+Dim*i)))
-                    self.file.write_shared(" ")
-            self.file.write_shared("\n")
+                    self.file.write(" ")
+            self.file.write("\n")
 
 class fieldlogger(object):
     global loggers_list
@@ -107,7 +109,10 @@ class fieldlogger(object):
         #Then, add observables
         self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim,self.solver.gridpoints)
         self.solver.add_observables(self.field_obs)
-        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
+        if size > 1:
+            self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
+        else:
+            self.file = _pyglasstools.LogFile("{}".format(keyword)+".xyz")
     
     def save_perrank(self,frame_num):
         Dim = pyglasstools.get_sysdata().pysimbox.dim
@@ -125,7 +130,7 @@ class fieldlogger(object):
                     flattenindex = i+Dim*j
                     outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
             outline += "\n"
-            self.file.write_shared(outline);
+            self.file.write(outline);
     
     def save_perrank_polar(self,frame_num):
         Dim = pyglasstools.get_sysdata().pysimbox.dim
@@ -142,12 +147,12 @@ class fieldlogger(object):
                     flattenindex = i+Dim*j
                     outline += self.field_obs[name[:-3]].gettostring(i+Dim*j, index)
             outline += "\n"
-            self.file.write_shared(outline);
+            self.file.write(outline);
     
     def save(self,frame_num):
         if rank == 0:
-            self.file.write_shared("{:d} \n".format(self.solver.gridsize))
-            self.file.write_shared("#Frame {:d}  \n".format(frame_num))
+            self.file.write("{:d} \n".format(self.solver.gridsize))
+            self.file.write("#Frame {:d}  \n".format(frame_num))
         comm.barrier()
         
         if self.solver.coordmode == "cartesian":

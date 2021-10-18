@@ -7,10 +7,30 @@
 #include <pybind11/embed.h>
 namespace py = pybind11;
 
-
 #include <petscsys.h>
 #include <petscmat.h>
 #include <petscvec.h>
+
+
+class PYBIND11_EXPORT EigenManager : public Manager
+{
+    public:
+        double pinv_tol, eigen_tol;  
+        int nev, ncv, maxiter;
+        std::string selrule;     
+        
+        EigenManager() : pinv_tol(1e-12), eigen_tol(1e-6), nev(1), ncv(2), maxiter(100), selrule("LM")
+        {
+            detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
+            detail::argparser<double>("-eigen_tol",eigen_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
+            detail::argparser<int>("-spectra_nev",nev, "[ERROR] Invalid value spectra_nev", argv);
+            detail::argparser<int>("-spectra_ncv",ncv, "[ERROR] Invalid value spectra_ncv", argv);
+            detail::argparser<int>("-spectra_maxiter",maxiter, "[ERROR] Invalid value for maxier", argv);
+            detail::argparser<std::string>("-spectra_selrule",selrule, "[ERROR] Invalid value for spectra selrule", argv);
+        };
+        ~EigenManager(){};
+};
+
 
 class PYBIND11_EXPORT PETScManager : public Manager
 {
@@ -20,7 +40,7 @@ class PYBIND11_EXPORT PETScManager : public Manager
         double fd_random_min, fd_random_max; 
         std::string fd_mode; 
         
-        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), upperbound_tol(1e-6), pivot_tol(1), upperbound(0.0), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("uniform")  
+        PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), upperbound_tol(1e-6), pivot_tol(1), upperbound(0.0), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("random")  
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);
             detail::argparser<double>("-lowerbound_tol",lowerbound_tol, "[ERROR] Invalid value for lowerbound_tol", argv);
@@ -72,6 +92,13 @@ class PYBIND11_EXPORT PETScManager : public Manager
                 CHKERRABORT(PETSC_COMM_WORLD,ierr);
             }
         }
+};
+
+void export_EigenManager(py::module& m)
+{
+    py::class_<EigenManager, std::shared_ptr<EigenManager> >(m,"EigenManager")
+    .def(py::init<>())
+    ;
 };
 
 void export_PETScManager(py::module& m)

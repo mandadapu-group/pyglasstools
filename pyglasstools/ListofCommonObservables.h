@@ -37,6 +37,7 @@ class PotentialEnergy
             compute(p_i,p_j,rij,potential,zeroval);
             val += 0.5*bondval*zeroval;
         }
+        
 };
 
 class VirialStress
@@ -45,7 +46,7 @@ class VirialStress
         VirialStress(){};
         ~VirialStress(){};
         
-        void compute(   const AboriaParticles::value_type& p_i, 
+        virtual void compute(   const AboriaParticles::value_type& p_i, 
                                 const AboriaParticles::value_type& p_j,
                                 const Eigen::Vector3d& rij, 
                                 const std::shared_ptr<PairPotential>& potential,
@@ -68,7 +69,7 @@ class VirialStress
                 }
             }
         }
-        void compute_cg(const AboriaParticles::value_type& p_i, 
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
                                 const AboriaParticles::value_type& p_j,
                                 Eigen::Vector3d rij, 
                                 const std::shared_ptr<PairPotential>& potential,
@@ -127,7 +128,7 @@ class KineticStress
         KineticStress(){};
         ~KineticStress(){};
         
-        void compute(   const AboriaParticles::value_type& p_i, 
+        virtual void compute(   const AboriaParticles::value_type& p_i, 
                                 Eigen::Tensor<double, 2>& val)
         {
             //Compute virial stress going through component-by-component
@@ -139,7 +140,7 @@ class KineticStress
                 }
             }
         }
-        void compute_cg(const AboriaParticles::value_type& p_i, 
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
                                 Eigen::Tensor<double, 2>& val, double cgval)
         {
             compute(p_i,val);
@@ -153,7 +154,7 @@ class BornStiffnessTensor
         BornStiffnessTensor(){};
         ~BornStiffnessTensor(){};
         
-        void compute(   const AboriaParticles::value_type& p_i, 
+        virtual void compute(   const AboriaParticles::value_type& p_i, 
                                 const AboriaParticles::value_type& p_j,
                                 Eigen::Vector3d rij, 
                                 const std::shared_ptr<PairPotential>& potential,
@@ -184,7 +185,7 @@ class BornStiffnessTensor
 
         }
 
-        void compute_cg(const AboriaParticles::value_type& p_i, 
+        virtual void compute_cg(const AboriaParticles::value_type& p_i, 
                                 const AboriaParticles::value_type& p_j,
                                 Eigen::Vector3d rij, 
                                 const std::shared_ptr<PairPotential>& potential,
@@ -201,7 +202,7 @@ class Density
     public:
         Density(int _dim){};
         ~Density(){};
-        Eigen::MatrixXd compute(const AboriaParticles::value_type& p_i, 
+        virtual Eigen::MatrixXd compute(const AboriaParticles::value_type& p_i, 
                                         const AboriaParticles::value_type& p_j,
                                         Eigen::Vector3d rij, 
                                         const std::shared_ptr<PairPotential>& potential)

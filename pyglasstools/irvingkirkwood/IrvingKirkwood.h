@@ -11,9 +11,9 @@ class PYBIND11_EXPORT IrvingKirkwood : public Calculator
     public:
         IrvingKirkwood( std::shared_ptr< ParticleSystem > sysdata,
                         std::shared_ptr< PairPotential > potential, 
-                        std::shared_ptr< CoarseGrainFunction > cgfunc)//,
-                        //std::shared_ptr< MPI::Communicator > comm )
-            : Calculator(sysdata,potential), m_cgfunc(cgfunc)//, m_comm(comm)
+                        std::shared_ptr< CoarseGrainFunction > cgfunc,
+                        std::shared_ptr< MPI::Communicator > comm )
+            : Calculator(sysdata,potential), m_cgfunc(cgfunc), m_comm(comm)
         {
         }; 
         ~IrvingKirkwood(){};
@@ -66,7 +66,7 @@ class PYBIND11_EXPORT IrvingKirkwood : public Calculator
     
     private:
         std::shared_ptr< CoarseGrainFunction > m_cgfunc; //!< particle system, equipped with neighbor list
-        //std::shared_ptr< MPI::Communicator > m_comm;
+        std::shared_ptr< MPI::Communicator > m_comm;
         std::map< std::string, std::shared_ptr< CoarseGrainedField > > m_observables;
 };
 
@@ -113,7 +113,7 @@ void IrvingKirkwood::compute(const std::vector< Eigen::Vector3d >& gridpoints)
 void export_IrvingKirkwood(py::module& m)
 {
     py::class_<IrvingKirkwood, Calculator, std::shared_ptr<IrvingKirkwood> >(m,"IrvingKirkwood")
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< CoarseGrainFunction > >())//, std::shared_ptr< MPI::Communicator >  >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< CoarseGrainFunction >, std::shared_ptr< MPI::Communicator >  >())
     .def("compute", &IrvingKirkwood::compute)
     .def("setSystemData", &IrvingKirkwood::setSystemData)
     .def("addObservable", &IrvingKirkwood::addObservable)

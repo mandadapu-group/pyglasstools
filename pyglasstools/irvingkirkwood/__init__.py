@@ -63,7 +63,7 @@ class ikcalculator(object):
         self.gridsize =  comm.bcast(globalsize,0); 
         self.calculator = _irvingkirkwood.IrvingKirkwood(   pyglasstools.get_sysdata().cppparticledata,
                                                             pyglasstools.get_potential().cpppairpotential,
-                                                            cgfunc._getCGFunc())#,comm)
+                                                            cgfunc._getCGFunc(),comm)
         solvers_list.append(self)
    
     def add_observables(self, observables):

@@ -15,9 +15,6 @@
 class PYBIND11_EXPORT GlobalPropertyBase : public Observable
 {
     protected:
-        //Stored MPI Communicator class
-        std::shared_ptr< MPI::Communicator > m_comm;
-        
         std::stringstream outline;
     public:
         GlobalPropertyBase() : Observable() {};
@@ -30,8 +27,8 @@ class PYBIND11_EXPORT GlobalPropertyBase : public Observable
          * _dim: physical dimension of the observable. Supports only 2 or 3.
          * comm: a shared pointer to the MPI communicator.
         */
-        GlobalPropertyBase( std::string _name, std::string _type, bool _islocal, int _dim, std::shared_ptr< MPI::Communicator > comm) 
-            : Observable(_name, _type, _islocal, _dim), m_comm(comm), outline("")
+        GlobalPropertyBase( std::string _name, std::string _type, bool _islocal, int _dim)
+            : Observable(_name, _type, _islocal, _dim), outline("")
         {
         };
 
@@ -76,7 +73,7 @@ class PYBIND11_EXPORT GlobalPropertyBase : public Observable
          * logfile: a class managing I/O of a file. See pyglasstools/MPIFile.h
          * index: index of the component.
          */
-        virtual void save( std::shared_ptr< MPI::LogFile > logfile, int index = 0){};
+        virtual void save( std::shared_ptr< BaseLogFile > logfile, int index = 0){};
         
         /* 
          * Return the dimensionality and size of the observable, i.e., whether it's a higher rank tensor, etc. Args:
@@ -110,8 +107,8 @@ class PYBIND11_EXPORT GlobalScalar : public GlobalPropertyBase
     public:
         
         GlobalScalar(){};
-        GlobalScalar(std::string _name, std::string _type, bool _islocal, int _dim, std::shared_ptr< MPI::Communicator > comm) 
-            : GlobalPropertyBase(_name, _type, _islocal, _dim, comm), val(0)
+        GlobalScalar(std::string _name, std::string _type, bool _islocal, int _dim)//, std::shared_ptr< MPI::Communicator > comm) 
+            : GlobalPropertyBase(_name, _type, _islocal, _dim), val(0)
         {
         };
 
@@ -125,9 +122,9 @@ class PYBIND11_EXPORT GlobalScalar : public GlobalPropertyBase
         {
             return std::to_string(val);
         } 
-        void save( std::shared_ptr< MPI::LogFile > logfile)
+        void save( std::shared_ptr< BaseLogFile > logfile)
         {
-            logfile->write_shared(detail::to_string_sci(val));
+            logfile->write(detail::to_string_sci(val));
         }
 };
 
@@ -175,9 +172,9 @@ class PYBIND11_EXPORT VectorField : public GlobalPropertyBase
         {
             return std::to_string(val[id]);
         } 
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        void save( std::shared_ptr< BaseLogFile > logfile, int index)
         {
-            logfile->write_shared(std::to_string(val[index]));
+            logfile->write(std::to_string(val[index]));
         }
         void clear()
         {
@@ -202,8 +199,8 @@ class PYBIND11_EXPORT GlobalProperty : public GlobalPropertyBase
     public:
         
         GlobalProperty(){};
-        GlobalProperty(std::string _name, std::string _type, bool _islocal, std::shared_ptr< MPI::Communicator > comm) 
-            : GlobalPropertyBase(_name, _type, _islocal, Dim, comm)
+        GlobalProperty(std::string _name, std::string _type, bool _islocal)//, std::shared_ptr< MPI::Communicator > comm) 
+            : GlobalPropertyBase(_name, _type, _islocal, Dim)//, comm)
         {
             std::array<Eigen::Index, Rank > size_array;
             size_array.fill(Dim);
@@ -242,10 +239,10 @@ class PYBIND11_EXPORT GlobalProperty : public GlobalPropertyBase
             return std::to_string(tensorview(id));
         }; 
         
-        void save( std::shared_ptr< MPI::LogFile > logfile, int index)
+        void save( std::shared_ptr< BaseLogFile > logfile, int index)
         {
             Eigen::TensorMap< Eigen::Tensor<double, 1> > tensorview(val.data(), val.size());
-            logfile->write_shared(std::to_string(tensorview(index)));
+            logfile->write(std::to_string(tensorview(index)));
         };
         
 
@@ -269,7 +266,7 @@ class PYBIND11_EXPORT GlobalProperty : public GlobalPropertyBase
 void export_GlobalPropertyBase(py::module& m)
 {
     py::class_<GlobalPropertyBase, std::shared_ptr<GlobalPropertyBase> >(m,"GlobalPropertyBase")
-    .def(py::init< std::string, std::string, bool, int, std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::string, std::string, bool, int >())
     ;
 };
 
@@ -280,7 +277,7 @@ void export_GlobalPropertyBase(py::module& m)
 void export_GlobalScalar(py::module& m, const std::string& name)
 {
     py::class_<GlobalScalar, GlobalPropertyBase, std::shared_ptr<GlobalScalar> >(m,name.c_str())
-    .def(py::init< std::string, std::string, bool, int,std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::string, std::string, bool, int >())
     .def("setValue", &GlobalScalar::setValue)
     .def("getValue", &GlobalScalar::getValue)
     .def("gettostring",&GlobalScalar::gettostring)    
@@ -297,7 +294,7 @@ template<class T>
 void export_GlobalProperty(py::module& m, const std::string& name)
 {
     py::class_<T, GlobalPropertyBase, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init< std::string, std::string, bool, std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::string, std::string, bool >())
     .def("setValue", &T::setValue)
     .def("getValue", &T::getValue)
     .def("gettostring",&T::gettostring)    

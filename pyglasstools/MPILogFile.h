@@ -6,7 +6,7 @@
 #include <vector>
 #include "MPICommunicator.h"
 #include "LogFile.h"
-#include "extern/pybind11/include/pybind11/pybind11.h"
+#include <pybind11/pybind11.h>
 
 namespace MPI
 {
@@ -15,13 +15,13 @@ namespace MPI
     {
         private:
             MPI_File m_file;
-            std::shared_ptr<MPI::Communicator> m_comm;
+            std::shared_ptr<MPI::ParallelCommunicator> m_comm;
         
         public:
             //! Constructor with externally provided MPI communicator (only in MPI enabled builds)
             /*! \param mpi_comm world MPI communicator
              */
-            ParallelLogFile(std::shared_ptr<MPI::Communicator> comm, std::string filename)
+            ParallelLogFile(std::shared_ptr<MPI::ParallelCommunicator> comm, std::string filename)
                 : m_comm(comm)
             {
                 MPI_File_open(m_comm->getCommunicator(), filename.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_APPEND, MPI_INFO_NULL, &m_file); 
@@ -38,7 +38,7 @@ namespace MPI
             void write(std::string input)
             {
                 //serialize input?
-                MPI_File_write(m_file, input.c_str(), input.size(), MPI_CHAR, NULL);
+                MPI_File_write_shared(m_file, input.c_str(), input.size(), MPI_CHAR, NULL);
             };
             /*
             void write_ordered(std::string input)
@@ -53,8 +53,8 @@ namespace MPI
 //! Exports Communicator to python
 void export_ParallelLogFile(pybind11::module& m)
 {
-    pybind11::class_<MPI::ParallelLogFile, BaseLogFile, std::shared_ptr<MPI::ParallelLogFile> > (m,"ParallelLogFile");
-    .def(pybind11::init< std::shared_ptr<MPI::Communicator>, std::string >())
+    pybind11::class_<MPI::ParallelLogFile, BaseLogFile, std::shared_ptr<MPI::ParallelLogFile> > (m,"ParallelLogFile")
+    .def(pybind11::init< std::shared_ptr<MPI::ParallelCommunicator>, std::string >())
     .def("write", &MPI::ParallelLogFile::write)
     ;
 }

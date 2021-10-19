@@ -6,8 +6,8 @@
 #include "Polydisperse10.h"
 #include "Polydisperse106.h"
 #include "PolydisperseYukawa.h"
+#include <pybind11/pybind11.h>
 
-#include "../extern/pybind11/include/pybind11/pybind11.h"
 
 //Typedefs several coarsegrain functions  here
 typedef ShortRangePairPotential<LennardJones> PairPotentialLJ;

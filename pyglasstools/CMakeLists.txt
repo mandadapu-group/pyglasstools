@@ -1,20 +1,20 @@
 set(COMPONENT_NAME pyglasstools)
 
 #### Add C++ Source Files
-#if(ENABLE_MPI)
-#set(_${COMPONENT_NAME}_sources
-#    MPICommunicator.cpp
-#    SimBox.cc
-#    ParticleSystem.cc
-#    module-pyglasstools.cpp
-#    )
-#else(ENABLE_MPI)
+if(ENABLE_MPI)
+set(_${COMPONENT_NAME}_sources
+    MPICommunicator.cpp
+    SimBox.cc
+    ParticleSystem.cc
+    module-pyglasstools.cpp
+    )
+else(ENABLE_MPI)
 set(_${COMPONENT_NAME}_sources
     SimBox.cc
     ParticleSystem.cc
     module-pyglasstools.cpp
     )
-#endif(ENABLE_MPI)
+endif(ENABLE_MPI)
 
 #### Finding External Packages
 
@@ -42,8 +42,6 @@ list(APPEND INCLUDES extern/cereal/include)
 #Add gsd header files
 list(APPEND INCLUDES extern/gsd/gsd)
 
-message(${INCLUDES})
-
 if(ENABLE_IK)
     #Find GSL
     find_package(GSL REQUIRED)   
@@ -53,6 +51,7 @@ endif(ENABLE_IK)
 if(ENABLE_MPI)
     find_package(MPI REQUIRED)
     list(APPEND LIBRARIES ${MPI_CXX_LIBRARIES})
+    include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS})
 endif(ENABLE_MPI)
 
 
@@ -62,10 +61,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
 
 #Add header files from the header-Only Libraries
 include_directories(${INCLUDES})
-
-if(ENABLE_MPI)
-    include_directories(${INCLUDES} ${MPI_CXX_INCLUDE_DIRS})
-endif(ENABLE_MPI)
 
 if(ENABLE_IK)
     include_directories(${INCLUDES} ${GSL_INCLUDE_DIRS})

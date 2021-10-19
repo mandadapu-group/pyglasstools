@@ -38,7 +38,7 @@ class logfile(object):
         #write the initial files
         #Initialize file to save:
         if size > 1:
-            self.file = _pyglasstools.MPILogFile(comm, self.filename)
+            self.file = _pyglasstools.ParallelLogFile(comm, self.filename)
         else: 
             self.file = _pyglasstools.LogFile(self.filename)
         #Then, add observables
@@ -110,7 +110,7 @@ class fieldlogger(object):
         self.field_obs = irvingkirkwood.initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim,self.solver.gridpoints)
         self.solver.add_observables(self.field_obs)
         if size > 1:
-            self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
+            self.file = _pyglasstools.ParallelLogFile(comm, "{}".format(keyword)+".xyz")
         else:
             self.file = _pyglasstools.LogFile("{}".format(keyword)+".xyz")
     

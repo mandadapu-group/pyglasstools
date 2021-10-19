@@ -29,17 +29,17 @@ def initialize_global(names,dim):
     list_obs = {}
     if any("nonaffinetensor" in s for s in names):
         if dim == 2:
-            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor2D("nonaffinetensor", "4-TENSOR", False,comm)
+            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor2D("nonaffinetensor", "4-TENSOR", False)
         elif dim == 3:
-            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False,comm)
+            list_obs['nonaffinetensor'] = _elasticity.NonAffineTensor3D("nonaffinetensor", "4-TENSOR", False)
     if any("eigenvalue" in s for s in names):
         for s in [name for name in names if "eigenvalue" in name]:
-            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim, comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim)
     if any("eigenrelerror" in s for s in names):
         for s in [name for name in names if "eigenrelerror" in name]:
-            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim, comm)
+            list_obs[s] = _elasticity.GlobalScalar(s, "SCALAR", False, dim)
     if any("nconv" in s for s in names):
-        list_obs["nconv"] = _elasticity.GlobalScalar("nconv", "SCALAR", False, dim, comm)
+        list_obs["nconv"] = _elasticity.GlobalScalar("nconv", "SCALAR", False, dim)
     return list_obs
 
 class linrescalculator(object):
@@ -158,8 +158,10 @@ class logfile(object):
 
         #write the initial files
         #Initialize file to save:
-        self.file = _pyglasstools.MPILogFile(comm, self.filename)
-        
+        if size > 1:
+            self.file = _pyglasstools.ParallelLogFile(comm, self.filename)
+        else: 
+            self.file = _pyglasstools.LogFile(self.filename)
         #Then, add observables
         self.global_obs = initialize_global(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
         self.solver.add_observables(self.global_obs)
@@ -169,15 +171,15 @@ class logfile(object):
         #Create column headers
         if rank == 0 and (not os.path.exists(pyglasstools.get_sysdata().checkpointfile) or (os.path.exists(pyglasstools.get_sysdata().checkpointfile) and os.path.getsize(pyglasstools.get_sysdata().checkpointfile) == 0)):
 
-            self.file.write_shared("{} ".format("Frame"))
+            self.file.write("{} ".format("Frame"))
             if not (not self.__obs_names):
                 for name in self.__obs_names:
-                    self.file.write_shared("{} ".format(name))
-            self.file.write_shared("\n")
+                    self.file.write("{} ".format(name))
+            self.file.write("\n")
          
     def save(self,frame_num):
         if rank == 0 and self.solver.pyhessian.check_diagonals():
-            self.file.write_shared("{} ".format(frame_num))
+            self.file.write("{} ".format(frame_num))
             for name in self.__obs_names:
                 Dim = pyglasstools.get_sysdata().pysimbox.dim
                 if "eigenvalue" in name or "nconv" in name or "eigenrelerr" in name:
@@ -188,8 +190,8 @@ class logfile(object):
                     k = int(name[-2]) 
                     l = int(name[-1])
                     self.global_obs['nonaffinetensor'].save(self.file,l+Dim*(k+Dim*(j+Dim*i)))
-                self.file.write_shared(" ")
-            self.file.write_shared("\n")
+                self.file.write(" ")
+            self.file.write("\n")
     
 class fieldlogger(object):
     global loggers_list
@@ -218,7 +220,10 @@ class fieldlogger(object):
         #Then, add observables
         self.field_obs = initialize_field(self.__obs_names, pyglasstools.get_sysdata().pysimbox.dim)
         self.solver.add_observables(self.field_obs)
-        self.file = _pyglasstools.MPILogFile(comm, "{}".format(keyword)+".xyz")
+        if size > 1:
+            self.file = _pyglasstools.ParallelLogFile(comm, "{}".format(keyword)+".xyz")
+        else:
+            self.file = _pyglasstools.LogFile("{}".format(keyword)+".xyz")
         
         #Now, we specify the size of particles assigned to a process
         #ends = [sum(counts[:p+1]) for p in range(nprocs)]
@@ -251,7 +256,7 @@ class fieldlogger(object):
                 if "eigenvector" in name:
                     outline += self.field_obs[name].gettostring(i-starts[rank])
             outline += "\n"
-            self.file.write_shared(outline);
+            self.file.write(outline);
     
     def get_vectorfield(self, name,frame_num):
         vector = []
@@ -271,7 +276,7 @@ class fieldlogger(object):
     def save(self,frame_num):
         if self.solver.pyhessian.check_diagonals():
             if rank == 0:
-                self.file.write_shared("{:d} \n".format(len(pyglasstools.get_sysdata().traj[frame_num].particles.position)))
-                self.file.write_shared("#Frame {:d}  \n".format(frame_num))
+                self.file.write("{:d} \n".format(len(pyglasstools.get_sysdata().traj[frame_num].particles.position)))
+                self.file.write("#Frame {:d}  \n".format(frame_num))
             comm.barrier()
             self.save_perrank(frame_num)

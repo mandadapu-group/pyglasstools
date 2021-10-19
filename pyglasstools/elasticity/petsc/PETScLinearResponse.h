@@ -101,7 +101,9 @@ class PYBIND11_EXPORT PETScLinearResponse
                 streamm.str(std::string());
                 streamm.clear();
             }
-            m_hessian->m_manager->notice(5) << "Assembling forcing vector" << std::endl;
+            std::stringstream string_stream;
+            string_stream << "Assembling forcing vector" << std::endl; 
+            m_hessian->m_manager->printPetscNotice(5,string_stream.str());
             VecAssemblyBegin(forcing);
             VecAssemblyEnd(forcing);
         }
@@ -164,7 +166,8 @@ void PETScLinearResponse::findRandomPairForce()
         std::random_device dev;
         std::mt19937 rng(dev());
         std::uniform_int_distribution<std::mt19937::result_type> dist6(0,m_hessian->m_sysdata->particles.size()-1);
-        m_hessian->m_manager->notice(5) << "Looking for pairs of particles to perturb" << std::endl; 
+        std::stringstream string_stream; string_stream << "Looking for pairs of particles to perturb" << std::endl; 
+        m_hessian->m_manager->printPetscNotice(5,string_stream.str());
         //for( auto p_i = m_hessian->m_sysdata->particles.begin(); p_i != m_hessian->m_sysdata->particles.end(); ++p_i)
         bool notfound = true;
         do
@@ -197,8 +200,16 @@ void PETScLinearResponse::findRandomPairForce()
                             testdipole*bar_rij.norm() > m_hessian->m_manager->fd_random_min 
                             && testdipole*bar_rij.norm() < m_hessian->m_manager->fd_random_max)
                     {
-                        m_hessian->m_manager->notice(5) << "Found it!" << std::endl;
-                        m_hessian->m_manager->notice(5) << "Force min: " << m_hessian->m_manager->fd_random_min << " and Force max: " << m_hessian->m_manager->fd_random_max << " distance is " << bar_rij[0] << " " << bar_rij[1] << std::endl;
+                        string_stream.str(std::string());
+                        string_stream.clear();
+                        string_stream << "Found it!" << std::endl;
+                        m_hessian->m_manager->printPetscNotice(5,string_stream.str()); 
+                        
+                        string_stream.str(std::string());
+                        string_stream.clear();
+                        string_stream << "Force min: " << m_hessian->m_manager->fd_random_min << " and Force max: " << m_hessian->m_manager->fd_random_max << " distance is " << bar_rij[0] << " " << bar_rij[1] << std::endl;
+                        m_hessian->m_manager->printPetscNotice(5,string_stream.str()); 
+                        
                         forcedipole = 1.0/bar_rij.norm();//m_hessian->m_potential->getPairForceDivR(bar_rij,di,dj);
                         rij = bar_rij;
                         id_i = tempid_i; 
@@ -310,7 +321,7 @@ void PETScLinearResponse::setLocLandscapeForce(const Vec& forcing, std::string m
                     if (mode == "nonaffine")
                     {
                         factor = m_hessian->m_potential->getBondStiffness(bar_rij, di, dj)+m_hessian->m_potential->getPairForceDivR(bar_rij, di, dj);
-                        //factor *= bar_rij[0]*bar_rij[1]/(bar_rij.norm()*bar_rij.norm());
+                        factor *= bar_rij[0]*bar_rij[1]/(bar_rij.norm()*bar_rij.norm());
                         //double factor1 = 0.25*(bar_rij[0]*bar_rij[0]-bar_rij[1]*bar_rij[1])*(bar_rij[0]*bar_rij[0]-bar_rij[1]*bar_rij[1]);
                         //double factor2 = bar_rij[0]*bar_rij[0]*bar_rij[1]*bar_rij[1];
                         //factor *= -sqrt(factor1+factor2)/(bar_rij.norm()*bar_rij.norm());

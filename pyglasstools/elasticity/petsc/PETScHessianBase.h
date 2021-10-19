@@ -13,13 +13,13 @@ class PETScHessianBase : public HessianBase
 {
     public:
         std::shared_ptr< PETScManager > m_manager; //!< a Manager class for printing values from PETSc arrays and outting error messages
-        std::shared_ptr< MPI::Communicator > m_comm;  //!< MPI Communicator object, wrapping common MPI methods
+        std::shared_ptr< MPI::ParallelCommunicator > m_comm;  //!< MPI Communicator object, wrapping common MPI methods
         Mat hessian; //!< the Hessian of the system, stored as a PETSc matrix
         Mat misforce; //!< the mismatch force vector, denoted as Xi in many papers. 
         PetscErrorCode ierr; //!< PETSC error code. A must-have for any calculations using PETSc. 
 
         PETScHessianBase(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                            std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
+                            std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm);
         virtual ~PETScHessianBase()
         {
         }
@@ -45,7 +45,7 @@ class PETScHessianBase : public HessianBase
  * All arguments are shared pointers, so that we are referring to an already-constructed objects. 
  */
 PETScHessianBase::PETScHessianBase( std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                                    std::shared_ptr<PETScManager> manager, std::shared_ptr<MPI::Communicator> comm)
+                                    std::shared_ptr<PETScManager> manager, std::shared_ptr<MPI::ParallelCommunicator> comm)
     : HessianBase(sysdata,potential), m_manager(manager), m_comm(comm), ierr(0)
 {
 };
@@ -56,7 +56,7 @@ PETScHessianBase::PETScHessianBase( std::shared_ptr< ParticleSystem > sysdata, s
 void export_PETScHessianBase(py::module& m)
 {
     py::class_<PETScHessianBase, HessianBase, std::shared_ptr<PETScHessianBase> >(m,"PETScHessianBase")
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr<PETScManager>, std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr<PETScManager>, std::shared_ptr< MPI::ParallelCommunicator > >())
     ;
 };
 

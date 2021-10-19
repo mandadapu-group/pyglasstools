@@ -20,7 +20,7 @@ class SLEPcHessian : public PETScHessianBase
         Vec nullvec[Dim]; //!< an array of PETSc vectors, with each being the zero mode of the Hessian.
 
         SLEPcHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                        std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm);
+                        std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm);
         
         /* Default destructor calls helper function */
         ~SLEPcHessian()
@@ -64,7 +64,7 @@ class SLEPcHessian : public PETScHessianBase
 
 template< int Dim >
 SLEPcHessian<Dim>::SLEPcHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                                std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::Communicator > comm)
+                                std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm)
     : PETScHessianBase(sysdata, potential, manager, comm)
 {
     assembleObjects();
@@ -159,8 +159,10 @@ void SLEPcHessian<Dim>::assembleObjects()
             }
             if (neighbors_count < 1)
             {
+                std::stringstream string_stream;
                 //Somehow a particle has no neighbors within the interaction cut-off. Add this to the list
-                m_manager->notice(7,m_comm->getRank()) << "Found particle with no neighbors!" << " \n" << std::string("Particle ID: ")+std::to_string((int)(i/Dim)) << std::endl;
+                string_stream << "Found particle with no neighbors!" << " \n" << std::string("Particle ID: ")+std::to_string((int)(i/Dim)) << std::endl;
+                m_manager->printPetscNotice(7,string_stream.str());
                 particleid_nonneigh.insert((int)(i/Dim));
                 diagonalsarenonzero = 1;
             }
@@ -389,7 +391,7 @@ template< class T >
 void export_SLEPcHessian(py::module& m, const std::string& name)
 {
     py::class_<T, PETScHessianBase, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::ParallelCommunicator > >())
     .def("destroyObjects", &T::destroyObjects)
     .def("assembleObjects", &T::assembleObjects)
     .def("setSystemData", &T::setSystemData)

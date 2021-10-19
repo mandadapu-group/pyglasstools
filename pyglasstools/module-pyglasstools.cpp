@@ -8,9 +8,9 @@
 #ifdef ENABLE_MPI
 #include "MPICommunicator.h"
 #include "MPILogFile.h"
-#endif 
+#endif
 
-#include "extern/pybind11/include/pybind11/pybind11.h"
+#include <pybind11/pybind11.h>
 
 //Typedefs several pair potentials here
 
@@ -70,19 +70,19 @@ PYBIND11_MODULE(_pyglasstools, m)
     
     export_ParticleSystem(m);
     
-    export_Observable(m);
-
     export_Manager(m); 
     
-    export_Communicator(m);
+    export_Observable(m);
     
     export_BaseLogFile(m);
     
     export_LogFile(m);
 
 #ifdef ENABLE_MPI
-    export_MPICommunicator(m);  
+    export_ParallelCommunicator(m);  
     
-    export_MPILogFile(m);
+    export_ParallelLogFile(m);
+#else
+    export_Communicator(m);
 #endif 
 }

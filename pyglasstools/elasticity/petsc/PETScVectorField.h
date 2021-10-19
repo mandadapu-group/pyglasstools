@@ -3,12 +3,13 @@
 
 #include <pyglasstools/Observable.h>
 #include <pyglasstools/Manager.h>
+#include <pyglasstools/MPICommunicator.h>
 #include <petscmat.h>
 
 class PYBIND11_EXPORT PETScVectorFieldBase : public Observable
 {
     protected:
-        std::shared_ptr< MPI::Communicator > m_comm;
+        std::shared_ptr< MPI::ParallelCommunicator > m_comm;
         std::stringstream outline;
         bool notconstructed;
     public:
@@ -16,7 +17,7 @@ class PYBIND11_EXPORT PETScVectorFieldBase : public Observable
         
         PETScVectorFieldBase() : Observable() {};
         PETScVectorFieldBase(   std::string _name, bool _islocal, int _dim, 
-                                std::shared_ptr< MPI::Communicator > comm) 
+                                std::shared_ptr< MPI::ParallelCommunicator > comm) 
             : Observable(_name, "VECTOR", _islocal, _dim), m_comm(comm), outline(""), notconstructed(true)
         {
         };
@@ -42,7 +43,7 @@ class PYBIND11_EXPORT PETScVectorField : public PETScVectorFieldBase
         
         PETScVectorField(){};
         PETScVectorField(   std::string _name, bool _islocal, 
-                            std::shared_ptr< MPI::Communicator > comm) 
+                            std::shared_ptr< MPI::ParallelCommunicator > comm) 
             : PETScVectorFieldBase(_name, _islocal, Dim,comm)         
         {
         };
@@ -182,7 +183,7 @@ class PYBIND11_EXPORT PETScVectorField : public PETScVectorFieldBase
 void export_PETScVectorFieldBase(py::module& m)
 {
     py::class_<PETScVectorFieldBase, std::shared_ptr<PETScVectorFieldBase> >(m,"PETScVectorFieldBase")
-    .def(py::init< std::string, bool, int, std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::string, bool, int, std::shared_ptr< MPI::ParallelCommunicator > >())
     ;
 };
 
@@ -191,7 +192,7 @@ template<class T>
 void export_PETScVectorField(py::module& m, const std::string& name)
 {
     py::class_<T, PETScVectorFieldBase, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init< std::string, bool, std::shared_ptr< MPI::Communicator > >())
+    .def(py::init< std::string, bool, std::shared_ptr< MPI::ParallelCommunicator > >())
     .def("gettostring", &T::gettostring)
     .def("getVectorValue", &T::getVectorValue)
     .def("scatterVector", &T::scatterVector)

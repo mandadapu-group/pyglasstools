@@ -78,6 +78,12 @@ Afterwards, install with pip
 $ pip install .
 ```
 
+You can choose to turn off certain modules, which will make installation easier, by adding additional CMake flags. For instance, to turn off MPI usage in all modules, turn off irvingkirkwood as well as elasticity modules, you write: 
+
+```console
+$ cmake ../ -DENABLE_MPI=OFF -DENABLE_IK=OFF -DENABLE_EL=OFF 
+```
+
 ## **Introduction to PyGlassTools**
 
 

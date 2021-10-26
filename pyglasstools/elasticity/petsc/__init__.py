@@ -65,11 +65,16 @@ class linrescalculator(object):
 class eigensolver(object):
     global solvers_list
 
-    def __init__(self, package = "slepc-petsc"):
+    def __init__(self, package = "slepc-petsc", hessian_mode = "normal"):
         self.package = package
+        self.hessian_mode = hessian_mode
         if package == "slepc-petsc" or package == "slepc-mumps":
-            self.pyhessian = hessian("slepc");
-            self.cppeigensolver = _elasticitypetsc.SLEPcNMA(self.pyhessian.cpphessian)
+            self.pyhessian = hessian("slepc",hessian_mode);
+            dimensions = pyglasstools.get_sysdata().pysimbox.dim
+            if dimensions == 2:
+                self.cppeigensolver = _elasticitypetsc.SLEPcNMA2D(self.pyhessian.cpphessian)
+            elif dimensions == 3:
+                self.cppeigensolver = _elasticitypetsc.SLEPcNMA3D(self.pyhessian.cpphessian)
         solvers_list.append(self)
 
     def add_observables(self, observables):
@@ -83,12 +88,16 @@ class eigensolver(object):
     def run(self):
         self.cppeigensolver.getAllEigenPairs(self.package)
     
-    def update(self,frame_num):
+    def update(self,frame_num,package = None,hessian_mode = None):
+        if package is not None:
+            self.package = package
+        if hessian_mode is not None:
+            self.hessian_mode = hessian_mode
         self.pyhessian.update(frame_num)
         self.cppeigensolver.setHessian(self.pyhessian.cpphessian)
 
 class hessian(object):
-    def __init__(self,package):
+    def __init__(self,package,hessian_mode):
         #Initialize system data and pair potential of the system
         self.package = package;
         self.cppmanager = _elasticitypetsc.PETScManager();
@@ -100,12 +109,17 @@ class hessian(object):
                 self.cpphessian = _elasticitypetsc.PETScHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
         elif (package == "slepc"):
             if dimensions == 2:
-                self.cpphessian = _elasticitypetsc.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticitypetsc.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm, hessian_mode)
             else:
-                self.cpphessian = _elasticitypetsc.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
+                self.cpphessian = _elasticitypetsc.SLEPcHessian3D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm,hessian_mode)
         self.frame_num = pyglasstools.get_sysdata().frame_num
    
-    def update(self,frame_num):
+    def update(self,frame_num,package = None,hessian_mode = None):
+        if package is not None:
+            self.package = package
+        if hessian_mode is not None:
+            self.hessian_mode = hessian_mode
+            self.cpphessian.m_hessian_mode = self.hessian_mode
         pyglasstools.get_sysdata().update(frame_num);
         self.cpphessian.setSystemData(pyglasstools.get_sysdata().cppparticledata)
         self.cpphessian.destroyObjects()
@@ -124,6 +138,13 @@ class hessian(object):
     def check_diagonals(self):
         return self.cpphessian.areDiagonalsNonZero()
 
+    def multiply(self,vector):
+        out_val = self.cpphessian.multiply(vector)
+        newvector = comm.all_gather_v(out_val)
+        out_val = np.zeros(len(vector));
+        for vec in newvector:
+            out_val += np.array(vec);
+        return out_val;
 ########
 #For I/O Related Routines
 

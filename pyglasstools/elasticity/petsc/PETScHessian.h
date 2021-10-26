@@ -134,6 +134,7 @@ void PETScHessian<Dim>::assembleObjects()
                     if (m_potential->getRcut(rij, di, dj) > rij.dot(rij)) 
                     {
                         //Note PairForceDivR is -phi_r(r)/r, hence the negative sign is already encoded inside factor
+                        //double factor = m_potential->getPairForceDivR(rij, di, dj);
                         double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
                         Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
                                                      +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);

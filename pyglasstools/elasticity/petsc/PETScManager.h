@@ -19,7 +19,7 @@ class PYBIND11_EXPORT PETScManager : public Manager
         double pinv_tol, lowerbound_tol, upperbound_tol, pivot_tol, upperbound; 
         double fd_random_min, fd_random_max; 
         std::string fd_mode; 
-        
+
         PETScManager() : ierr(0), pinv_tol(1e-12), lowerbound_tol(1e-6), upperbound_tol(1e-6), pivot_tol(1), upperbound(0.0), fd_random_min(0), fd_random_max(std::numeric_limits<double>::max()), fd_mode("uniform")  
         {
             detail::argparser<double>("-pinv_tol",pinv_tol, "[ERROR] Invalid value for pinv_tol", argv);

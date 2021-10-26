@@ -13,10 +13,10 @@ sys.setdlopenflags(flags | ctypes.RTLD_GLOBAL);
 from pyglasstools import _pyglasstools;
 
 #Initialize a single communicator during module call
-#try:
-comm = _pyglasstools.ParallelCommunicator()
-#except:
-#    comm = _pyglasstools.Communicator()
+try:
+    comm = _pyglasstools.ParallelCommunicator()
+except:
+    comm = _pyglasstools.Communicator()
 rank = comm.getRank()
 size = comm.getNRanks()
 

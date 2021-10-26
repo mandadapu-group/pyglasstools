@@ -55,5 +55,6 @@ PYBIND11_MODULE(_elasticitypetsc, m)
     
     //Export PETSc Calculators
     export_PETScLinearResponse(m);
-    export_SLEPcNMA(m);
+    export_SLEPcNMA< SLEPcNMA<2> >(m,"SLEPcNMA2D");
+    export_SLEPcNMA< SLEPcNMA<3> >(m, "SLEPcNMA3D");
 }

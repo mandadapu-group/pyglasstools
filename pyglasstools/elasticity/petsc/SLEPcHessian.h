@@ -31,8 +31,8 @@ class SLEPcHessian : public PETScHessianBase
          */ 
         void destroyObjects()
         {
+            m_manager->printPetscNotice(5,"Destroying PETSc Hessian Object \n");
             MatDestroy(&hessian);
-            MatDestroy(&misforce);
         };
         
         void assembleObjects();
@@ -103,27 +103,14 @@ void SLEPcHessian<Dim>::assembleObjects()
         maxforce_rcut *= maxdiameter;
         max_rcut = std::max(maxforce_rcut,maxdiameter); 
         
-        /*
-         * Constructing the Hessian.
-         * This comes with an initial setup routines for preparing a parallel PETSc matrix, followed by two for-loops. 
-         */
-        
         hessian_length = (unsigned int)Dim*m_sysdata->particles.size();
-        
         //Construct the PETSc hessian matrix, but don't assemble yet!
         MatCreate(PETSC_COMM_WORLD,&hessian);
         MatSetSizes(hessian,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,hessian_length);
         MatSetType(hessian,MATAIJ);
         MatSetUp(hessian);
-
-        //Construct the PETSc mismatch force vector, but don't assemble yet
-        MatCreate(PETSC_COMM_WORLD,&misforce);
-        MatSetSizes(misforce,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,(unsigned int)Dim*((unsigned int)Dim+1)/2);
-        MatSetType(misforce,MATDENSE);
-        MatSetUp(misforce);
         
         PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
-        
         m_manager->printPetscNotice(5,"Assembling PETSc Sparse Matrix \n");
         
         std::set< int > particleid_nonneigh;
@@ -185,7 +172,7 @@ void SLEPcHessian<Dim>::assembleObjects()
                         }
                         setHessianValues(id_i, id_j, i, offdiag_ij);
                         
-                        setMisforceVectorValues(id_i,i,factor,rij,nij);
+                        //setMisforceVectorValues(id_i,i,factor,rij,nij);
                         
                         //We keep increment counter for every neighbor with non-zero interactions
                         neighbors_count += 1;
@@ -202,31 +189,17 @@ void SLEPcHessian<Dim>::assembleObjects()
                 diagonalsarenonzero = 1;
             }
         }
-
         //Now it's time to gather all the results detected
         std::vector< int > listdiagonalsarenonzero;
         m_comm->all_gather_v(diagonalsarenonzero, listdiagonalsarenonzero);
         diagonalsarenonzero = std::accumulate(listdiagonalsarenonzero.begin(), listdiagonalsarenonzero.end(), 0);
         
-        if (diagonalsarenonzero < 1)
+        //Assembling all defined PETSc matrices
+        MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+        
+        if (diagonalsarenonzero > 0)
         {
-            
-            //Assembling all defined PETSc matrices
-            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-            
-            MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
-        }
-        else
-        {
-            //Assembling all defined PETSc matrices
-            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-            
-            MatAssemblyBegin(misforce,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(misforce,MAT_FINAL_ASSEMBLY);
-            
             m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors. Any normal mode analysis will be immediately aborted \n");
             for (auto pid : particleid_nonneigh)
             {
@@ -301,63 +274,6 @@ void SLEPcHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
         MatSetValue(hessian,Dim*id_i+2, Dim*id_i+2, -offdiag_ij(2,2),ADD_VALUES);
     }
 };
-
-/*
- * Helper function to set the null space of the Hessian matrix. Args:
- * id_i: i-th particle index
- * real_id: the actual row index on the mismatch force vector.
- * factor: is the computed (phi_rr-phi_r/r) factor
- * rij: rj-ri, where rj is the j-th particle index
- * nij: normalized rij vector
- * 
- * Note: the formula is typically written (with a sum over j) a factor that is ~ +(rji*nji*nji) factor, 
- * where the j-th index is the particle index we're summing over. 
- * Since rij = -rji, rji*nji*nji = -rij*nij*nij, and rij and nij is already pre-computed, we put a negative sign instead. 
- */
-template< int Dim >
-void SLEPcHessian<Dim>::setMisforceVectorValues(PetscInt id_i, int real_id, double factor, Eigen::Vector3d rij, Eigen::Vector3d nij)
-{
-    if (Dim*id_i == real_id)
-    {
-
-        MatSetValue(misforce,Dim*id_i,0, -factor*rij[0]*nij[0]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i,1, -factor*rij[0]*nij[1]*nij[0],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i,2, -factor*rij[1]*nij[1]*nij[0],ADD_VALUES); 
-
-        if (Dim == 3)
-        {
-            MatSetValue(misforce,Dim*id_i,3, -factor*rij[1]*nij[2]*nij[0],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i,4, -factor*rij[2]*nij[2]*nij[0],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i,5, -factor*rij[0]*nij[2]*nij[0],ADD_VALUES); 
-        }
-    }
-    
-    //y-component of the row
-    else if (Dim*id_i+1 == real_id)
-    {
-        MatSetValue(misforce,Dim*id_i+1,0, -factor*rij[0]*nij[0]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+1,1, -factor*rij[0]*nij[1]*nij[1],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+1,2, -factor*rij[1]*nij[1]*nij[1],ADD_VALUES); 
-        if (Dim == 3)
-        {
-            MatSetValue(misforce,Dim*id_i+1,3, -factor*rij[1]*nij[2]*nij[1],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i+1,4, -factor*rij[2]*nij[2]*nij[1],ADD_VALUES); 
-            MatSetValue(misforce,Dim*id_i+1,5, -factor*rij[0]*nij[2]*nij[1],ADD_VALUES); 
-        }
-    }
-
-    //z-component of the row
-    else if (Dim*id_i+2 == real_id && Dim == 3)
-    {
-        MatSetValue(misforce,Dim*id_i+2,0, -factor*rij[0]*nij[0]*nij[2],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,1, -factor*rij[0]*nij[1]*nij[2],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,2, -factor*rij[1]*nij[1]*nij[2],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,3, -factor*rij[1]*nij[2]*nij[2],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,4, -factor*rij[2]*nij[2]*nij[2],ADD_VALUES); 
-        MatSetValue(misforce,Dim*id_i+2,5, -factor*rij[0]*nij[2]*nij[2],ADD_VALUES); 
-    }
-    
-}
 
 /*
  * Helper function to export SLEPcHessian to Python

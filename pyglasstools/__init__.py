@@ -116,12 +116,12 @@ def analyze(frame_list):
             print("No more frames to analyze. Check your logfiles/output")
     else:
         if rank == 0:
-            progressbar = tqdm(total=totallength,file=sys.stdout,leave=False,initial=frame_list[0])
+            progressbar = tqdm(total=totallength,file=sys.stdout,leave=False)#,initial=frame_list[0])
             print("")
         
         for frame_num in frame_list:
             for solver in solvers_list:
-                solver.update(frame_num);
+                solver.update(frame_num)
                 solver.run();
             with DelayedInterrupt():
                 for logger in loggers_list:

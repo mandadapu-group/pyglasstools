@@ -15,7 +15,6 @@ class PETScHessianBase : public HessianBase
         std::shared_ptr< PETScManager > m_manager; //!< a Manager class for printing values from PETSc arrays and outting error messages
         std::shared_ptr< MPI::ParallelCommunicator > m_comm;  //!< MPI Communicator object, wrapping common MPI methods
         Mat hessian; //!< the Hessian of the system, stored as a PETSc matrix
-        Mat misforce; //!< the mismatch force vector, denoted as Xi in many papers. 
         PetscErrorCode ierr; //!< PETSC error code. A must-have for any calculations using PETSc. 
 
         PETScHessianBase(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 

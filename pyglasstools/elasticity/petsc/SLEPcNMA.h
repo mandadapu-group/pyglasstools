@@ -38,6 +38,7 @@ class PYBIND11_EXPORT SLEPcNMA
             {
                 VecDestroy(&nullspace[i]);
             }
+            MatNullSpaceDestroy(&constant);
         };
         void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
         
@@ -47,6 +48,7 @@ class PYBIND11_EXPORT SLEPcNMA
         void setHessian(std::shared_ptr< PETScHessianBase > hessian)
         {
             m_hessian = hessian;
+            MatSetNullSpace(m_hessian->hessian,constant);
         }
 
         /* Add a new vector field observable to a list of existing ones. Args:
@@ -79,11 +81,11 @@ class PYBIND11_EXPORT SLEPcNMA
         
         /* Get the maximum eigenvalue of the system
          */
-        void getMaxEigenvalue();
+        void getMaxEigenvalue(std::string package);
         
         /* Get the minimum eigenvalue of the system
          */
-        void getMinEigenvalue();
+        void getMinEigenvalue(std::string package);
         
         /* Save the results of all computations. Gets called by 
          * getAllEigenPairs routine at the end. Args:
@@ -100,9 +102,6 @@ class PYBIND11_EXPORT SLEPcNMA
             //To save and compute results dependent on eigenmodes
             if(nconv >0)
             {
-                calculateNonAffineTensor(eps);
-                calculateLocLandscape(eps);
-
                 m_hessian->m_manager->printPetscNotice(5,"Storing selected eigenpairs \n");
                 
                 //See if we want to save eigenvector, eigenvalue, and/or the relative error of the computation
@@ -140,16 +139,6 @@ class PYBIND11_EXPORT SLEPcNMA
                 }
             }
         }
-        
-        /* Computing the non-affine part of the elasticity tensor. Args:
-         * eps: class holding all eigenmodes.
-         */
-        void calculateNonAffineTensor(const EPS& eps); 
-        
-        /* Computing the localization landscape. Args:
-         * eps: class holding all eigenmodes.
-         */
-        void calculateLocLandscape(const EPS& eps); 
 };
 
 /* Parametrized constructor. Args:
@@ -220,7 +209,7 @@ void SLEPcNMA<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt I
 /* Get the maximum eigenvalue of the system
  */
 template< int Dim >
-void SLEPcNMA<Dim>::getMinEigenvalue()
+void SLEPcNMA<Dim>::getMinEigenvalue(std::string package)
 {
     EPS eps; //<! the EPS object, holding all normal-mode analysis routines
     ST st; //<! the ST object, used for applying spectral transformation to the Hessian matrix
@@ -232,19 +221,50 @@ void SLEPcNMA<Dim>::getMinEigenvalue()
     ierr = EPSSetProblemType(eps,EPS_HEP); CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSSetOperators(eps,m_hessian->hessian,NULL);
     
-    m_hessian->m_manager->printPetscNotice(6,"Computing Maximum Eigenvalue \n");
+    m_hessian->m_manager->printPetscNotice(6,"Computing Minimum Eigenvalue \n");
 
-    //Maximum eigenvalue is efficiently computed using default setting of PETSc. 
+    //Minimum eigenvalue is efficiently computed using default setting of PETSc. 
     EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
-    EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
+    ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL);
-    EPSSetDeflationSpace(eps,2,nullspace); 
+    EPSSetDeflationSpace(eps,Dim,nullspace); 
+    
     //Additional setup for ST, KSP, and PC objects 
     ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    
     ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    
+    //Depending on the solver backend, we will choose yet an additional set of settings to ensure numerics are done correctly
+    if (package == "slepc-petsc")
+    {
+        ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
+    }
+    else if (package == "slepc-mumps")
+    {
+        #if defined(PETSC_HAVE_MUMPS)
+            #if defined(PETSC_USE_COMPLEX)
+                SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Spectrum slicing with MUMPS is not available for complex scalars");
+            #endif
+            ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            
+            //Add several MUMPS options (see ex43.c for a better way of setting them in program):
+            //'-mat_mumps_icntl_13 1': turn off ScaLAPACK for matrix inertia
+            //'-mat_mumps_icntl_24 1': detect null pivots in factorization (for the case that a shift is equal to an eigenvalue)
+            //'-mat_mumps_cntl_3 <tol>': a tolerance used for null pivot detection (must be larger than machine epsilon)
+
+            //Note: depending on the interval, it may be necessary also to increase the workspace:
+            //'-mat_mumps_icntl_14 <percentage>': increase workspace with a percentage (50, 100 or more)
+            
+            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            std::string cntl_3 = "-mat_mumps_cntl_3 ";
+            cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
+            ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        #endif
+    }
     
     //Final setup of the EPS object
     EPSSetUp(eps);
@@ -255,14 +275,13 @@ void SLEPcNMA<Dim>::getMinEigenvalue()
     ierr = EPSGetConverged(eps,&nconv);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = EPSGetEigenvalue(eps,0,&m_mineigval,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     m_hessian->m_manager->printPetscNotice(6,"Minimum Eigenvalue: "+detail::to_string_sci(m_mineigval)+"\n");
-    
     EPSDestroy(&eps);
 };
 
 /* Get the maximum eigenvalue of the system
  */
 template< int Dim >
-void SLEPcNMA<Dim>::getMaxEigenvalue()
+void SLEPcNMA<Dim>::getMaxEigenvalue(std::string package)
 {
     EPS eps; //<! the EPS object, holding all normal-mode analysis routines
     ST st; //<! the ST object, used for applying spectral transformation to the Hessian matrix
@@ -278,15 +297,45 @@ void SLEPcNMA<Dim>::getMaxEigenvalue()
 
     //Maximum eigenvalue is efficiently computed using default setting of PETSc. 
     EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
-    EPSSetTolerances(eps,PETSC_DEFAULT,PETSC_DEFAULT); 
     EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
-    EPSSetDeflationSpace(eps,2,nullspace); 
+    EPSSetDeflationSpace(eps,Dim,nullspace); 
+    
     //Additional setup for ST, KSP, and PC objects 
     ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = STGetKSP(st,&ksp);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    
     ierr = EPSKrylovSchurSetDetectZeros(eps,PETSC_TRUE);CHKERRABORT(PETSC_COMM_WORLD,ierr);  // enforce zero detection 
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+    
+    //Depending on the solver backend, we will choose yet an additional set of settings to ensure numerics are done correctly
+    if (package == "slepc-petsc")
+    {
+        ierr = PCFactorSetMatSolverType(pc,MATSOLVERPETSC);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        ierr = PCFactorSetZeroPivot(pc,(PetscReal)std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
+    }
+    else if (package == "slepc-mumps")
+    {
+        #if defined(PETSC_HAVE_MUMPS)
+            #if defined(PETSC_USE_COMPLEX)
+                SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Spectrum slicing with MUMPS is not available for complex scalars");
+            #endif
+            ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            
+            //Add several MUMPS options (see ex43.c for a better way of setting them in program):
+            //'-mat_mumps_icntl_13 1': turn off ScaLAPACK for matrix inertia
+            //'-mat_mumps_icntl_24 1': detect null pivots in factorization (for the case that a shift is equal to an eigenvalue)
+            //'-mat_mumps_cntl_3 <tol>': a tolerance used for null pivot detection (must be larger than machine epsilon)
+
+            //Note: depending on the interval, it may be necessary also to increase the workspace:
+            //'-mat_mumps_icntl_14 <percentage>': increase workspace with a percentage (50, 100 or more)
+            
+            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_13 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            ierr = PetscOptionsInsertString(NULL,"-mat_mumps_icntl_24 1");CHKERRABORT(PETSC_COMM_WORLD,ierr);
+            std::string cntl_3 = "-mat_mumps_cntl_3 ";
+            cntl_3 +=  std::to_string(std::numeric_limits<float>::epsilon()*m_hessian->m_manager->pivot_tol);
+            ierr = PetscOptionsInsertString(NULL,cntl_3.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
+        #endif
+    }
     
     //Final setup of the EPS object
     EPSSetUp(eps);
@@ -363,8 +412,8 @@ void SLEPcNMA<Dim>::getAllEigenPairs(std::string package)
     if (m_hessian->areDiagonalsNonZero())
     {
         //Set the maximum eigenvalue
-        getMaxEigenvalue();
-        getMinEigenvalue();
+        getMaxEigenvalue(package);
+        getMinEigenvalue(package);
         
         // Set solver parameters at runtime
         EPS eps;
@@ -480,177 +529,6 @@ void SLEPcNMA<Dim>::getAllEigenPairs(std::string package)
     }
 };
 
-/* Computing the localization landscape. Args:
- * eps: class holding all eigenmodes.
- */
-template< int Dim >
-void SLEPcNMA<Dim>::calculateLocLandscape(const EPS& eps) 
-{
-    if (nconv > 0 && m_vectorfields.count("loclandscape") && m_hessian->areDiagonalsNonZero())
-    {
-        m_hessian->m_manager->printPetscNotice(5,"Computing the localization landscape \n");
-        m_vectorfields["loclandscape"]->createVector(m_hessian->hessian); 
-        double cond = m_hessian->m_manager->pinv_tol;
-        Vec xr;
-        
-        PetscReal kr,re;
-
-        //We need a bit of prep because the layout may or may not be compatible between hessian and misforce
-        MatCreateVecs(m_hessian->hessian,NULL,&xr);
-        
-        //Vector create
-        Vec forcing; //!< a forcing vector, applied in a Hu=f type problem.
-        MatCreateVecs(m_hessian->hessian,NULL,&forcing);
-        VecSet(forcing, 1.0);
-        VecAssemblyBegin(forcing);
-        VecAssemblyEnd(forcing); 
-
-        for (int I = 0; I < nconv; ++I)
-        {   
-            ierr = EPSGetEigenpair(eps,I,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            #if defined(PETSC_USE_COMPLEX)
-                re = PetscRealPart(kr);
-            #else
-                re = kr;
-            #endif
-            if (re > cond)
-            {
-                double laminv = 1/re;
-                double val = 0.0;
-                //Dot product of forcing vector with an eigenvector
-                ierr = VecDot(xr,forcing,&val); CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                VecScale(xr,laminv*val);
-                //Compute the localization landscape by continously adding each eigencomponent  
-                VecAXPY(m_vectorfields["loclandscape"]->vectorobs,1.0,xr);
-            }
-        }
-        
-        m_hessian->m_manager->printPetscNotice(5,"Deconstruct objects \n");
-        VecDestroy(&xr);
-        VecDestroy(&forcing);
-    }
-    else
-    {
-        if (nconv <= 0)
-        {
-            m_hessian->m_manager->printPetscNotice(0,"[WARNING] No converged eigenpairs available \n");
-        }
-        if (!m_hessian->areDiagonalsNonZero())
-        {
-            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
-        } 
-    }
-};
-
-/* Computing the non-affine part of the elasticity tensor. Args:
- * eps: class holding all eigenmodes.
- */
-template< int Dim >
-void SLEPcNMA<Dim>::calculateNonAffineTensor(const EPS& eps) 
-{
-    if (nconv > 0 && m_observables.count("nonaffinetensor") && m_hessian->areDiagonalsNonZero())
-    {
-        m_hessian->m_manager->printPetscNotice(5,"Computing the nonaffine elasticity tensor \n");
-        
-        m_observables["nonaffinetensor"]->clear();
-        double cond = m_hessian->m_manager->pinv_tol;
-        Vec xr, mult, seqmult;
-        VecScatter ctx;
-        
-        PetscReal kr,re;
-
-        //We need a bit of prep because the layout may or may not be compatible between hessian and misforce
-        MatCreateVecs(m_hessian->hessian,NULL,&xr);
-        MatCreateVecs(m_hessian->misforce,&mult,NULL);
-        
-        //In addition, we need to a temporary array, tempvecp, to store the resulting dot product between mismatch force vector
-        //and the eigenvector. 
-        VecScatterCreateToAll(mult,&ctx,&seqmult);
-        PetscInt colsize; MatGetSize(m_hessian->misforce,NULL,&colsize); 
-        double *tempvecp = new double[colsize];
-        VecGetArray(seqmult,&tempvecp);
-
-        for (int I = 0; I < nconv; ++I)
-        {   
-            ierr = EPSGetEigenpair(eps,I,&kr,NULL,xr,NULL);CHKERRABORT(PETSC_COMM_WORLD,ierr);
-            #if defined(PETSC_USE_COMPLEX)
-                re = PetscRealPart(kr);
-            #else
-                re = kr;
-            #endif
-            if (re > cond)
-            {
-                double laminv = 1/re;
-                //Dot product of mismatch force vector with an eigenvector
-                ierr = MatMultTranspose(m_hessian->misforce,xr,mult); CHKERRABORT(PETSC_COMM_WORLD,ierr);
-                
-                //Scatter and gather the resulting dot products, so that each process actually possess all values
-                VecScatterBegin(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
-                VecScatterEnd(ctx,mult,seqmult,INSERT_VALUES,SCATTER_FORWARD);
-                
-                //Although the non-affine tensor is stores as a proper 4-th rank tensor, the mismatch force vector, i.e., misforce
-                //is stored as a flattened array. There is a specific mapping between the flattened array to the 4-th rank tensor. 
-                for(int l = 0; l < m_observables["nonaffinetensor"]->getDimension(3); ++l)
-                {
-                    for(int k = 0; k < m_observables["nonaffinetensor"]->getDimension(2); ++k)
-                    {
-                        for(int j = 0; j < m_observables["nonaffinetensor"]->getDimension(1); ++j)
-                        {
-                            for (int i = 0; i < m_observables["nonaffinetensor"]->getDimension(0); ++i)
-                            {
-                                //if i,j or k,l  is 0,0 ---> 0
-                                //if i,j or k,l  is 0,1 ---> 1
-                                //if i,j or k,l  is 1,1 ---> 1
-                                int index = l+Dim*(k+Dim*(j+Dim*i));
-                                int id_i = i+j;
-                                int id_j = k+l;
-                                if (Dim == 3 && (id_i == 2 || id_j == 2))
-                                {
-                                    if ((i == 0 && j == 2) || (i == 2 && j == 0) )
-                                    {
-                                        id_i = 5;
-                                    }
-                                    if ((k == 0 && l == 2) || (k == 2 && l == 0))
-                                    {
-                                        id_j = 5;
-                                    }
-                                    m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
-                                }
-                                else
-                                {
-                                    m_observables["nonaffinetensor"]->addValue(tempvecp[id_i]*tempvecp[id_j]*laminv,index);
-                                }
-                            }
-                        }
-                    }
-                }
-                m_hessian->m_comm->barrier();
-            }
-        }
-        
-        m_hessian->m_manager->printPetscNotice(5,"Deconstruct objects \n");
-        VecRestoreArray(seqmult,&tempvecp);
-        delete [] tempvecp;
-        VecScatterDestroy(&ctx);
-        VecDestroy(&seqmult);
-        VecDestroy(&mult);
-        VecDestroy(&xr);
-
-        //Don't forget to divide by the system volume!
-        m_observables["nonaffinetensor"]->multiplyBy(1/m_hessian->m_sysdata->simbox->vol);
-    }
-    else
-    {
-        if (nconv <= 0)
-        {
-            m_hessian->m_manager->printPetscNotice(0,"[WARNING] No converged eigenpairs available \n");
-        }
-        if (!m_hessian->areDiagonalsNonZero())
-        {
-            m_hessian->m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors during hessian assembly. Any normal mode analysis will be immediately aborted \n");
-        } 
-    }
-};
 
 /*
  * Helper function to exprot SLEPcNMA to Python

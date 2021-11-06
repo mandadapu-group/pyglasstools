@@ -102,6 +102,7 @@ class hessian(object):
         self.package = package;
         self.cppmanager = _elasticitypetsc.PETScManager();
         dimensions = pyglasstools.get_sysdata().pysimbox.dim
+        self.hessian_mode = hessian_mode
         if (package == "petsc"):
             if dimensions == 2:
                 self.cpphessian = _elasticitypetsc.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
@@ -125,15 +126,6 @@ class hessian(object):
         self.cpphessian.destroyObjects()
         self.cpphessian.assembleObjects()
         self.frame_num = frame_num
-
-        #Another way to update the hessian, by deleteing the object and creating it again from scratch
-        #del self.cpphessian
-        #if (self.package == "petsc"):
-        #    self.cpphessian = _elasticitypetsc.PETScHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
-        #elif (self.package == "slepc"):
-        #    self.cpphessian = _elasticitypetsc.SLEPcHessian2D(pyglasstools.get_sysdata().cppparticledata,self.pyglasstools.get_potential().cpppairpotential,self.cppmanager,comm)
-        #if self.frame_num != frame_num:
-        #    self.frame_num = frame_num
     
     def check_diagonals(self):
         return self.cpphessian.areDiagonalsNonZero()
@@ -264,7 +256,7 @@ class fieldlogger(object):
             if "eigenvector" in name or "displacement" in name or "loclandscape" in name:
                 self.field_obs[name].scatterVector(starts[rank],counts[rank])
         for i in range(starts[rank],ends[rank]):
-            outline = "{} ".format(1)
+            outline = "{} ".format(i)
             outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,0])
             outline += "{} ".format(pyglasstools.get_sysdata().traj[frame_num].particles.position[i,1])
             if Dim == 3:

@@ -1,7 +1,8 @@
 #include "PETScManager.h"
 #include "PETScHessian.h"
 #include "PETScVectorField.h"
-//#include "PETScLinearResponse.h"
+#include "PETScCalculatorBase.h"
+#include "PETScLinearResponse.h"
 #include "SLEPcNMA.h"
 
 #include <slepceps.h>
@@ -50,6 +51,7 @@ PYBIND11_MODULE(_elasticitypetsc, m)
     export_PETScHessian(m);
     
     //Export PETSc Calculators
-    //export_PETScLinearResponse(m);
+    export_PETScCalculatorBase(m);
+    export_PETScLinearResponse(m);
     export_SLEPcNMA(m);
 }

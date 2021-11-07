@@ -1,7 +1,7 @@
 #ifndef __SLEPC_NMA_H__
 #define __SLEPC_NMA_H__
 
-#include "PETScHessianBase.h"
+#include "PETScCalculatorBase.h"
 #include <slepceps.h>
 
 /*
@@ -11,62 +11,18 @@
  * This class is the workhorse of the elasticity module. Any calculations of interest 
  * pertaining to normal mode analysis is contained within this class. 
  */
-class PYBIND11_EXPORT SLEPcNMA
+class PYBIND11_EXPORT SLEPcNMA : public PETScCalculatorBase
 {
     protected:
-
-        std::shared_ptr< PETScHessianBase > m_hessian; //<! pointer to the Hessian base class.
-        
-        std::map<std::string, std::shared_ptr< PETScVectorFieldBase > > m_vectorfields; //<! list of vector-field observables to compute
-        std::map<std::string, std::shared_ptr< GlobalPropertyBase > > m_observables; //<! list of global observables to compute
-        
         int nconv; //<! number of converged eigenmodes 
         double m_maxeigval; //<! maximum detected eigenvalue 
         double m_mineigval; //<! minimum detected eigenvalue
         
-        //PETSc error code 
-        PetscErrorCode ierr; 
-        
-        MatNullSpace nullspace; //!< a class for storing the null space of the Hessian, i.e., spanned by the zero modes.
-        Vec* transmodes; 
     public:
         SLEPcNMA(std::shared_ptr< PETScHessianBase > hessian);
         virtual ~SLEPcNMA()
         {
-            int Dim = m_hessian->m_sysdata->simbox->dim;
-            for(int i = 0; i < Dim; ++i)
-            {
-                VecDestroy(&transmodes[i]);
-            }
-            PetscFree(transmodes);
-            MatNullSpaceDestroy(&nullspace);
         };
-        void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
-        
-        /* Set the stored Hessian with another Hessian. Args:
-         * hessian: a Hessian class 
-         */
-        void setHessian(std::shared_ptr< PETScHessianBase > hessian)
-        {
-            m_hessian = hessian;
-            MatSetNullSpace(m_hessian->hessian,nullspace);
-        }
-
-        /* Add a new vector field observable to a list of existing ones. Args:
-         * obs: the new vector field observable
-         */
-        virtual void addVectorField(const std::shared_ptr< PETScVectorFieldBase >& obs)
-        {
-            m_vectorfields.insert(std::pair<std::string, std::shared_ptr< PETScVectorFieldBase > >(obs->name, obs));
-        }
-        
-        /* Add a new global observable/property toa  list of existing ones. Args:
-         * obs: the new global observable
-         */
-        virtual void addGlobalProperty(const std::shared_ptr< GlobalPropertyBase >& obs)
-        {
-            m_observables.insert(std::pair<std::string, std::shared_ptr< GlobalPropertyBase > >(obs->name, obs));
-        }
        
         /* Obtain all possible eigenpairs, i.e., eigenvectors +eigenvalues. 
          * This is the routine that gets called whenever before we compute
@@ -146,65 +102,8 @@ class PYBIND11_EXPORT SLEPcNMA
  * hessian: the input Hessian matrix
  */
 SLEPcNMA::SLEPcNMA( std::shared_ptr< PETScHessianBase > hessian) 
-    : m_hessian(hessian), nconv(0), m_maxeigval(std::numeric_limits<double>::max()), m_mineigval(-std::numeric_limits<double>::max())
+    : PETScCalculatorBase(hessian), nconv(0), m_maxeigval(std::numeric_limits<double>::max()), m_mineigval(-std::numeric_limits<double>::max())
 {
-    int Dim = m_hessian->m_sysdata->simbox->dim;
-    //Add any relevant command-line options for the PETSc linear algebra solver.
-    ierr = PetscOptionsInsertString(NULL,m_hessian->m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(m_hessian->hessian, &Istart, &Iend);
-    m_hessian->m_manager->printPetscNotice(5,"Begin Assembling the null space of PETSc matrix\n");
-    PetscMalloc1(Dim,&transmodes);    
-    for (int i = 0; i < Dim; ++i)
-    {
-        MatCreateVecs(m_hessian->hessian,NULL,&transmodes[i]);
-    }
-    
-    for (PetscInt i = Istart; i < Iend; ++i) 
-    {
-        //Instantiate the iterator at a particular position
-        auto p_i = m_hessian->m_sysdata->particles.begin()+(int)(i/2);
-        PetscInt id_i = abr::get<abr::id>(*p_i);
-        setNullSpaceBasis(id_i, Istart, Iend, i);
-    }
-    
-    m_hessian->m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
-    for (int i = 0; i < Dim; ++i)
-    {
-        VecAssemblyBegin(transmodes[i]);
-        VecAssemblyEnd(transmodes[i]);
-        VecNormalize(transmodes[i],NULL);
-    }
-    MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,Dim,transmodes,&nullspace);
-    MatSetNullSpace(m_hessian->hessian,nullspace);
-};
-
-void SLEPcNMA::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
-{
-    int Dim = m_hessian->m_sysdata->simbox->dim;
-    if (Dim*id_i == real_id)
-    { 
-        VecSetValue(transmodes[0],Dim*id_i,1, INSERT_VALUES);
-        VecSetValue(transmodes[1],Dim*id_i,0, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(transmodes[Dim-1],Dim*id_i,0, INSERT_VALUES);
-    }
-    //y-component of the row
-    else if (Dim*id_i+1 == real_id)
-    {
-        VecSetValue(transmodes[0],Dim*id_i+1,0, INSERT_VALUES);
-        VecSetValue(transmodes[1],Dim*id_i+1,1, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(transmodes[Dim-1],Dim*id_i+1,0, INSERT_VALUES);
-    }
-    
-    //z-component of the row
-    else if (Dim*id_i+2 == real_id && Dim == 3)
-    {
-        VecSetValue(transmodes[0],Dim*id_i+2,0, INSERT_VALUES);
-        VecSetValue(transmodes[1],Dim*id_i+2,0, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(transmodes[Dim-1],Dim*id_i+2,1, INSERT_VALUES);
-    }
 };
 
 /* Get the maximum eigenvalue of the system

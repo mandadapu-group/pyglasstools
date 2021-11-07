@@ -18,11 +18,6 @@ def initialize_field(names,dim):
                 list_obs[s] = _elasticitypetsc.PETScVectorField2D(s, False,comm)
             elif dim == 3:
                 list_obs[s] = _elasticitypetsc.PETScVectorField3D(s, False,comm)
-    if any("loclandscape" in s for s in names):
-        if dim == 2:
-            list_obs["loclandscape"] = _elasticitypetsc.PETScVectorField2D("loclandscape", False,comm)
-        elif dim == 3:
-            list_obs["loclandscape"] = _elasticitypetsc.PETScVectorField3D("loclandscape", False,comm)
     return list_obs
 
 def initialize_global(names,dim):
@@ -46,7 +41,7 @@ class linrescalculator(object):
     global solvers_list
 
     def __init__(self):
-        self.pyhessian = hessian("petsc");
+        self.pyhessian = hessian("petsc","normal");
         self.cppcalculator = _elasticitypetsc.PETScLinearResponse(self.pyhessian.cpphessian)
         solvers_list.append(self)
 
@@ -54,14 +49,18 @@ class linrescalculator(object):
         for name in observables:
             if ("displacement" in name):
                 self.cppcalculator.addVectorField(observables[name])
+            if ("nonaffinetensor" in name):
+                self.cppcalculator.addGlobalProperty(observables[name])
     
     def run(self):
-        self.cppcalculator.solveLinearResponseProblem()
+        self.cppcalculator.calculateNonAffineTensor()
     
     def update(self,frame_num):
         self.pyhessian.update(frame_num)
         self.cppcalculator.setHessian(self.pyhessian.cpphessian)
-        
+        self.cppcalculator.destroyObjects() 
+        self.cppcalculator.assembleObjects() 
+
 class eigensolver(object):
     global solvers_list
 

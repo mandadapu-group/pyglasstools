@@ -11,7 +11,6 @@
  * This class is the workhorse of the elasticity module. Any calculations of interest 
  * pertaining to normal mode analysis is contained within this class. 
  */
-template<int Dim >
 class PYBIND11_EXPORT SLEPcNMA
 {
     protected:
@@ -28,17 +27,19 @@ class PYBIND11_EXPORT SLEPcNMA
         //PETSc error code 
         PetscErrorCode ierr; 
         
-        MatNullSpace constant; //!< a class for storing the null space of the Hessian, i.e., spanned by the zero modes.
-        Vec nullspace[Dim]; 
+        MatNullSpace nullspace; //!< a class for storing the null space of the Hessian, i.e., spanned by the zero modes.
+        Vec* transmodes; 
     public:
         SLEPcNMA(std::shared_ptr< PETScHessianBase > hessian);
         virtual ~SLEPcNMA()
         {
+            int Dim = m_hessian->m_sysdata->simbox->dim;
             for(int i = 0; i < Dim; ++i)
             {
-                VecDestroy(&nullspace[i]);
+                VecDestroy(&transmodes[i]);
             }
-            MatNullSpaceDestroy(&constant);
+            PetscFree(transmodes);
+            MatNullSpaceDestroy(&nullspace);
         };
         void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
         
@@ -48,7 +49,7 @@ class PYBIND11_EXPORT SLEPcNMA
         void setHessian(std::shared_ptr< PETScHessianBase > hessian)
         {
             m_hessian = hessian;
-            MatSetNullSpace(m_hessian->hessian,constant);
+            MatSetNullSpace(m_hessian->hessian,nullspace);
         }
 
         /* Add a new vector field observable to a list of existing ones. Args:
@@ -144,18 +145,18 @@ class PYBIND11_EXPORT SLEPcNMA
 /* Parametrized constructor. Args:
  * hessian: the input Hessian matrix
  */
-template< int Dim >
-SLEPcNMA<Dim>::SLEPcNMA( std::shared_ptr< PETScHessianBase > hessian) 
+SLEPcNMA::SLEPcNMA( std::shared_ptr< PETScHessianBase > hessian) 
     : m_hessian(hessian), nconv(0), m_maxeigval(std::numeric_limits<double>::max()), m_mineigval(-std::numeric_limits<double>::max())
 {
+    int Dim = m_hessian->m_sysdata->simbox->dim;
     //Add any relevant command-line options for the PETSc linear algebra solver.
     ierr = PetscOptionsInsertString(NULL,m_hessian->m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
-    
     PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(m_hessian->hessian, &Istart, &Iend);
     m_hessian->m_manager->printPetscNotice(5,"Begin Assembling the null space of PETSc matrix\n");
+    PetscMalloc1(Dim,&transmodes);    
     for (int i = 0; i < Dim; ++i)
     {
-        MatCreateVecs(m_hessian->hessian,NULL,&nullspace[i]);
+        MatCreateVecs(m_hessian->hessian,NULL,&transmodes[i]);
     }
     
     for (PetscInt i = Istart; i < Iend; ++i) 
@@ -169,48 +170,48 @@ SLEPcNMA<Dim>::SLEPcNMA( std::shared_ptr< PETScHessianBase > hessian)
     m_hessian->m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
     for (int i = 0; i < Dim; ++i)
     {
-        VecAssemblyBegin(nullspace[i]);
-        VecAssemblyEnd(nullspace[i]);
-        VecNormalize(nullspace[i],NULL);
+        VecAssemblyBegin(transmodes[i]);
+        VecAssemblyEnd(transmodes[i]);
+        VecNormalize(transmodes[i],NULL);
     }
-    MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,Dim,nullspace,&constant);
-    MatSetNullSpace(m_hessian->hessian,constant);
+    MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,Dim,transmodes,&nullspace);
+    MatSetNullSpace(m_hessian->hessian,nullspace);
 };
 
-template< int Dim >
-void SLEPcNMA<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
+void SLEPcNMA::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
 {
+    int Dim = m_hessian->m_sysdata->simbox->dim;
     if (Dim*id_i == real_id)
     { 
-        VecSetValue(nullspace[0],Dim*id_i,1, INSERT_VALUES);
-        VecSetValue(nullspace[1],Dim*id_i,0, INSERT_VALUES);
+        VecSetValue(transmodes[0],Dim*id_i,1, INSERT_VALUES);
+        VecSetValue(transmodes[1],Dim*id_i,0, INSERT_VALUES);
         if (Dim == 3)
-            VecSetValue(nullspace[Dim-1],Dim*id_i,0, INSERT_VALUES);
+            VecSetValue(transmodes[Dim-1],Dim*id_i,0, INSERT_VALUES);
     }
     //y-component of the row
     else if (Dim*id_i+1 == real_id)
     {
-        VecSetValue(nullspace[0],Dim*id_i+1,0, INSERT_VALUES);
-        VecSetValue(nullspace[1],Dim*id_i+1,1, INSERT_VALUES);
+        VecSetValue(transmodes[0],Dim*id_i+1,0, INSERT_VALUES);
+        VecSetValue(transmodes[1],Dim*id_i+1,1, INSERT_VALUES);
         if (Dim == 3)
-            VecSetValue(nullspace[Dim-1],Dim*id_i+1,0, INSERT_VALUES);
+            VecSetValue(transmodes[Dim-1],Dim*id_i+1,0, INSERT_VALUES);
     }
     
     //z-component of the row
     else if (Dim*id_i+2 == real_id && Dim == 3)
     {
-        VecSetValue(nullspace[0],Dim*id_i+2,0, INSERT_VALUES);
-        VecSetValue(nullspace[1],Dim*id_i+2,0, INSERT_VALUES);
+        VecSetValue(transmodes[0],Dim*id_i+2,0, INSERT_VALUES);
+        VecSetValue(transmodes[1],Dim*id_i+2,0, INSERT_VALUES);
         if (Dim == 3)
-            VecSetValue(nullspace[Dim-1],Dim*id_i+2,1, INSERT_VALUES);
+            VecSetValue(transmodes[Dim-1],Dim*id_i+2,1, INSERT_VALUES);
     }
 };
 
 /* Get the maximum eigenvalue of the system
  */
-template< int Dim >
-void SLEPcNMA<Dim>::getMinEigenvalue(std::string package)
+void SLEPcNMA::getMinEigenvalue(std::string package)
 {
+    int Dim = m_hessian->m_sysdata->simbox->dim;
     EPS eps; //<! the EPS object, holding all normal-mode analysis routines
     ST st; //<! the ST object, used for applying spectral transformation to the Hessian matrix
     KSP ksp; //<! the KSP object, holding basic linear algebra routines
@@ -227,7 +228,7 @@ void SLEPcNMA<Dim>::getMinEigenvalue(std::string package)
     EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
     ierr = EPSSetFromOptions(eps);CHKERRABORT(PETSC_COMM_WORLD,ierr);
     EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL);
-    EPSSetDeflationSpace(eps,Dim,nullspace); 
+    EPSSetDeflationSpace(eps,Dim,transmodes); 
     
     //Additional setup for ST, KSP, and PC objects 
     ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -280,9 +281,9 @@ void SLEPcNMA<Dim>::getMinEigenvalue(std::string package)
 
 /* Get the maximum eigenvalue of the system
  */
-template< int Dim >
-void SLEPcNMA<Dim>::getMaxEigenvalue(std::string package)
+void SLEPcNMA::getMaxEigenvalue(std::string package)
 {
+    int Dim = m_hessian->m_sysdata->simbox->dim;
     EPS eps; //<! the EPS object, holding all normal-mode analysis routines
     ST st; //<! the ST object, used for applying spectral transformation to the Hessian matrix
     KSP ksp; //<! the KSP object, holding basic linear algebra routines
@@ -298,7 +299,7 @@ void SLEPcNMA<Dim>::getMaxEigenvalue(std::string package)
     //Maximum eigenvalue is efficiently computed using default setting of PETSc. 
     EPSSetDimensions(eps,1,PETSC_DEFAULT, PETSC_DEFAULT);
     EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL);
-    EPSSetDeflationSpace(eps,Dim,nullspace); 
+    EPSSetDeflationSpace(eps,Dim,transmodes); 
     
     //Additional setup for ST, KSP, and PC objects 
     ierr = EPSGetST(eps,&st);CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -353,8 +354,7 @@ void SLEPcNMA<Dim>::getMaxEigenvalue(std::string package)
 /* Obtain subset of eigenpairs, i.e., eigenvectors +eigenvalues. Args:
  * package: name of linear algebra package to use as a backend.
  */ 
-template< int Dim >
-void SLEPcNMA<Dim>::getEigenPairs(std::string package)
+void SLEPcNMA::getEigenPairs(std::string package)
 {
     // Set solver parameters at runtime
     EPS eps;
@@ -406,8 +406,7 @@ void SLEPcNMA<Dim>::getEigenPairs(std::string package)
  * the non-affine part of the elasticity tensor calculated. Args:
  * package: name of linear algebra package to use as a backend. 
  */ 
-template< int Dim >
-void SLEPcNMA<Dim>::getAllEigenPairs(std::string package)
+void SLEPcNMA::getAllEigenPairs(std::string package)
 {
     if (m_hessian->areDiagonalsNonZero())
     {
@@ -533,15 +532,14 @@ void SLEPcNMA<Dim>::getAllEigenPairs(std::string package)
 /*
  * Helper function to exprot SLEPcNMA to Python
  */
-template< class T >
-void export_SLEPcNMA(py::module& m, const std::string& name)
+void export_SLEPcNMA(py::module& m)
 {
-    py::class_<T, std::shared_ptr<T> >(m,name.c_str())
+    py::class_<SLEPcNMA, std::shared_ptr<SLEPcNMA> >(m, "SLEPcNMA")
     .def(py::init< std::shared_ptr< PETScHessianBase > >())
-    .def("setHessian", &T::setHessian)
-    .def("addVectorField", &T::addVectorField)
-    .def("addGlobalProperty", &T::addGlobalProperty)
-    .def("getAllEigenPairs", &T::getAllEigenPairs)
+    .def("setHessian", &SLEPcNMA::setHessian)
+    .def("addVectorField", &SLEPcNMA::addVectorField)
+    .def("addGlobalProperty", &SLEPcNMA::addGlobalProperty)
+    .def("getAllEigenPairs", &SLEPcNMA::getAllEigenPairs)
     ;
 };
 

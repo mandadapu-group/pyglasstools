@@ -5,61 +5,86 @@
 
 /*
  * Derived template class for constructing Hessian using PETSc's matrices and arrays.
- * with the specific applications of performing normal mode analysis using PETSc
+ * with the specific applications of performing normal mode analysis using SLEPc
  * and computing non-affine elasticity tensors.
- *
- * Template argument Dim is to denote physical dimension of the system, e.g., 2D or 3D. The rationale
- * of making Dim as a template argument is to avoid working with pointers of PETSc vectors and arrays
- * that depend on physical dimensionality of the system.
  */
-template<int Dim >
 class PETScHessian : public PETScHessianBase
 {
     public:
-        MatNullSpace constant; //!< a class for storing the null space of the Hessian, i.e., spanned by the zero modes.
-        Vec nullvec[Dim]; //!< an array of PETSc vectors, with each being the zero mode of the Hessian.
-
+        std::string m_hessian_mode;
         PETScHessian(   std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                        std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm);
+                        std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm, std::string hessian_mode);
         
         /* Default destructor calls helper function */
         ~PETScHessian()
         {
             destroyObjects();
         }        
-        
         /* 
          * Helper function to be used by the class destructor. 
          * It calls in destructor routines from PETSc
          */ 
         void destroyObjects()
         {
-            MatNullSpaceDestroy(&constant);
-            for(int i = 0; i < Dim; ++i)
-            {
-                VecDestroy(&nullvec[i]);
-            }
+            m_manager->printPetscNotice(5,"Destroying PETSc Hessian Object \n");
             MatDestroy(&hessian);
         };
         
         void assembleObjects();
         
+        /*  Routine for multiplying an Eigen vector with the Hessian
+         *  to produce an output in terms of an Eigen vector
+         *  Used when multiplying vectors from Python's side
+         */
+        Eigen::VectorXd multiply(const Eigen::VectorXd& vec)
+        {
+            //Initialize empty PETSc Vectors 
+            Vec vec_petsc, out_petsc;
+            
+            //Copy input vector to an empty PETSc Vector
+            MatCreateVecs(hessian,NULL,&vec_petsc);
+            PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
+            for(int i = Istart; i < Iend; ++i)
+            {
+                VecSetValue(vec_petsc,i,vec[i], INSERT_VALUES);
+
+            }
+            VecAssemblyBegin(vec_petsc);
+            VecAssemblyEnd(vec_petsc);
+           
+            //Multiply input vector with Hessian 
+            MatCreateVecs(hessian,NULL,&out_petsc);
+            VecAssemblyBegin(out_petsc);
+            VecAssemblyEnd(out_petsc);
+            MatMult(hessian,vec_petsc,out_petsc);
+            VecDestroy(&vec_petsc);
+           
+            //Transfer the output to a new Eigen vector 
+            Eigen::VectorXd out_eigen = Eigen::VectorXd::Zero(vec.size());
+            double val;
+            for(int i = Istart; i < Iend; ++i)
+            {
+                VecGetValues(out_petsc,1,&i, &val);
+                out_eigen[i] = val;
+            }
+            VecDestroy(&out_petsc);
+            return out_eigen;
+        }  
         /*
          * Helper function to set the component of the Hessian matrix
          */ 
         void setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt real_id, Eigen::Matrix3d offdiag_ij);
         
         /*
-         * Helper function to set the null space of the Hessian matrix.
-         */
-        void setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id);
+         * Helper function to set the component of the mismatch force vector, denoted as Xi in many papers.
+         */ 
+        void setMisforceVectorValues(PetscInt id_i,PetscInt real_id,double factor,Eigen::Vector3d rij, Eigen::Vector3d nij);
 };
 
 
-template< int Dim >
-PETScHessian<Dim>::PETScHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
-                                std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm)
-    : PETScHessianBase(sysdata, potential, manager, comm)
+PETScHessian::PETScHessian(std::shared_ptr< ParticleSystem > sysdata, std::shared_ptr< PairPotential > potential, 
+                                std::shared_ptr< PETScManager > manager, std::shared_ptr< MPI::ParallelCommunicator > comm, std::string hessian_mode)
+    : PETScHessianBase(sysdata, potential, manager, comm), m_hessian_mode(hessian_mode)
 {
     assembleObjects();
 };
@@ -68,8 +93,7 @@ PETScHessian<Dim>::PETScHessian(std::shared_ptr< ParticleSystem > sysdata, std::
  * Helper function for assembling the Hessian matrix and the mismatch force vector.
  * This is where both quantities are computed from the particle system data for the first time!
  */    
-template< int Dim >
-void PETScHessian<Dim>::assembleObjects()
+void PETScHessian::assembleObjects()
 {
         //Add command line options 
         ierr = PetscOptionsInsertString(NULL,m_manager->cmd_line_options.c_str());CHKERRABORT(PETSC_COMM_WORLD,ierr);
@@ -77,29 +101,21 @@ void PETScHessian<Dim>::assembleObjects()
         diagonalsarenonzero = 0;
         
         //Compute the maximum cut-off radius. This is set by either the force cut-off radius or the diameter
+        int Dim = m_sysdata->simbox->dim;
         double maxforce_rcut = m_potential->scaled_rcut;
         double maxdiameter = *std::max_element( std::begin(abr::get<diameter>(m_sysdata->particles)), 
                                                 std::end(abr::get<diameter>(m_sysdata->particles)) );
         maxforce_rcut *= maxdiameter;
         max_rcut = std::max(maxforce_rcut,maxdiameter); 
         
-        /*
-         * Constructing the Hessian.
-         * This comes with an initial setup routines for preparing a parallel PETSc matrix, followed by two for-loops. 
-         */
-        
         hessian_length = (unsigned int)Dim*m_sysdata->particles.size();
-        
         //Construct the PETSc hessian matrix, but don't assemble yet!
         MatCreate(PETSC_COMM_WORLD,&hessian);
         MatSetSizes(hessian,PETSC_DETERMINE,PETSC_DETERMINE,hessian_length,hessian_length);
         MatSetType(hessian,MATAIJ);
         MatSetUp(hessian);
-
-        //Construct the PETSc mismatch force vector, but don't assemble yet
         
         PetscInt Istart; PetscInt Iend; MatGetOwnershipRange(hessian, &Istart, &Iend);
-        
         m_manager->printPetscNotice(5,"Assembling PETSc Sparse Matrix \n");
         
         std::set< int > particleid_nonneigh;
@@ -135,11 +151,33 @@ void PETScHessian<Dim>::assembleObjects()
                     {
                         //Note PairForceDivR is -phi_r(r)/r, hence the negative sign is already encoded inside factor
                         //double factor = m_potential->getPairForceDivR(rij, di, dj);
-                        double factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
-                        Eigen::Matrix3d offdiag_ij = -factor*nij*nij.transpose()
-                                                     +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
+                        //double factor = m_potential->getBondStiffness(rij, di, dj);//+m_potential->getPairForceDivR(rij, di, dj);
                         
+                        Eigen::Matrix3d offdiag_ij;
+                        double factor;
+                        //double smallfactor = m_manager->small_factor;
+                        if (this->m_hessian_mode == "normal")
+                        {
+                            //factor = m_potential->getBondStiffness(rij, di, dj)+smallfactor*m_potential->getPairForceDivR(rij, di, dj);
+                            //offdiag_ij = -factor*nij*nij.transpose()
+                                                         //+smallfactor*Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
+                            factor = m_potential->getBondStiffness(rij, di, dj)+m_potential->getPairForceDivR(rij, di, dj);
+                            offdiag_ij = -factor*nij*nij.transpose()
+                                                         +Eigen::Matrix3d::Identity()*m_potential->getPairForceDivR(rij, di, dj);
+                        }
+                        else if (this->m_hessian_mode == "nostress")
+                        {
+                            factor = m_potential->getBondStiffness(rij, di, dj);
+                            offdiag_ij = -factor*nij*nij.transpose();
+                        }
+                        else if (this->m_hessian_mode == "purestress")
+                        {
+                            factor = m_potential->getPairForceDivR(rij, di, dj);
+                            offdiag_ij = -factor*nij*nij.transpose()+Eigen::Matrix3d::Identity()*factor;
+                        }
                         setHessianValues(id_i, id_j, i, offdiag_ij);
+                        
+                        //setMisforceVectorValues(id_i,i,factor,rij,nij);
                         
                         //We keep increment counter for every neighbor with non-zero interactions
                         neighbors_count += 1;
@@ -148,57 +186,25 @@ void PETScHessian<Dim>::assembleObjects()
             }
             if (neighbors_count < 1)
             {
+                std::stringstream string_stream;
                 //Somehow a particle has no neighbors within the interaction cut-off. Add this to the list
-                std::stringstream string_stream; 
                 string_stream << "Found particle with no neighbors!" << " \n" << std::string("Particle ID: ")+std::to_string((int)(i/Dim)) << std::endl;
-                m_manager->printPetscNotice(7, string_stream.str()); 
+                m_manager->printPetscNotice(7,string_stream.str());
                 particleid_nonneigh.insert((int)(i/Dim));
                 diagonalsarenonzero = 1;
             }
         }
-
         //Now it's time to gather all the results detected
         std::vector< int > listdiagonalsarenonzero;
         m_comm->all_gather_v(diagonalsarenonzero, listdiagonalsarenonzero);
         diagonalsarenonzero = std::accumulate(listdiagonalsarenonzero.begin(), listdiagonalsarenonzero.end(), 0);
         
-        if (diagonalsarenonzero < 1)
+        //Assembling all defined PETSc matrices
+        MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
+        
+        if (diagonalsarenonzero > 0)
         {
-            m_manager->printPetscNotice(5,"Begin Assembling the null space of PETSc matrix\n");
-            
-            for (int i = 0; i < Dim; ++i)
-            {
-                MatCreateVecs(hessian,NULL,&nullvec[i]);
-            }
-            
-            for (PetscInt i = Istart; i < Iend; ++i) 
-            {
-                //Instantiate the iterator at a particular position
-                auto p_i = m_sysdata->particles.begin()+(int)(i/Dim);
-                PetscInt id_i = abr::get<abr::id>(*p_i);
-                setNullSpaceBasis(id_i, Istart, Iend, i);
-            }
-            
-            m_manager->printPetscNotice(5,"Assemble the null space of PETSc matrix\n");
-            for (int i = 0; i < Dim; ++i)
-            {
-                VecAssemblyBegin(nullvec[i]);
-                VecAssemblyEnd(nullvec[i]);
-                VecNormalize(nullvec[i],NULL);
-            }
-            //Assembling all defined PETSc matrices
-            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-            
-            MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_FALSE,Dim,nullvec,&constant);
-            MatSetNullSpace(hessian,constant);
-        }
-        else
-        {
-            //Assembling all defined PETSc matrices
-            MatAssemblyBegin(hessian,MAT_FINAL_ASSEMBLY);
-            MatAssemblyEnd(hessian,MAT_FINAL_ASSEMBLY);
-            
             m_manager->printPetscNotice(0,"[WARNING] Found particles with no neighbors. Any normal mode analysis will be immediately aborted \n");
             for (auto pid : particleid_nonneigh)
             {
@@ -214,9 +220,9 @@ void PETScHessian<Dim>::assembleObjects()
  * real_id: actual index on the matrix
  * offdiag_ij: the a Dim x Dim matrix representing off-diagonal component of the Hessian matrix. 
  */ 
-template< int Dim >
-void PETScHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt real_id,Eigen::Matrix3d offdiag_ij)
+void PETScHessian::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt real_id,Eigen::Matrix3d offdiag_ij)
 {
+    int Dim = m_sysdata->simbox->dim;
     //Each "set value" must be carefully considered because we don't know the 
     //parallel layout of the matrix beforehand !! But we are allowerd to fill them row-by-row
     //row must also consider indexing at particular 
@@ -275,53 +281,18 @@ void PETScHessian<Dim>::setHessianValues(PetscInt id_i, PetscInt id_j, PetscInt 
 };
 
 /*
- * Helper function to set the null space of the Hessian matrix. Args:
- * id_i: the i-th particle index
- * Istart: the starting index of the actual row owned by the processor
- * Iend: the ending index of the actual row owened by the processor
- * real_id: the current index on the Hessian matrix
- */
-template< int Dim >
-void PETScHessian<Dim>::setNullSpaceBasis(PetscInt id_i, PetscInt Istart, PetscInt Iend, PetscInt real_id)
-{
-    if (Dim*id_i == real_id)
-    { 
-        VecSetValue(nullvec[0],Dim*id_i,1, INSERT_VALUES);
-        VecSetValue(nullvec[1],Dim*id_i,0, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(nullvec[Dim-1],Dim*id_i,0, INSERT_VALUES);
-    }
-    //y-component of the row
-    else if (Dim*id_i+1 == real_id)
-    {
-        VecSetValue(nullvec[0],Dim*id_i+1,0, INSERT_VALUES);
-        VecSetValue(nullvec[1],Dim*id_i+1,1, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(nullvec[Dim-1],Dim*id_i+1,0, INSERT_VALUES);
-    }
-    
-    //z-component of the row
-    else if (Dim*id_i+2 == real_id && Dim == 3)
-    {
-        VecSetValue(nullvec[0],Dim*id_i+2,0, INSERT_VALUES);
-        VecSetValue(nullvec[1],Dim*id_i+2,0, INSERT_VALUES);
-        if (Dim == 3)
-            VecSetValue(nullvec[Dim-1],Dim*id_i+2,1, INSERT_VALUES);
-    }
-};
-
-/*
  * Helper function to export PETScHessian to Python
  */
-template< class T >
-void export_PETScHessian(py::module& m, const std::string& name)
+void export_PETScHessian(py::module& m)
 {
-    py::class_<T, PETScHessianBase, std::shared_ptr<T> >(m,name.c_str())
-    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::ParallelCommunicator > >())
-    .def("destroyObjects", &T::destroyObjects)
-    .def("assembleObjects", &T::assembleObjects)
-    .def("setSystemData", &T::setSystemData)
-    .def("areDiagonalsNonZero", &T::areDiagonalsNonZero)
+    py::class_<PETScHessian, PETScHessianBase, std::shared_ptr<PETScHessian> >(m,"PETScHessian")
+    .def(py::init< std::shared_ptr< ParticleSystem >, std::shared_ptr< PairPotential >, std::shared_ptr< PETScManager > , std::shared_ptr< MPI::ParallelCommunicator >, std::string >())
+    .def("destroyObjects", &PETScHessian::destroyObjects)
+    .def("assembleObjects", &PETScHessian::assembleObjects)
+    .def("setSystemData", &PETScHessian::setSystemData)
+    .def("multiply",&PETScHessian::multiply)
+    .def("areDiagonalsNonZero", &PETScHessian::areDiagonalsNonZero)
+    .def_readwrite("m_hessian_mode",&PETScHessian::m_hessian_mode)
     ;
 };
 
